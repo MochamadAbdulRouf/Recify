@@ -19,6 +19,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   final List<String> _periodTabs = ['Harian', 'Mingguan', 'Bulanan'];
   final List<String> _dayLabels = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+  final List<String> _dayFullNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
   @override
   Widget build(BuildContext context) {
@@ -56,18 +57,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     // Determine max spending day for bar chart scaling
     double maxDaySpend = 0.0;
-    int highestSpendDayIndex = 2; // Default Wednesday
+    int highestSpendDayIndex = (now.weekday - 1).clamp(0, 6);
     for (int i = 0; i < daySpendings.length; i++) {
       if (daySpendings[i] > maxDaySpend) {
         maxDaySpend = daySpendings[i];
         highestSpendDayIndex = i;
       }
     }
-    if (maxDaySpend == 0.0) {
+    if (maxDaySpend <= 0) {
       maxDaySpend = 100000.0; // Baseline scale
     }
 
-    final activeTooltipIndex = _selectedBarIndex ?? highestSpendDayIndex;
+    final activeIndex = _selectedBarIndex ?? highestSpendDayIndex;
+    final activeSpendAmount = daySpendings[activeIndex];
+    final activeDayName = _dayFullNames[activeIndex];
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
@@ -143,159 +146,227 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
             const SizedBox(height: 20),
 
-            // 2. Total Spending & Interactive Bar Chart Hero Card (Stitch Design)
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.bgSurface,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.borderSubtle),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x40000000),
-                    blurRadius: 18,
-                    offset: Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Column(
+            // 2. Stitch Total Spending & Fluid Bar Chart Card (Zero Overflow)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.bgSurface,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.borderSubtle),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x40000000),
+                      blurRadius: 20,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    // Top-right subtle sapphire ambient glow (from Stitch design)
+                    Positioned(
+                      top: -30,
+                      right: -30,
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.primary.withValues(alpha: 0.12),
+                        ),
+                      ),
+                    ),
+
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Total Pengeluaran',
-                            style: AppTypography.bodyReg.copyWith(color: AppColors.textSecondary),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            CurrencyFormatter.formatRupiah(totalExpense),
-                            style: AppTypography.displayLg.copyWith(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      // Trend indicator pill
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.trending_up_rounded, color: AppColors.error, size: 14),
-                            const SizedBox(width: 4),
-                            Text(
-                              '12%',
-                              style: AppTypography.caption.copyWith(
-                                color: AppColors.error,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // Interactive Bar Chart (7 Days of Week matching Stitch)
-                  SizedBox(
-                    height: 170,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: List.generate(7, (i) {
-                        final spend = daySpendings[i];
-                        final ratio = (spend / maxDaySpend).clamp(0.12, 1.0);
-                        final isHighlighted = i == activeTooltipIndex;
-
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedBarIndex = i;
-                              });
-                            },
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                // Floating Tooltip above active bar
-                                if (isHighlighted)
-                                  Container(
-                                    margin: const EdgeInsets.only(bottom: 6),
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary,
-                                      borderRadius: BorderRadius.circular(6),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppColors.primary.withValues(alpha: 0.4),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
+                          // Spending Header & Trend
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Total Pengeluaran',
+                                    style: AppTypography.bodyReg.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 13,
                                     ),
-                                    child: Text(
-                                      spend > 0 ? CurrencyFormatter.formatRupiah(spend) : 'Rp 0',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    CurrencyFormatter.formatRupiah(totalExpense),
+                                    style: AppTypography.displayLg.copyWith(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -0.5,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              // Trend pill
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.trending_up_rounded, color: AppColors.error, size: 14),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '12%',
+                                      style: AppTypography.caption.copyWith(
+                                        color: AppColors.error,
                                         fontWeight: FontWeight.w700,
+                                        fontSize: 11,
                                       ),
                                     ),
-                                  )
-                                else
-                                  const SizedBox(height: 22),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
 
-                                // Bar Element
+                          const SizedBox(height: 20),
+
+                          // Active Selected Day Inspector Pill (Stitch style)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainerHigh.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.borderSubtle),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
                                 Container(
-                                  width: 24,
-                                  height: 100 * ratio,
-                                  decoration: BoxDecoration(
-                                    color: isHighlighted ? AppColors.primary : AppColors.surfaceContainerHigh,
-                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                                    boxShadow: isHighlighted
-                                        ? [
-                                            BoxShadow(
-                                              color: AppColors.primary.withValues(alpha: 0.45),
-                                              blurRadius: 14,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ]
-                                        : null,
+                                  width: 7,
+                                  height: 7,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
                                   ),
                                 ),
-
-                                const SizedBox(height: 8),
-
-                                // Day Label
+                                const SizedBox(width: 8),
                                 Text(
-                                  _dayLabels[i],
+                                  '$activeDayName: ',
                                   style: AppTypography.caption.copyWith(
-                                    color: isHighlighted ? AppColors.primaryLight : AppColors.textSecondary,
-                                    fontWeight: isHighlighted ? FontWeight.w700 : FontWeight.w500,
-                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  activeSpendAmount > 0
+                                      ? CurrencyFormatter.formatRupiah(activeSpendAmount)
+                                      : 'Tidak ada pengeluaran',
+                                  style: AppTypography.caption.copyWith(
+                                    color: activeSpendAmount > 0 ? AppColors.primaryLight : AppColors.textSecondary,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      }),
+
+                          const SizedBox(height: 16),
+
+                          // Fluid Modern Bar Chart Canvas (Zero Overflow Guarantee)
+                          SizedBox(
+                            height: 130,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: List.generate(7, (i) {
+                                final spend = daySpendings[i];
+                                final heightFactor = (spend / maxDaySpend).clamp(0.10, 1.0);
+                                final isHighlighted = i == activeIndex;
+
+                                return Expanded(
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedBarIndex = i;
+                                      });
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        children: [
+                                          // Bar Track & Indicator
+                                          Expanded(
+                                            child: Align(
+                                              alignment: Alignment.bottomCenter,
+                                              child: AnimatedFractionallySizedBox(
+                                                duration: const Duration(milliseconds: 300),
+                                                curve: Curves.easeOutCubic,
+                                                heightFactor: heightFactor,
+                                                widthFactor: 1.0,
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    gradient: isHighlighted
+                                                        ? const LinearGradient(
+                                                            begin: Alignment.topCenter,
+                                                            end: Alignment.bottomCenter,
+                                                            colors: [
+                                                              Color(0xFF5B8EFF),
+                                                              AppColors.primary,
+                                                            ],
+                                                          )
+                                                        : null,
+                                                    color: isHighlighted ? null : const Color(0xFF202436),
+                                                    borderRadius: const BorderRadius.vertical(
+                                                      top: Radius.circular(6),
+                                                    ),
+                                                    boxShadow: isHighlighted
+                                                        ? [
+                                                            BoxShadow(
+                                                              color: AppColors.primary.withValues(alpha: 0.4),
+                                                              blurRadius: 10,
+                                                              offset: const Offset(0, 2),
+                                                            ),
+                                                          ]
+                                                        : null,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 8),
+
+                                          // Day Label
+                                          Text(
+                                            _dayLabels[i],
+                                            style: AppTypography.caption.copyWith(
+                                              color: isHighlighted ? AppColors.primaryLight : AppColors.textSecondary,
+                                              fontWeight: isHighlighted ? FontWeight.w700 : FontWeight.w500,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 
