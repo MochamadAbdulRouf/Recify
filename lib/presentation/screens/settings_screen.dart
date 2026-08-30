@@ -657,39 +657,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 setSheetState(() => isSaving = true);
                                 FocusScope.of(ctx).unfocus();
 
-                                String? finalPath = tempAvatarPath;
-                                if (tempAvatarPath != null && File(tempAvatarPath!).existsSync()) {
-                                  try {
-                                    final appDir = await getApplicationDocumentsDirectory();
-                                    final ext = tempAvatarPath!.split('.').last;
-                                    final targetFile = File('${appDir.path}/avatar_${DateTime.now().millisecondsSinceEpoch}.$ext');
-                                    final saved = await File(tempAvatarPath!).copy(targetFile.path);
-                                    finalPath = saved.path;
-                                  } catch (_) {
-                                    finalPath = tempAvatarPath;
+                                try {
+                                  String? finalPath = tempAvatarPath;
+                                  if (tempAvatarPath != null && File(tempAvatarPath!).existsSync()) {
+                                    try {
+                                      final appDir = await getApplicationDocumentsDirectory();
+                                      final ext = tempAvatarPath!.split('.').last;
+                                      final targetFile = File('${appDir.path}/avatar_${DateTime.now().millisecondsSinceEpoch}.$ext');
+                                      final saved = await File(tempAvatarPath!).copy(targetFile.path);
+                                      finalPath = saved.path;
+                                    } catch (_) {
+                                      finalPath = tempAvatarPath;
+                                    }
                                   }
+
+                                  await ProfileService.setUserName(newName);
+                                  await ProfileService.setAvatarPath(finalPath);
+
+                                  if (mounted) {
+                                    setState(() {
+                                      _userName = newName;
+                                      _avatarPath = finalPath;
+                                    });
+                                  }
+                                } catch (e) {
+                                  debugPrint('Error saving profile: $e');
+                                } finally {
+                                  if (ctx.mounted) {
+                                    Navigator.of(ctx).pop();
+                                  }
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      backgroundColor: AppColors.bgSurfaceElevated,
+                                      content: Text('Profil berhasil disimpan!', style: TextStyle(color: Colors.white)),
+                                    ),
+                                  );
                                 }
-
-                                await ProfileService.setUserName(newName);
-                                await ProfileService.setAvatarPath(finalPath);
-
-                                if (mounted) {
-                                  setState(() {
-                                    _userName = newName;
-                                    _avatarPath = finalPath;
-                                  });
-                                }
-
-                                if (ctx.mounted) {
-                                  Navigator.of(ctx).pop();
-                                }
-
-                                messenger.showSnackBar(
-                                  const SnackBar(
-                                    backgroundColor: AppColors.bgSurfaceElevated,
-                                    content: Text('Profil berhasil disimpan!', style: TextStyle(color: Colors.white)),
-                                  ),
-                                );
                               },
                         borderRadius: BorderRadius.circular(24),
                         child: Ink(
