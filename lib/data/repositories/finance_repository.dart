@@ -17,6 +17,8 @@ class FinanceRepository {
   // Categories
   Future<List<CategoryModel>> getCategories({String? type}) => _dbHelper.getCategories(type: type);
   Future<int> addCategory(CategoryModel category) => _dbHelper.insertCategory(category);
+  Future<int> updateCategory(CategoryModel category) => _dbHelper.updateCategory(category);
+  Future<int> deleteCategory(String id) => _dbHelper.deleteCategory(id);
 
   // Transactions
   Future<List<TransactionModel>> getTransactions({
@@ -45,7 +47,10 @@ class FinanceRepository {
 
   Future<int> setBudget(BudgetModel budget) => _dbHelper.setBudget(budget);
 
-  // Backup Dump
+  // Backup & Restore
   Future<Map<String, dynamic>> getAllDataForBackup() =>
       _dbHelper.getAllDataForBackup();
+
+  Future<void> restoreAllData(Map<String, dynamic> data) =>
+      _dbHelper.restoreAllData(data);
 }

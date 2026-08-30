@@ -179,6 +179,16 @@ class DatabaseHelper {
     return await db.insert('categories', category.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  Future<int> updateCategory(CategoryModel category) async {
+    final db = await instance.database;
+    return await db.update('categories', category.toMap(), where: 'id = ?', whereArgs: [category.id]);
+  }
+
+  Future<int> deleteCategory(String id) async {
+    final db = await instance.database;
+    return await db.delete('categories', where: 'id = ?', whereArgs: [id]);
+  }
+
   // --- Transactions & Items (ACID Transaction) ---
   Future<void> recordTransaction(TransactionModel tx, List<TransactionItemModel> items) async {
     final db = await instance.database;
@@ -298,12 +308,72 @@ class DatabaseHelper {
   Future<Map<String, dynamic>> getAllDataForBackup() async {
     final db = await instance.database;
     return {
+      'version': 1,
+      'exported_at': DateTime.now().toIso8601String(),
       'wallets': await db.query('wallets'),
       'categories': await db.query('categories'),
       'transactions': await db.query('transactions'),
       'transaction_items': await db.query('transaction_items'),
       'budgets': await db.query('budgets'),
     };
+  }
+
+  // --- Restore from Backup ---
+  Future<void> restoreAllData(Map<String, dynamic> data) async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      // Clear existing tables
+      await txn.delete('transaction_items');
+      await txn.delete('transactions');
+      await txn.delete('budgets');
+      await txn.delete('categories');
+      await txn.delete('wallets');
+
+      // Restore Wallets
+      if (data['wallets'] is List) {
+        for (final item in data['wallets']) {
+          if (item is Map<String, dynamic>) {
+            await txn.insert('wallets', item, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+        }
+      }
+
+      // Restore Categories
+      if (data['categories'] is List) {
+        for (final item in data['categories']) {
+          if (item is Map<String, dynamic>) {
+            await txn.insert('categories', item, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+        }
+      }
+
+      // Restore Budgets
+      if (data['budgets'] is List) {
+        for (final item in data['budgets']) {
+          if (item is Map<String, dynamic>) {
+            await txn.insert('budgets', item, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+        }
+      }
+
+      // Restore Transactions
+      if (data['transactions'] is List) {
+        for (final item in data['transactions']) {
+          if (item is Map<String, dynamic>) {
+            await txn.insert('transactions', item, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+        }
+      }
+
+      // Restore Transaction Items
+      if (data['transaction_items'] is List) {
+        for (final item in data['transaction_items']) {
+          if (item is Map<String, dynamic>) {
+            await txn.insert('transaction_items', item, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+        }
+      }
+    });
   }
 
   Future close() async {

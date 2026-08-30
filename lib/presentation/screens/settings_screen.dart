@@ -1,10 +1,17 @@
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
+import '../../core/services/profile_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/utils/currency_input_formatter.dart';
+import '../../data/models/category_model.dart';
+import '../../data/models/wallet_model.dart';
 import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
 
@@ -16,12 +23,26 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  String _userName = 'Pengguna Recify';
+  String? _avatarPath;
   String _cacheSizeStr = '0.0 MB';
 
   @override
   void initState() {
     super.initState();
+    _loadProfile();
     _calculateCacheSize();
+  }
+
+  Future<void> _loadProfile() async {
+    final name = await ProfileService.getUserName();
+    final avatar = await ProfileService.getAvatarPath();
+    if (mounted) {
+      setState(() {
+        _userName = name;
+        _avatarPath = avatar;
+      });
+    }
   }
 
   Future<void> _calculateCacheSize() async {
@@ -67,7 +88,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             backgroundColor: AppColors.bgSurfaceElevated,
-            content: Text('Cache berhasil dibersihkan!', style: TextStyle(color: Colors.white)),
+            content: Text('Cache sementara berhasil dibersihkan!', style: TextStyle(color: Colors.white)),
           ),
         );
       }
@@ -111,67 +132,89 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 10),
 
             // 1. Hero Profile Section with Ambient Glowing Aura (Stitch Design)
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                // Glowing Sapphire Ambient Aura
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.primary.withValues(alpha: 0.18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.25),
-                        blurRadius: 28,
-                        spreadRadius: 6,
-                      ),
-                    ],
+            GestureDetector(
+              onTap: _showEditProfileSheet,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Glowing Sapphire Ambient Aura
+                  Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.primary.withValues(alpha: 0.18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.25),
+                          blurRadius: 28,
+                          spreadRadius: 6,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
 
-                // Avatar Container
-                Container(
-                  width: 84,
-                  height: 84,
-                  decoration: BoxDecoration(
-                    color: AppColors.bgSurfaceElevated,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.borderSubtle, width: 1.5),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.person_rounded, size: 44, color: AppColors.primaryLight),
-                  ),
-                ),
-
-                // Edit Button Badge at bottom right
-                Positioned(
-                  bottom: 2,
-                  right: 2,
-                  child: Container(
-                    width: 28,
-                    height: 28,
+                  // Avatar Container
+                  Container(
+                    width: 84,
+                    height: 84,
                     decoration: BoxDecoration(
                       color: AppColors.bgSurfaceElevated,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.borderSubtle),
-                      boxShadow: const [
-                        BoxShadow(color: Color(0x66000000), blurRadius: 6, offset: Offset(0, 2)),
-                      ],
+                      border: Border.all(color: AppColors.borderSubtle, width: 1.5),
                     ),
-                    child: const Icon(Icons.edit_rounded, size: 14, color: AppColors.primaryLight),
+                    child: ClipOval(
+                      child: _avatarPath != null && File(_avatarPath!).existsSync()
+                          ? Image.file(
+                              File(_avatarPath!),
+                              width: 84,
+                              height: 84,
+                              fit: BoxFit.cover,
+                            )
+                          : const Center(
+                              child: Icon(Icons.person_rounded, size: 44, color: AppColors.primaryLight),
+                            ),
+                    ),
                   ),
-                ),
-              ],
+
+                  // Edit Button Badge at bottom right
+                  Positioned(
+                    bottom: 2,
+                    right: 2,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: AppColors.bgSurfaceElevated,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.borderSubtle),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x66000000), blurRadius: 6, offset: Offset(0, 2)),
+                        ],
+                      ),
+                      child: const Icon(Icons.edit_rounded, size: 14, color: AppColors.primaryLight),
+                    ),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: 14),
 
-            // Profile Name & Security Badge
-            Text(
-              'Pengguna Recify',
-              style: AppTypography.headlineMd.copyWith(fontSize: 20, fontWeight: FontWeight.w700),
+            // Profile Name (Click to edit) & Security Badge
+            GestureDetector(
+              onTap: _showEditProfileSheet,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _userName,
+                    style: AppTypography.headlineMd.copyWith(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary),
+                ],
+              ),
             ),
             const SizedBox(height: 6),
             Container(
@@ -196,7 +239,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.account_balance_wallet_rounded,
                 iconColor: AppColors.primary,
                 title: 'Kelola Dompet & Akun',
-                subtitle: '${financeProvider.wallets.length} Dompet Aktif',
+                subtitle: '${financeProvider.wallets.length} Dompet • Edit Saldo & Tambah',
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -211,7 +254,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
                   ],
                 ),
-                onTap: () => _showWalletListSheet(context, financeProvider),
+                onTap: () => _showManageWalletsSheet(context, financeProvider),
               ),
               _buildDivider(),
               _buildSettingItem(
@@ -268,23 +311,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.backup_rounded,
                 iconColor: AppColors.meshCyan,
                 title: 'Cadangan & Pemulihan Lokal',
-                subtitle: 'Backup database SQLite',
+                subtitle: 'Backup & Restore database SQLite',
                 trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      backgroundColor: AppColors.bgSurfaceElevated,
-                      content: Text('Semua data otomatis tersimpan di SQLite lokal perangkat.', style: TextStyle(color: Colors.white)),
-                    ),
-                  );
-                },
+                onTap: () => _showBackupRestoreSheet(context, financeProvider),
               ),
               _buildDivider(),
               _buildSettingItem(
                 icon: Icons.ios_share_rounded,
                 iconColor: AppColors.meshViolet,
                 title: 'Ekspor Data Transaksi',
-                subtitle: 'Unduh rekapitulasi Excel / CSV',
+                subtitle: 'Simpan ke folder Download (Excel / CSV)',
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -292,7 +328,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'CSV / Excel',
+                    'Excel / CSV',
                     style: AppTypography.caption.copyWith(
                       color: AppColors.meshViolet,
                       fontWeight: FontWeight.w700,
@@ -300,25 +336,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
-                onTap: () async {
-                  try {
-                    final path = await financeProvider.exportCsvFile();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          backgroundColor: AppColors.bgSurfaceElevated,
-                          content: Text('Laporan tersimpan di: $path', style: const TextStyle(color: Colors.white)),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Ekspor gagal: $e')),
-                      );
-                    }
-                  }
-                },
+                onTap: () => _showExportDialog(context, financeProvider),
               ),
               _buildDivider(),
               _buildSettingItem(
@@ -383,9 +401,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.category_rounded,
                 iconColor: AppColors.meshIndigo,
                 title: 'Kategori Pembukuan',
-                subtitle: '${financeProvider.categories.length} Kategori Tersedia',
+                subtitle: '${financeProvider.categories.length} Kategori • Tambah & Kelola',
                 trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
-                onTap: () => _showCategoriesListSheet(context, financeProvider),
+                onTap: () => _showManageCategoriesSheet(context, financeProvider),
               ),
             ]),
 
@@ -410,7 +428,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       content: Text(
                         '1. Buka tombol kamera di tengah menu bawah untuk scan struk belanja.\n'
                         '2. Pastikan nota rata dan tulisan terbaca jelas.\n'
-                        '3. Verifikasi total & simpan ke database SQLite lokal Anda.',
+                        '3. Verifikasi total & simpan ke database SQLite lokal Anda.\n'
+                        '4. Ekspor laporan pembukuan ke format Excel/CSV langsung di folder Download.',
                         style: AppTypography.bodyReg,
                       ),
                       actions: [
@@ -462,6 +481,1089 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             const SizedBox(height: 100), // Space for Floating Island Navbar
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- 1. EDIT PROFILE BOTTOM SHEET ---
+  void _showEditProfileSheet() {
+    final nameController = TextEditingController(text: _userName);
+    String? tempAvatarPath = _avatarPath;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 16,
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Edit Profil Pengguna', style: AppTypography.titleMedium),
+                    const SizedBox(height: 20),
+
+                    // Avatar Preview with Action Buttons
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: AppColors.bgSurfaceElevated,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.borderSubtle, width: 1.5),
+                          ),
+                          child: ClipOval(
+                            child: tempAvatarPath != null && File(tempAvatarPath!).existsSync()
+                                ? Image.file(
+                                    File(tempAvatarPath!),
+                                    width: 80,
+                                    height: 80,
+                                    fit: BoxFit.cover,
+                                  )
+                                : const Icon(Icons.person_rounded, size: 40, color: AppColors.primaryLight),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Photo source buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.borderSubtle),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          icon: const Icon(Icons.camera_alt_rounded, size: 14, color: AppColors.primaryLight),
+                          label: const Text('Kamera', style: TextStyle(fontSize: 12)),
+                          onPressed: () async {
+                            final picker = ImagePicker();
+                            final photo = await picker.pickImage(source: ImageSource.camera, maxWidth: 600);
+                            if (photo != null) {
+                              setSheetState(() => tempAvatarPath = photo.path);
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.borderSubtle),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          icon: const Icon(Icons.photo_library_rounded, size: 14, color: AppColors.secondary),
+                          label: const Text('Galeri', style: TextStyle(fontSize: 12)),
+                          onPressed: () async {
+                            final picker = ImagePicker();
+                            final photo = await picker.pickImage(source: ImageSource.gallery, maxWidth: 600);
+                            if (photo != null) {
+                              setSheetState(() => tempAvatarPath = photo.path);
+                            }
+                          },
+                        ),
+                        if (tempAvatarPath != null) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+                            onPressed: () => setSheetState(() => tempAvatarPath = null),
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Name Input
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgSurfaceElevated,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.borderSubtle),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('NAMA PENGGUNA', style: AppTypography.caption.copyWith(fontSize: 10, letterSpacing: 1.1)),
+                          const SizedBox(height: 4),
+                          TextField(
+                            controller: nameController,
+                            style: AppTypography.bodyBold.copyWith(fontSize: 15),
+                            decoration: const InputDecoration(
+                              hintText: 'Masukkan nama Anda...',
+                              border: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              filled: false,
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Save Profile CTA
+                    GestureDetector(
+                      onTap: () async {
+                        final newName = nameController.text.trim();
+                        if (newName.isEmpty) return;
+                        final messenger = ScaffoldMessenger.of(context);
+
+                        await ProfileService.setUserName(newName);
+                        await ProfileService.setAvatarPath(tempAvatarPath);
+
+                        if (mounted) {
+                          setState(() {
+                            _userName = newName;
+                            _avatarPath = tempAvatarPath;
+                          });
+                          if (ctx.mounted) {
+                            Navigator.pop(ctx);
+                          }
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              backgroundColor: AppColors.bgSurfaceElevated,
+                              content: Text('Profil berhasil diperbarui!', style: TextStyle(color: Colors.white)),
+                            ),
+                          );
+                        }
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryCtaGradient,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Simpan Perubahan',
+                            style: AppTypography.bodyBold.copyWith(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- 2. MANAGE WALLETS SHEET ---
+  void _showManageWalletsSheet(BuildContext context, FinanceProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: Container(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.75),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Kelola Dompet & Akun', style: AppTypography.titleMedium),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _showAddWalletDialog(context, provider);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.add_rounded, size: 16, color: AppColors.primaryLight),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Tambah',
+                                  style: AppTypography.caption.copyWith(
+                                    color: AppColors.primaryLight,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    Expanded(
+                      child: ListView.separated(
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: provider.wallets.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final wallet = provider.wallets[index];
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSurfaceElevated,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.borderSubtle),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primaryLight, size: 18),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(wallet.name, style: AppTypography.bodyBold),
+                                      Text(wallet.type, style: AppTypography.caption),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      CurrencyFormatter.formatRupiah(wallet.currentBalance),
+                                      style: AppTypography.bodyBold.copyWith(color: AppColors.textPrimary),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.pop(ctx);
+                                        _showEditWalletDialog(context, provider, wallet);
+                                      },
+                                      child: Text(
+                                        'Edit Saldo',
+                                        style: AppTypography.caption.copyWith(
+                                          color: AppColors.primaryLight,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Edit Wallet Dialog
+  void _showEditWalletDialog(BuildContext context, FinanceProvider provider, WalletModel wallet) {
+    final nameController = TextEditingController(text: wallet.name);
+    final balanceController = TextEditingController(text: wallet.currentBalance.toInt().toString());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Edit Dompet', style: AppTypography.titleMedium),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Nama Dompet', style: AppTypography.caption),
+            const SizedBox(height: 4),
+            TextField(
+              controller: nameController,
+              style: AppTypography.bodyBold,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text('Saldo Saat Ini (Rp)', style: AppTypography.caption),
+            const SizedBox(height: 4),
+            TextField(
+              controller: balanceController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorInputFormatter()],
+              style: AppTypography.bodyBold,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              final newName = nameController.text.trim();
+              final rawBalance = balanceController.text.replaceAll(RegExp(r'[^0-9]'), '');
+              final newBalance = double.tryParse(rawBalance) ?? wallet.currentBalance;
+
+              final updated = WalletModel(
+                id: wallet.id,
+                name: newName.isNotEmpty ? newName : wallet.name,
+                type: wallet.type,
+                initialBalance: wallet.initialBalance,
+                currentBalance: newBalance,
+                createdAt: wallet.createdAt,
+              );
+
+              await provider.updateWallet(updated);
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: AppColors.bgSurfaceElevated,
+                    content: Text('Dompet "${updated.name}" berhasil diperbarui!', style: const TextStyle(color: Colors.white)),
+                  ),
+                );
+              }
+            },
+            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Add Wallet Dialog
+  void _showAddWalletDialog(BuildContext context, FinanceProvider provider) {
+    final nameController = TextEditingController();
+    final balanceController = TextEditingController();
+    String selectedType = 'Bank';
+    final types = ['Bank', 'E-Wallet', 'Tunai', 'Investasi'];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.bgSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Tambah Dompet Baru', style: AppTypography.titleMedium),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Nama Dompet / Akun', style: AppTypography.caption),
+              const SizedBox(height: 4),
+              TextField(
+                controller: nameController,
+                style: AppTypography.bodyBold,
+                decoration: const InputDecoration(
+                  hintText: 'Contoh: BCA, GoPay, Dompet Tunai',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text('Tipe Akun', style: AppTypography.caption),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: types.map((t) {
+                  final isSelected = selectedType == t;
+                  return ChoiceChip(
+                    label: Text(t, style: TextStyle(color: isSelected ? Colors.white : AppColors.textSecondary, fontSize: 12)),
+                    selected: isSelected,
+                    selectedColor: AppColors.primary,
+                    backgroundColor: AppColors.bgSurfaceElevated,
+                    onSelected: (val) => setDialogState(() => selectedType = t),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 14),
+              Text('Saldo Awal (Rp)', style: AppTypography.caption),
+              const SizedBox(height: 4),
+              TextField(
+                controller: balanceController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [ThousandsSeparatorInputFormatter()],
+                style: AppTypography.bodyBold,
+                decoration: const InputDecoration(
+                  hintText: '0',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+
+                final rawBalance = balanceController.text.replaceAll(RegExp(r'[^0-9]'), '');
+                final balance = double.tryParse(rawBalance) ?? 0.0;
+
+                final newWallet = WalletModel(
+                  id: const Uuid().v4(),
+                  name: name,
+                  type: selectedType,
+                  initialBalance: balance,
+                  currentBalance: balance,
+                  createdAt: DateTime.now().millisecondsSinceEpoch,
+                );
+
+                await provider.addWallet(newWallet);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: AppColors.bgSurfaceElevated,
+                      content: Text('Dompet "$name" berhasil ditambahkan!', style: const TextStyle(color: Colors.white)),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Tambah', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- 3. BACKUP & RESTORE BOTTOM SHEET ---
+  void _showBackupRestoreSheet(BuildContext context, FinanceProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text('Cadangan & Pemulihan Data', style: AppTypography.titleMedium),
+                const SizedBox(height: 6),
+                Text(
+                  'Amankan database keuangan Anda secara offline',
+                  style: AppTypography.caption,
+                ),
+                const SizedBox(height: 20),
+
+                // Card 1: Create Backup
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurfaceElevated,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.borderSubtle),
+                  ),
+                  child: ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.meshCyan.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.cloud_upload_rounded, color: AppColors.meshCyan, size: 22),
+                    ),
+                    title: Text('Buat Cadangan Baru', style: AppTypography.bodyBold),
+                    subtitle: Text('Simpan file JSON ke folder Download HP', style: AppTypography.caption),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      try {
+                        final path = await provider.createBackup();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: AppColors.bgSurfaceElevated,
+                              content: Text('Cadangan tersimpan di: $path', style: const TextStyle(color: Colors.white)),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal backup: $e')));
+                        }
+                      }
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Card 2: Restore Backup
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurfaceElevated,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.borderSubtle),
+                  ),
+                  child: ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.restore_page_rounded, color: AppColors.secondary, size: 22),
+                    ),
+                    title: Text('Pulihkan dari File Cadangan', style: AppTypography.bodyBold),
+                    subtitle: Text('Pilih file .json cadangan Recify', style: AppTypography.caption),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      try {
+                        final result = await FilePicker.platform.pickFiles(
+                          type: FileType.custom,
+                          allowedExtensions: ['json'],
+                        );
+                        if (result != null && result.files.single.path != null) {
+                          final file = File(result.files.single.path!);
+                          await provider.restoreBackup(file);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                backgroundColor: AppColors.bgSurfaceElevated,
+                                content: Text('Data berhasil dipulihkan dari cadangan!', style: TextStyle(color: Colors.white)),
+                              ),
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memulihkan: $e')));
+                        }
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // --- 4. EXPORT FORMAT DIALOG (EXCEL / CSV TO DOWNLOADS) ---
+  void _showExportDialog(BuildContext context, FinanceProvider provider) {
+    String selectedFormat = 'excel';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Ekspor Data Transaksi', style: AppTypography.titleMedium),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Pilih format file laporan untuk disimpan ke folder Download',
+                      style: AppTypography.caption,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Option 1: Excel (.xlsx)
+                    GestureDetector(
+                      onTap: () => setSheetState(() => selectedFormat = 'excel'),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: selectedFormat == 'excel' ? AppColors.primary.withValues(alpha: 0.12) : AppColors.bgSurfaceElevated,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: selectedFormat == 'excel' ? AppColors.primary : AppColors.borderSubtle,
+                            width: selectedFormat == 'excel' ? 1.5 : 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.table_chart_rounded, color: AppColors.secondary, size: 22),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Microsoft Excel (.xlsx)', style: AppTypography.bodyBold),
+                                  Text('Tabel terformat rapi dengan warna & header sel', style: AppTypography.caption),
+                                ],
+                              ),
+                            ),
+                            if (selectedFormat == 'excel')
+                              const Icon(Icons.check_circle_rounded, color: AppColors.primaryLight, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Option 2: CSV (.csv)
+                    GestureDetector(
+                      onTap: () => setSheetState(() => selectedFormat = 'csv'),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: selectedFormat == 'csv' ? AppColors.primary.withValues(alpha: 0.12) : AppColors.bgSurfaceElevated,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: selectedFormat == 'csv' ? AppColors.primary : AppColors.borderSubtle,
+                            width: selectedFormat == 'csv' ? 1.5 : 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppColors.meshCyan.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.receipt_long_rounded, color: AppColors.meshCyan, size: 22),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Format CSV (.csv)', style: AppTypography.bodyBold),
+                                  Text('Kompatibel dengan semua aplikasi pembukuan', style: AppTypography.caption),
+                                ],
+                              ),
+                            ),
+                            if (selectedFormat == 'csv')
+                              const Icon(Icons.check_circle_rounded, color: AppColors.primaryLight, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Export Button
+                    GestureDetector(
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        try {
+                          final path = await provider.exportTransactionsReport(format: selectedFormat);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: AppColors.bgSurfaceElevated,
+                                content: Text('Laporan berhasil diekspor ke: $path', style: const TextStyle(color: Colors.white)),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengekspor: $e')));
+                          }
+                        }
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryCtaGradient,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Unduh ke Folder Download',
+                            style: AppTypography.bodyBold.copyWith(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- 5. MANAGE CUSTOM CATEGORIES SHEET ---
+  void _showManageCategoriesSheet(BuildContext context, FinanceProvider provider) {
+    String activeType = 'EXPENSE';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final categories = provider.categories.where((c) => c.type == activeType).toList();
+
+            return SafeArea(
+              child: Container(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.75),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Kategori Pembukuan', style: AppTypography.titleMedium),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _showAddCategoryDialog(context, provider, activeType);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.add_rounded, size: 16, color: AppColors.primaryLight),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Buat Kategori',
+                                  style: AppTypography.caption.copyWith(
+                                    color: AppColors.primaryLight,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Type switcher
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setSheetState(() => activeType = 'EXPENSE'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: activeType == 'EXPENSE' ? AppColors.error.withValues(alpha: 0.15) : AppColors.bgSurfaceElevated,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: activeType == 'EXPENSE' ? AppColors.error : AppColors.borderSubtle,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Pengeluaran',
+                                  style: AppTypography.bodyBold.copyWith(
+                                    color: activeType == 'EXPENSE' ? AppColors.error : AppColors.textSecondary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setSheetState(() => activeType = 'INCOME'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: activeType == 'INCOME' ? AppColors.secondary.withValues(alpha: 0.15) : AppColors.bgSurfaceElevated,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: activeType == 'INCOME' ? AppColors.secondary : AppColors.borderSubtle,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Pemasukan',
+                                  style: AppTypography.bodyBold.copyWith(
+                                    color: activeType == 'INCOME' ? AppColors.secondary : AppColors.textSecondary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    Expanded(
+                      child: ListView.separated(
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: categories.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final cat = categories[index];
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSurfaceElevated,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.borderSubtle),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.category_rounded, size: 18, color: AppColors.primaryLight),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(cat.name, style: AppTypography.bodyBold.copyWith(fontSize: 14)),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline_rounded, color: AppColors.textSecondary, size: 18),
+                                  onPressed: () async {
+                                    await provider.deleteCategory(cat.id);
+                                    setSheetState(() {});
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Add Category Dialog
+  void _showAddCategoryDialog(BuildContext context, FinanceProvider provider, String defaultType) {
+    final nameController = TextEditingController();
+    String categoryType = defaultType;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.bgSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Buat Kategori Baru', style: AppTypography.titleMedium),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Nama Kategori', style: AppTypography.caption),
+              const SizedBox(height: 4),
+              TextField(
+                controller: nameController,
+                style: AppTypography.bodyBold,
+                decoration: const InputDecoration(
+                  hintText: 'Contoh: Streaming, Hobi, Donasi',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text('Tipe Transaksi', style: AppTypography.caption),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  ChoiceChip(
+                    label: const Text('Pengeluaran', style: TextStyle(fontSize: 12)),
+                    selected: categoryType == 'EXPENSE',
+                    selectedColor: AppColors.error,
+                    backgroundColor: AppColors.bgSurfaceElevated,
+                    onSelected: (val) => setDialogState(() => categoryType = 'EXPENSE'),
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: const Text('Pemasukan', style: TextStyle(fontSize: 12)),
+                    selected: categoryType == 'INCOME',
+                    selectedColor: AppColors.secondary,
+                    backgroundColor: AppColors.bgSurfaceElevated,
+                    onSelected: (val) => setDialogState(() => categoryType = 'INCOME'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+
+                final newCat = CategoryModel(
+                  id: const Uuid().v4(),
+                  name: name,
+                  type: categoryType,
+                  icon: 'category',
+                  color: '#2F6BFF',
+                );
+
+                await provider.addCategory(newCat);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: AppColors.bgSurfaceElevated,
+                      content: Text('Kategori "$name" berhasil ditambahkan!', style: const TextStyle(color: Colors.white)),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+            ),
           ],
         ),
       ),
@@ -549,98 +1651,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  void _showWalletListSheet(BuildContext context, FinanceProvider provider) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.bgSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text('Daftar Dompet Tersedia', style: AppTypography.titleMedium),
-                const SizedBox(height: 14),
-                ...provider.wallets.map((w) {
-                  return ListTile(
-                    leading: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primaryLight),
-                    title: Text(w.name, style: AppTypography.bodyBold),
-                    subtitle: Text(
-                      'Saldo: ${CurrencyFormatter.formatRupiah(w.currentBalance)}',
-                      style: AppTypography.caption,
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showCategoriesListSheet(BuildContext context, FinanceProvider provider) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.bgSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text('Daftar Kategori Tersedia', style: AppTypography.titleMedium),
-                const SizedBox(height: 14),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: provider.categories.length,
-                    itemBuilder: (ctx, i) {
-                      final cat = provider.categories[i];
-                      return ListTile(
-                        leading: const Icon(Icons.label_rounded, color: AppColors.primaryLight),
-                        title: Text(cat.name, style: AppTypography.bodyBold),
-                        subtitle: Text(
-                          cat.type == 'EXPENSE' ? 'Pengeluaran' : 'Pemasukan',
-                          style: AppTypography.caption,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

@@ -6,6 +6,7 @@ import '../../data/models/transaction_item_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/wallet_model.dart';
 import '../../data/repositories/finance_repository.dart';
+import '../../domain/backup/backup_manager.dart';
 import '../../domain/export/report_exporter.dart';
 
 class FinanceProvider with ChangeNotifier {
@@ -102,6 +103,7 @@ class FinanceProvider with ChangeNotifier {
     refreshTransactions();
   }
 
+  // --- Transactions ---
   Future<void> addTransaction({
     required TransactionModel transaction,
     List<TransactionItemModel> items = const [],
@@ -123,6 +125,34 @@ class FinanceProvider with ChangeNotifier {
     await loadInitialData();
   }
 
+  // --- Wallets Management ---
+  Future<void> addWallet(WalletModel wallet) async {
+    await _repository.addWallet(wallet);
+    await loadInitialData();
+  }
+
+  Future<void> updateWallet(WalletModel wallet) async {
+    await _repository.updateWallet(wallet);
+    await loadInitialData();
+  }
+
+  Future<void> deleteWallet(String id) async {
+    await _repository.deleteWallet(id);
+    await loadInitialData();
+  }
+
+  // --- Categories Management ---
+  Future<void> addCategory(CategoryModel category) async {
+    await _repository.addCategory(category);
+    await loadInitialData();
+  }
+
+  Future<void> deleteCategory(String id) async {
+    await _repository.deleteCategory(id);
+    await loadInitialData();
+  }
+
+  // --- Budgets ---
   Future<void> setBudget(BudgetModel budget) async {
     await _repository.setBudget(budget);
     final now = DateTime.now();
@@ -139,12 +169,29 @@ class FinanceProvider with ChangeNotifier {
         .fold(0.0, (sum, t) => sum + t.amount);
   }
 
-  Future<File> exportTransactionsToCsv() async {
-    return await ReportExporter.exportTransactionsToCsv(_transactions);
+  // --- Export Reports (Excel or CSV to Downloads) ---
+  Future<String> exportTransactionsReport({required String format}) async {
+    if (format == 'excel') {
+      final file = await ReportExporter.exportTransactionsToExcel(_transactions);
+      return file.path;
+    } else {
+      final file = await ReportExporter.exportTransactionsToCsv(_transactions);
+      return file.path;
+    }
   }
 
   Future<String> exportCsvFile() async {
-    final file = await exportTransactionsToCsv();
+    return await exportTransactionsReport(format: 'csv');
+  }
+
+  // --- Backup & Restore ---
+  Future<String> createBackup() async {
+    final file = await BackupManager.createBackupFile();
     return file.path;
+  }
+
+  Future<void> restoreBackup(File file) async {
+    await BackupManager.restoreFromBackupFile(file);
+    await loadInitialData();
   }
 }
