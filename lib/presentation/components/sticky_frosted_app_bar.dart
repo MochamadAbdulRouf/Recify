@@ -15,7 +15,7 @@ class StickyFrostedAppBar extends StatelessWidget implements PreferredSizeWidget
     this.title,
     this.leading,
     this.actions,
-    this.height = kToolbarHeight,
+    this.height = 64,
     this.bottom,
     this.bottomHeight = 0,
   });
@@ -42,19 +42,19 @@ class StickyFrostedAppBar extends StatelessWidget implements PreferredSizeWidget
             bottom: false,
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                SizedBox(
-                  height: height,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        if (leading != null) leading! else const SizedBox(width: 4),
-                        if (title != null) Expanded(child: title!) else const Spacer(),
-                        if (actions != null) Row(mainAxisSize: MainAxisSize.min, children: actions!),
-                      ],
-                    ),
+                Container(
+                  height: height - 1.0,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      if (leading != null) leading! else const SizedBox(width: 4),
+                      if (title != null) Expanded(child: title!) else const Spacer(),
+                      if (actions != null) Row(mainAxisSize: MainAxisSize.min, children: actions!),
+                    ],
                   ),
                 ),
                 if (bottom != null) bottom!,

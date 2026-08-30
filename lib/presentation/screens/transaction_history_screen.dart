@@ -70,8 +70,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       backgroundColor: AppColors.bgCanvas,
       // Fixed / Sticky Frosted Header with Embedded Search & Filter
       appBar: StickyFrostedAppBar(
-        height: 60,
-        bottomHeight: 110,
+        height: 64,
+        bottomHeight: 104,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
