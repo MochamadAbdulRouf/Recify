@@ -491,6 +491,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showEditProfileSheet() {
     final nameController = TextEditingController(text: _userName);
     String? tempAvatarPath = _avatarPath;
+    bool isSaving = false;
 
     showModalBottomSheet(
       context: context,
@@ -503,12 +504,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             return SafeArea(
-              child: Padding(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
                 padding: EdgeInsets.only(
                   left: 20,
                   right: 20,
                   top: 16,
-                  bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -525,13 +527,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Text('Edit Profil Pengguna', style: AppTypography.titleMedium),
                     const SizedBox(height: 20),
 
-                    // Avatar Preview with Action Buttons
+                    // Avatar Preview
                     Stack(
                       alignment: Alignment.center,
                       children: [
                         Container(
-                          width: 80,
-                          height: 80,
+                          width: 84,
+                          height: 84,
                           decoration: BoxDecoration(
                             color: AppColors.bgSurfaceElevated,
                             shape: BoxShape.circle,
@@ -541,50 +543,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: tempAvatarPath != null && File(tempAvatarPath!).existsSync()
                                 ? Image.file(
                                     File(tempAvatarPath!),
-                                    width: 80,
-                                    height: 80,
+                                    width: 84,
+                                    height: 84,
                                     fit: BoxFit.cover,
                                   )
-                                : const Icon(Icons.person_rounded, size: 40, color: AppColors.primaryLight),
+                                : const Icon(Icons.person_rounded, size: 44, color: AppColors.primaryLight),
                           ),
                         ),
                       ],
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
 
                     // Photo source buttons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.bgSurfaceElevated,
+                            foregroundColor: AppColors.primaryLight,
+                            elevation: 0,
                             side: const BorderSide(color: AppColors.borderSubtle),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           ),
-                          icon: const Icon(Icons.camera_alt_rounded, size: 14, color: AppColors.primaryLight),
-                          label: const Text('Kamera', style: TextStyle(fontSize: 12)),
+                          icon: const Icon(Icons.camera_alt_rounded, size: 16),
+                          label: const Text('Kamera', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                           onPressed: () async {
                             final picker = ImagePicker();
-                            final photo = await picker.pickImage(source: ImageSource.camera, maxWidth: 600);
+                            final photo = await picker.pickImage(source: ImageSource.camera, maxWidth: 600, imageQuality: 85);
                             if (photo != null) {
                               setSheetState(() => tempAvatarPath = photo.path);
                             }
                           },
                         ),
-                        const SizedBox(width: 8),
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
+                        const SizedBox(width: 10),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.bgSurfaceElevated,
+                            foregroundColor: AppColors.secondary,
+                            elevation: 0,
                             side: const BorderSide(color: AppColors.borderSubtle),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           ),
-                          icon: const Icon(Icons.photo_library_rounded, size: 14, color: AppColors.secondary),
-                          label: const Text('Galeri', style: TextStyle(fontSize: 12)),
+                          icon: const Icon(Icons.photo_library_rounded, size: 16),
+                          label: const Text('Galeri', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                           onPressed: () async {
                             final picker = ImagePicker();
-                            final photo = await picker.pickImage(source: ImageSource.gallery, maxWidth: 600);
+                            final photo = await picker.pickImage(source: ImageSource.gallery, maxWidth: 600, imageQuality: 85);
                             if (photo != null) {
                               setSheetState(() => tempAvatarPath = photo.path);
                             }
@@ -593,7 +601,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         if (tempAvatarPath != null) ...[
                           const SizedBox(width: 8),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+                            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 22),
                             onPressed: () => setSheetState(() => tempAvatarPath = null),
                           ),
                         ],
@@ -634,43 +642,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Save Profile CTA
-                    GestureDetector(
-                      onTap: () async {
-                        final newName = nameController.text.trim();
-                        if (newName.isEmpty) return;
-                        final messenger = ScaffoldMessenger.of(context);
+                    // Save Profile CTA (Full-width Material Button with Instant Tap Response)
+                    Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(24),
+                      child: InkWell(
+                        onTap: isSaving
+                            ? null
+                            : () async {
+                                final newName = nameController.text.trim();
+                                if (newName.isEmpty) return;
+                                final messenger = ScaffoldMessenger.of(context);
 
-                        await ProfileService.setUserName(newName);
-                        await ProfileService.setAvatarPath(tempAvatarPath);
+                                setSheetState(() => isSaving = true);
+                                FocusScope.of(ctx).unfocus();
 
-                        if (mounted) {
-                          setState(() {
-                            _userName = newName;
-                            _avatarPath = tempAvatarPath;
-                          });
-                          if (ctx.mounted) {
-                            Navigator.pop(ctx);
-                          }
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              backgroundColor: AppColors.bgSurfaceElevated,
-                              content: Text('Profil berhasil diperbarui!', style: TextStyle(color: Colors.white)),
-                            ),
-                          );
-                        }
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        decoration: BoxDecoration(
-                          gradient: AppColors.primaryCtaGradient,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Simpan Perubahan',
-                            style: AppTypography.bodyBold.copyWith(color: Colors.white),
+                                String? finalPath = tempAvatarPath;
+                                if (tempAvatarPath != null && File(tempAvatarPath!).existsSync()) {
+                                  try {
+                                    final appDir = await getApplicationDocumentsDirectory();
+                                    final ext = tempAvatarPath!.split('.').last;
+                                    final targetFile = File('${appDir.path}/avatar_${DateTime.now().millisecondsSinceEpoch}.$ext');
+                                    final saved = await File(tempAvatarPath!).copy(targetFile.path);
+                                    finalPath = saved.path;
+                                  } catch (_) {
+                                    finalPath = tempAvatarPath;
+                                  }
+                                }
+
+                                await ProfileService.setUserName(newName);
+                                await ProfileService.setAvatarPath(finalPath);
+
+                                if (mounted) {
+                                  setState(() {
+                                    _userName = newName;
+                                    _avatarPath = finalPath;
+                                  });
+                                }
+
+                                if (ctx.mounted) {
+                                  Navigator.of(ctx).pop();
+                                }
+
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    backgroundColor: AppColors.bgSurfaceElevated,
+                                    content: Text('Profil berhasil disimpan!', style: TextStyle(color: Colors.white)),
+                                  ),
+                                );
+                              },
+                        borderRadius: BorderRadius.circular(24),
+                        child: Ink(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryCtaGradient,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x662F6BFF),
+                                blurRadius: 14,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: isSaving
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : Text(
+                                    'Simpan Perubahan',
+                                    style: AppTypography.bodyBold.copyWith(color: Colors.white, fontSize: 15),
+                                  ),
                           ),
                         ),
                       ),
