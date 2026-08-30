@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -14,6 +13,7 @@ import '../../data/models/category_model.dart';
 import '../../data/models/wallet_model.dart';
 import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
+import '../../domain/backup/backup_manager.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -1149,35 +1149,109 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: const Icon(Icons.restore_page_rounded, color: AppColors.secondary, size: 22),
                     ),
                     title: Text('Pulihkan dari File Cadangan', style: AppTypography.bodyBold),
-                    subtitle: Text('Pilih file .json cadangan Recify', style: AppTypography.caption),
+                    subtitle: Text('Pilih dari file cadangan yang ditemukan', style: AppTypography.caption),
                     trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
-                    onTap: () async {
+                    onTap: () {
                       Navigator.pop(ctx);
-                      try {
-                        final result = await FilePicker.platform.pickFiles(
-                          type: FileType.custom,
-                          allowedExtensions: ['json'],
-                        );
-                        if (result != null && result.files.single.path != null) {
-                          final file = File(result.files.single.path!);
-                          await provider.restoreBackup(file);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                      _showRestoreFileListSheet(context, provider);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // File List Restore Sheet
+  void _showRestoreFileListSheet(BuildContext context, FinanceProvider provider) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final backups = await BackupManager.listAvailableBackups();
+
+    if (!context.mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text('Pilih File Cadangan', style: AppTypography.titleMedium),
+                const SizedBox(height: 4),
+                Text(
+                  'Ditemukan ${backups.length} file cadangan di folder Download',
+                  style: AppTypography.caption,
+                ),
+                const SizedBox(height: 16),
+
+                if (backups.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.folder_off_rounded, color: AppColors.textSecondary, size: 36),
+                        const SizedBox(height: 10),
+                        Text('Belum ada file cadangan Recify', style: AppTypography.bodyBold),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Buat cadangan baru terlebih dahulu untuk menyimpannya ke Download.',
+                          style: AppTypography.caption,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  ...backups.map((file) {
+                    final fileName = file.path.split(Platform.isWindows ? '\\' : '/').last;
+                    final sizeKb = (file.lengthSync() / 1024).toStringAsFixed(1);
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgSurfaceElevated,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.borderSubtle),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(Icons.description_rounded, color: AppColors.primaryLight, size: 22),
+                        title: Text(fileName, style: AppTypography.bodyBold.copyWith(fontSize: 13)),
+                        subtitle: Text('$sizeKb KB', style: AppTypography.caption),
+                        trailing: const Icon(Icons.restore_rounded, color: AppColors.secondary, size: 20),
+                        onTap: () async {
+                          Navigator.pop(ctx);
+                          try {
+                            await provider.restoreBackup(file);
+                            messenger.showSnackBar(
                               const SnackBar(
                                 backgroundColor: AppColors.bgSurfaceElevated,
                                 content: Text('Data berhasil dipulihkan dari cadangan!', style: TextStyle(color: Colors.white)),
                               ),
                             );
+                          } catch (e) {
+                            messenger.showSnackBar(SnackBar(content: Text('Gagal memulihkan: $e')));
                           }
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memulihkan: $e')));
-                        }
-                      }
-                    },
-                  ),
-                ),
+                        },
+                      ),
+                    );
+                  }),
               ],
             ),
           ),

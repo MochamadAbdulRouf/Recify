@@ -36,6 +36,34 @@ class BackupManager {
     return backupFile;
   }
 
+  static Future<List<File>> listAvailableBackups() async {
+    final List<File> backupFiles = [];
+    final Set<String> checkedPaths = {};
+
+    final dirsToCheck = <Directory>[
+      await _getPublicDownloadsDirectory(),
+      await getApplicationDocumentsDirectory(),
+    ];
+
+    for (final dir in dirsToCheck) {
+      if (dir.existsSync()) {
+        try {
+          final entries = dir.listSync();
+          for (final entry in entries) {
+            if (entry is File && entry.path.endsWith('.json') && entry.path.contains('Recify_Backup_')) {
+              if (checkedPaths.add(entry.path)) {
+                backupFiles.add(entry);
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    backupFiles.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+    return backupFiles;
+  }
+
   static Future<bool> restoreFromBackupFile(File file) async {
     if (!file.existsSync()) {
       throw Exception('File backup tidak ditemukan.');
