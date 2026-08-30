@@ -318,7 +318,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                             width: 28,
                                             height: 28,
                                             decoration: BoxDecoration(
-                                              color: AppColors.meshViolet.withOpacity(0.2),
+                                              color: AppColors.meshViolet.withValues(alpha: 0.2),
                                               borderRadius: BorderRadius.circular(8),
                                             ),
                                             child: const Icon(
@@ -439,7 +439,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               decoration: BoxDecoration(
-                color: AppColors.bgSurface.withOpacity(0.95),
+                color: AppColors.bgSurface.withValues(alpha: 0.95),
                 border: const Border(top: BorderSide(color: AppColors.borderSubtle)),
                 boxShadow: const [
                   BoxShadow(
@@ -559,9 +559,9 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                 right: 0,
                 child: Container(
                   height: 3,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.primaryLight,
-                    boxShadow: const [
+                    boxShadow: [
                       BoxShadow(
                         color: Color(0xCC2F6BFF),
                         blurRadius: 16,
@@ -581,7 +581,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.bgSurfaceElevated.withOpacity(0.85),
+                color: AppColors.bgSurfaceElevated.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: AppColors.borderSubtle),
               ),

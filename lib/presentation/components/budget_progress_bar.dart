@@ -67,7 +67,7 @@ class BudgetProgressBar extends StatelessWidget {
             height: 8,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
+              color: Colors.white.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(4),
             ),
             child: FractionallySizedBox(

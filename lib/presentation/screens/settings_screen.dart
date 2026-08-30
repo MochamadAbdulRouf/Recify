@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -14,14 +15,23 @@ class SettingsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgCanvas,
-        elevation: 0,
-        title: Text('Pengaturan & Akun', style: AppTypography.headlineMd),
+      appBar: StickyFrostedAppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Pengaturan & Akun', style: AppTypography.headlineMd.copyWith(fontSize: 20)),
+            const SizedBox(height: 2),
+            Text(
+              'Preferensi Aplikasi & Data Lokal',
+              style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
+        ),
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -65,124 +75,152 @@ class SettingsScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // 2. Data & Export Section
-            Text('Manajemen Data & Laporan', style: AppTypography.titleSm),
+            // 2. Wallets & Accounts Section
+            Text('Daftar Dompet & Akun', style: AppTypography.titleSm),
+            const SizedBox(height: 12),
+            ...financeProvider.wallets.map((wallet) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.borderSubtle),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primaryLight, size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(wallet.name, style: AppTypography.bodyBold),
+                            Text(wallet.type, style: AppTypography.caption),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        CurrencyFormatter.formatRupiah(wallet.currentBalance),
+                        style: AppTypography.bodyBold.copyWith(color: AppColors.textPrimary),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+
+            const SizedBox(height: 24),
+
+            // 3. Security & Data Storage Section
+            Text('Privasi & Keamanan Data', style: AppTypography.titleSm),
+            const SizedBox(height: 12),
+            _buildSettingTile(
+              icon: Icons.lock_outline_rounded,
+              title: 'Keamanan Data 100% Offline',
+              subtitle: 'Semua struk dan transaksi disimpan di SQLite HP Anda',
+              trailing: const Icon(Icons.check_circle_rounded, color: AppColors.secondary, size: 20),
+            ),
             const SizedBox(height: 10),
+            _buildSettingTile(
+              icon: Icons.cloud_off_rounded,
+              title: 'Zero Cloud Storage',
+              subtitle: 'Tidak ada data keuangan yang dikirim ke server pihak ketiga',
+              trailing: const Icon(Icons.verified_user_rounded, color: AppColors.primaryLight, size: 20),
+            ),
+            const SizedBox(height: 10),
+            _buildSettingTile(
+              icon: Icons.file_download_outlined,
+              title: 'Ekspor Data ke CSV',
+              subtitle: 'Unduh seluruh riwayat pembukuan dalam format spreadsheet',
+              trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 20),
+              onTap: () async {
+                try {
+                  final path = await financeProvider.exportCsvFile();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: AppColors.bgSurfaceElevated,
+                        content: Text('Data berhasil diekspor ke: $path', style: const TextStyle(color: Colors.white)),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Gagal mengekspor: $e')),
+                    );
+                  }
+                }
+              },
+            ),
+
+            const SizedBox(height: 24),
+
+            // 4. App Info Section
+            Text('Tentang Aplikasi', style: AppTypography.titleSm),
+            const SizedBox(height: 12),
+            _buildSettingTile(
+              icon: Icons.info_outline_rounded,
+              title: 'Recify Versi 1.0.0',
+              subtitle: 'Smart Receipt Scanner & Local Expense Tracker',
+            ),
+
+            const SizedBox(height: 100), // Space for Floating Island Navbar
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.bgSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderSubtle),
+        ),
+        child: Row(
+          children: [
             Container(
-              decoration: BoxDecoration(
-                color: AppColors.bgSurface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.borderSubtle),
+              width: 38,
+              height: 38,
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceContainerHigh,
+                shape: BoxShape.circle,
               ),
+              child: Icon(icon, size: 18, color: AppColors.textPrimary),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.file_download_outlined, color: AppColors.secondary),
-                    title: Text('Ekspor Transaksi ke CSV', style: AppTypography.bodyBold),
-                    subtitle: Text('Simpan riwayat transaksi ke file Excel/CSV lokal', style: AppTypography.caption),
-                    trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-                    onTap: () async {
-                      try {
-                        final path = await financeProvider.exportCsvFile();
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: AppColors.bgSurfaceElevated,
-                              content: Text('Laporan tersimpan di: $path', style: const TextStyle(color: Colors.white)),
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Gagal ekspor: $e')),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                  const Divider(height: 1, color: AppColors.borderSubtle),
-                  ListTile(
-                    leading: const Icon(Icons.security_rounded, color: AppColors.primaryLight),
-                    title: Text('Keamanan Data Offline', style: AppTypography.bodyBold),
-                    subtitle: Text('Database SQLite dan foto struk tersimpan di HP Anda', style: AppTypography.caption),
-                    trailing: const Icon(Icons.check_circle_outline, color: AppColors.secondary, size: 20),
-                  ),
+                  Text(title, style: AppTypography.bodyBold.copyWith(fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: AppTypography.caption),
                 ],
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            // 3. Wallets Section
-            Text('Dompet & Saldo (${financeProvider.wallets.length})', style: AppTypography.titleSm),
-            const SizedBox(height: 10),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.bgSurface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.borderSubtle),
-              ),
-              child: Column(
-                children: financeProvider.wallets.map((w) {
-                  return ListTile(
-                    leading: Icon(
-                      w.type == 'CASH'
-                          ? Icons.payments_outlined
-                          : (w.type == 'BANK' ? Icons.account_balance_outlined : Icons.phone_android_outlined),
-                      color: AppColors.meshCyan,
-                    ),
-                    title: Text(w.name, style: AppTypography.bodyBold),
-                    subtitle: Text(
-                      'Saldo: ${CurrencyFormatter.formatRupiah(w.currentBalance)}',
-                      style: AppTypography.caption,
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // 4. Categories Section
-            Text('Kategori Transaksi (${financeProvider.categories.length})', style: AppTypography.titleSm),
-            const SizedBox(height: 10),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.bgSurface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.borderSubtle),
-              ),
-              child: Column(
-                children: financeProvider.categories.take(6).map((cat) {
-                  final isExpense = cat.type == 'EXPENSE';
-                  return ListTile(
-                    leading: Icon(
-                      Icons.label_outline_rounded,
-                      color: isExpense ? AppColors.error : AppColors.secondary,
-                    ),
-                    title: Text(cat.name, style: AppTypography.bodyBold),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isExpense ? AppColors.statusNegativeBg : AppColors.statusPositiveBg,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        isExpense ? 'Pengeluaran' : 'Pemasukan',
-                        style: AppTypography.caption.copyWith(
-                          color: isExpense ? AppColors.error : AppColors.secondary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-            const SizedBox(height: 100), // Navbar space
+            if (trailing != null) trailing,
           ],
         ),
       ),

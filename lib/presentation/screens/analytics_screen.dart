@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
 
 class AnalyticsScreen extends StatefulWidget {
@@ -35,14 +36,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgCanvas,
-        elevation: 0,
-        title: Text('Statistik & Analisis', style: AppTypography.headlineMd),
+      appBar: StickyFrostedAppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Statistik & Analisis', style: AppTypography.headlineMd.copyWith(fontSize: 20)),
+            const SizedBox(height: 2),
+            Text(
+              'Rincian Pengeluaran & Arus Kas',
+              style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
+        ),
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -70,18 +80,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  const Divider(color: AppColors.borderSubtle, height: 1),
+                  const SizedBox(height: 14),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildSummaryBadge(
+                      _buildMiniSummary(
                         label: 'Total Pemasukan',
-                        amount: CurrencyFormatter.formatRupiah(totalIncome),
+                        amount: totalIncome,
                         color: AppColors.secondary,
                       ),
-                      const SizedBox(width: 12),
-                      _buildSummaryBadge(
-                        label: 'Transaksi',
-                        amount: '${financeProvider.transactions.length} Total',
-                        color: AppColors.primaryLight,
+                      _buildMiniSummary(
+                        label: 'Sisa Arus Kas',
+                        amount: totalIncome - totalExpense,
+                        color: (totalIncome - totalExpense) >= 0 ? AppColors.secondary : AppColors.error,
                       ),
                     ],
                   ),
@@ -92,129 +104,139 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             const SizedBox(height: 24),
 
             // 2. Category Breakdown Section
-            Text('Distribusi Kategori Pengeluaran', style: AppTypography.titleSm),
+            Text('Rincian Kategori Pengeluaran', style: AppTypography.titleSm),
             const SizedBox(height: 12),
 
             if (sortedCategories.isEmpty)
               Container(
-                padding: const EdgeInsets.all(28),
-                alignment: Alignment.center,
+                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: AppColors.bgSurface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.borderSubtle),
                 ),
-                child: Text(
-                  'Belum ada data pengeluaran untuk dianalisis',
-                  style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+                alignment: Alignment.center,
+                child: Column(
+                  children: [
+                    const Icon(Icons.pie_chart_outline_rounded, size: 36, color: AppColors.textSecondary),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Belum ada data pengeluaran',
+                      style: AppTypography.bodyBold,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Data grafik kategori akan otomatis terbentuk setelah Anda mencatat transaksi.',
+                      style: AppTypography.caption,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               )
             else
               ...sortedCategories.map((entry) {
-                final catName = entry.key;
-                final amount = entry.value;
-                final count = categoryCounts[catName] ?? 1;
-                final percentage = totalExpense > 0 ? (amount / totalExpense) : 0.0;
-
-                // Distinct colors for top categories
-                Color barColor = AppColors.primaryLight;
-                if (catName.toLowerCase().contains('makan') || catName.toLowerCase().contains('food')) {
-                  barColor = AppColors.meshViolet;
-                } else if (catName.toLowerCase().contains('belanja') || catName.toLowerCase().contains('shop')) {
-                  barColor = AppColors.meshCyan;
-                } else if (catName.toLowerCase().contains('tagihan')) {
-                  barColor = AppColors.secondary;
-                }
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.bgSurface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.borderSubtle),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(catName, style: AppTypography.bodyBold),
-                              const SizedBox(height: 2),
-                              Text('$count Transaksi', style: AppTypography.caption),
-                            ],
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(CurrencyFormatter.formatRupiah(amount), style: AppTypography.bodyBold),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${(percentage * 100).toStringAsFixed(1)}%',
-                                style: AppTypography.caption.copyWith(
-                                  color: barColor,
-                                  fontWeight: FontWeight.w600,
+                final percentage = totalExpense > 0 ? (entry.value / totalExpense) : 0.0;
+                final count = categoryCounts[entry.key] ?? 0;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.borderSubtle),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.category_rounded,
+                                    size: 16,
+                                    color: AppColors.primaryLight,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: percentage.clamp(0.02, 1.0),
-                          minHeight: 6,
-                          backgroundColor: AppColors.surfaceContainerHighest,
-                          valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                                const SizedBox(width: 10),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(entry.key, style: AppTypography.bodyBold),
+                                    Text(
+                                      '$count transaksi',
+                                      style: AppTypography.caption.copyWith(fontSize: 10),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  CurrencyFormatter.formatRupiah(entry.value),
+                                  style: AppTypography.bodyBold.copyWith(color: AppColors.textPrimary),
+                                ),
+                                Text(
+                                  '${(percentage * 100).toStringAsFixed(1)}%',
+                                  style: AppTypography.caption.copyWith(
+                                    color: AppColors.primaryLight,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 10),
+                        // Progress bar
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: percentage.clamp(0.0, 1.0),
+                            minHeight: 6,
+                            backgroundColor: AppColors.surfaceContainerHigh,
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               }),
 
-            const SizedBox(height: 100), // Navbar padding
+            const SizedBox(height: 100), // Space for Floating Island Navbar
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSummaryBadge({
+  Widget _buildMiniSummary({
     required String label,
-    required String amount,
+    required double amount,
     required Color color,
   }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.bgSurfaceElevated,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderSubtle),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTypography.caption),
+        const SizedBox(height: 2),
+        Text(
+          CurrencyFormatter.formatRupiah(amount),
+          style: AppTypography.bodyBold.copyWith(color: color, fontSize: 14),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: AppTypography.caption.copyWith(fontSize: 10)),
-            const SizedBox(height: 2),
-            Text(
-              amount,
-              style: AppTypography.bodyBold.copyWith(
-                fontSize: 12,
-                color: color,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }

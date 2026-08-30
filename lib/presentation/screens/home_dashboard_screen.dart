@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -27,61 +28,78 @@ class HomeDashboardScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
-      body: SafeArea(
-        bottom: false,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // Refined Top App Bar
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Brand Title
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            // Fixed / Sticky Frosted Header
+            SliverAppBar(
+              pinned: true,
+              floating: false,
+              elevation: 0,
+              backgroundColor: Colors.transparent,
+              toolbarHeight: 68,
+              flexibleSpace: ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.bgCanvas.withValues(alpha: 0.85),
+                      border: const Border(
+                        bottom: BorderSide(color: AppColors.borderSubtle, width: 1.0),
+                      ),
+                    ),
+                    padding: const EdgeInsets.only(left: 20, right: 20, top: 28),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Recify', style: AppTypography.headlineMd),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Pelacak Pengeluaran & OCR Lokal',
-                          style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+                        // Brand Title
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Recify', style: AppTypography.headlineMd.copyWith(fontSize: 22)),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Pelacak Pengeluaran & OCR Lokal',
+                              style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+
+                        // Quick Settings / Profile Trigger
+                        GestureDetector(
+                          onTap: () => onNavigateTab?.call(3),
+                          child: Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSurface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.borderSubtle),
+                            ),
+                            child: const Icon(
+                              Icons.tune_rounded,
+                              color: AppColors.textSecondary,
+                              size: 18,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-
-                    // Quick Settings / Profile Trigger
-                    GestureDetector(
-                      onTap: () => onNavigateTab?.call(3),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.bgSurface,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.borderSubtle),
-                        ),
-                        child: const Icon(
-                          Icons.tune_rounded,
-                          color: AppColors.textSecondary,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-
-            // Main Content
+          ];
+        },
+        body: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  const SizedBox(height: 10),
-
                   // 1. Obsidian Hero Card (Real Metrics)
                   ObsidianHeroCard(
                     totalBalance: financeProvider.totalBalance,
@@ -163,7 +181,7 @@ class HomeDashboardScreen extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.bgSurfaceElevated,
               shape: BoxShape.circle,
             ),
