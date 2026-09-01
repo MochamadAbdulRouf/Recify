@@ -23,6 +23,7 @@ class ScannerProvider with ChangeNotifier {
   String _errorMessage = '';
   File? _capturedImage;
   ParsedReceiptData? _parsedData;
+  String? _rawOcrText;
 
   ScannerState get state => _state;
   String get errorMessage => _errorMessage;
@@ -30,6 +31,7 @@ class ScannerProvider with ChangeNotifier {
   ParsedReceiptData? get parsedData => _parsedData;
   ParsedReceiptData? get lastScanResult => _parsedData;
   String? get scannedReceiptImagePath => _capturedImage?.path;
+  String? get rawOcrText => _rawOcrText;
 
   Future<void> pickAndScanReceipt(ImageSource source) async {
     await pickImageAndScan(source: source);
@@ -42,9 +44,9 @@ class ScannerProvider with ChangeNotifier {
 
       final XFile? photo = await _picker.pickImage(
         source: source,
-        maxWidth: 1600,
-        maxHeight: 1600,
-        imageQuality: 85,
+        maxWidth: 2400,  // Increased for better OCR quality
+        maxHeight: 2400,
+        imageQuality: 92, // Higher quality for better text recognition
       );
 
       if (photo == null) {
@@ -57,16 +59,35 @@ class ScannerProvider with ChangeNotifier {
       _state = ScannerState.scanning;
       notifyListeners();
 
-      // On-Device OCR text extraction
+      // On-Device OCR text extraction with layout reconstruction
       final rawText = await _ocrScanner.processImage(_capturedImage!);
-      
-      // Parse structured receipt
+      _rawOcrText = rawText;
+
+      debugPrint('═══════════════════════════════════════════');
+      debugPrint('📋 OCR RAW TEXT:');
+      debugPrint(rawText);
+      debugPrint('═══════════════════════════════════════════');
+
+      // Parse structured receipt from OCR text
       _parsedData = _parser.parse(rawText, imagePath: _capturedImage!.path);
+
+      debugPrint('📊 PARSED RESULT:');
+      debugPrint('  Merchant: ${_parsedData!.merchantName}');
+      debugPrint('  Category: ${_parsedData!.suggestedCategory}');
+      debugPrint('  Grand Total: ${_parsedData!.grandTotal}');
+      debugPrint('  Items (${_parsedData!.items.length}):');
+      for (final item in _parsedData!.items) {
+        debugPrint('    - ${item.itemName}: ${item.quantity}x @ ${item.unitPrice} = ${item.totalPrice}');
+      }
+      debugPrint('═══════════════════════════════════════════');
+
       _state = ScannerState.success;
       notifyListeners();
-    } catch (e) {
+    } catch (e, stackTrace) {
       _state = ScannerState.error;
       _errorMessage = 'Gagal memproses struk: $e';
+      debugPrint('❌ Scanner Error: $e');
+      debugPrint('Stack trace: $stackTrace');
       notifyListeners();
     }
   }
@@ -122,41 +143,54 @@ class ScannerProvider with ChangeNotifier {
     required String walletId,
     String? customNotes,
   }) async {
-    if (_parsedData == null) return;
-
-    String? archivedPath;
-    if (_capturedImage != null) {
-      archivedPath = await _archiveManager.saveCompressedReceipt(_capturedImage!);
+    if (_parsedData == null) {
+      debugPrint('❌ saveVerifiedTransaction: No parsed data available');
+      return;
     }
 
-    final txId = const Uuid().v4();
-    final transaction = TransactionModel(
-      id: txId,
-      walletId: walletId,
-      categoryId: _parsedData!.suggestedCategory,
-      type: 'EXPENSE',
-      amount: _parsedData!.grandTotal,
-      transactionDate: _parsedData!.transactionDate.millisecondsSinceEpoch,
-      merchantName: _parsedData!.merchantName,
-      receiptImagePath: archivedPath,
-      notes: customNotes ?? 'Scan Nota: ${_parsedData!.merchantName}',
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-    );
+    try {
+      String? archivedPath;
+      if (_capturedImage != null) {
+        archivedPath = await _archiveManager.saveCompressedReceipt(_capturedImage!);
+      }
 
-    final items = _parsedData!.items.map((i) {
-      return TransactionItemModel(
-        id: const Uuid().v4(),
-        transactionId: txId,
-        itemName: i.itemName,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-        totalPrice: i.totalPrice,
+      final txId = const Uuid().v4();
+      final transaction = TransactionModel(
+        id: txId,
+        walletId: walletId,
         categoryId: _parsedData!.suggestedCategory,
+        type: 'EXPENSE',
+        amount: _parsedData!.grandTotal,
+        transactionDate: _parsedData!.transactionDate.millisecondsSinceEpoch,
+        merchantName: _parsedData!.merchantName,
+        receiptImagePath: archivedPath,
+        notes: customNotes ?? 'Scan Nota: ${_parsedData!.merchantName}',
+        createdAt: DateTime.now().millisecondsSinceEpoch,
       );
-    }).toList();
 
-    await _financeRepository.recordTransaction(transaction, items);
-    reset();
+      final items = _parsedData!.items.map((i) {
+        return TransactionItemModel(
+          id: const Uuid().v4(),
+          transactionId: txId,
+          itemName: i.itemName,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          totalPrice: i.totalPrice,
+          categoryId: _parsedData!.suggestedCategory,
+        );
+      }).toList();
+
+      await _financeRepository.recordTransaction(transaction, items);
+
+      debugPrint('✅ Transaction saved: $txId (${_parsedData!.merchantName})');
+      debugPrint('   Amount: ${_parsedData!.grandTotal}, Items: ${items.length}');
+
+      reset();
+    } catch (e, stackTrace) {
+      debugPrint('❌ saveVerifiedTransaction Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      rethrow; // Rethrow so the caller can show error UI
+    }
   }
 
   void reset() {
@@ -164,6 +198,7 @@ class ScannerProvider with ChangeNotifier {
     _errorMessage = '';
     _capturedImage = null;
     _parsedData = null;
+    _rawOcrText = null;
     notifyListeners();
   }
 

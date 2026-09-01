@@ -69,9 +69,13 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final financeProvider = context.read<FinanceProvider>();
       if (financeProvider.categories.isNotEmpty) {
+        // Match by category ID (suggestedCategory contains ID like 'cat_groceries')
         final guessed = financeProvider.categories.firstWhere(
-          (c) => c.name.toLowerCase() == widget.parsedData.suggestedCategory.toLowerCase(),
-          orElse: () => financeProvider.categories.first,
+          (c) => c.id == widget.parsedData.suggestedCategory,
+          orElse: () => financeProvider.categories.firstWhere(
+            (c) => c.type == 'EXPENSE',
+            orElse: () => financeProvider.categories.first,
+          ),
         );
         setState(() {
           _selectedCategory = guessed;
@@ -663,52 +667,81 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
 
   void _saveTransaction() async {
     final amount = double.tryParse(_amountController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
-    if (amount <= 0 || _selectedCategory == null || _selectedWallet == null) {
+    if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nominal, kategori, dan dompet harus valid!')),
+        const SnackBar(content: Text('Nominal harus lebih dari 0!')),
+      );
+      return;
+    }
+    if (_selectedCategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih kategori terlebih dahulu!')),
+      );
+      return;
+    }
+    if (_selectedWallet == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih dompet/wallet terlebih dahulu!')),
       );
       return;
     }
 
-    final txId = const Uuid().v4();
-    final tx = TransactionModel(
-      id: txId,
-      walletId: _selectedWallet!.id,
-      categoryId: _selectedCategory!.id,
-      amount: amount,
-      type: 'EXPENSE',
-      merchantName: _merchantController.text.trim(),
-      receiptImagePath: widget.receiptImagePath,
-      transactionDate: _selectedDate.millisecondsSinceEpoch,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-      notes: _notesController.text.trim(),
-    );
-
-    final items = _editableItems.map((i) {
-      return TransactionItemModel(
-        id: const Uuid().v4(),
-        transactionId: txId,
-        itemName: i.itemName,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-        totalPrice: i.totalPrice,
+    try {
+      final txId = const Uuid().v4();
+      final tx = TransactionModel(
+        id: txId,
+        walletId: _selectedWallet!.id,
+        categoryId: _selectedCategory!.id,
+        amount: amount,
+        type: 'EXPENSE',
+        merchantName: _merchantController.text.trim(),
+        receiptImagePath: widget.receiptImagePath,
+        transactionDate: _selectedDate.millisecondsSinceEpoch,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        notes: _notesController.text.trim().isNotEmpty
+            ? _notesController.text.trim()
+            : 'Scan Nota: ${_merchantController.text.trim()}',
       );
-    }).toList();
 
-    final financeProvider = context.read<FinanceProvider>();
-    await financeProvider.saveTransaction(tx, items);
+      final items = _editableItems.map((i) {
+        return TransactionItemModel(
+          id: const Uuid().v4(),
+          transactionId: txId,
+          itemName: i.itemName,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          totalPrice: i.totalPrice,
+          categoryId: _selectedCategory!.id,
+        );
+      }).toList();
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppColors.bgSurfaceElevated,
-          content: Text(
-            'Transaksi ${_merchantController.text} sebesar ${CurrencyFormatter.formatRupiah(amount)} tersimpan!',
-            style: const TextStyle(color: Colors.white),
+      final financeProvider = context.read<FinanceProvider>();
+      await financeProvider.saveTransaction(tx, items);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.bgSurfaceElevated,
+            content: Text(
+              'Transaksi ${_merchantController.text} sebesar ${CurrencyFormatter.formatRupiah(amount)} tersimpan!',
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
-        ),
-      );
-      Navigator.pop(context);
+        );
+        Navigator.pop(context, true); // Return true to signal successful save
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red.shade800,
+            content: Text(
+              'Gagal menyimpan transaksi: $e',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+      }
     }
   }
 }
