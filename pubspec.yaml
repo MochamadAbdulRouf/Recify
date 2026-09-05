@@ -23,6 +23,11 @@ dependencies:
   google_mlkit_text_recognition: ^0.14.0
   image_picker: ^1.1.2
 
+  # AI-Powered Receipt Parsing (Gemini LLM)
+  google_generative_ai: ^0.4.6
+  connectivity_plus: ^6.1.4
+  shared_preferences: ^2.5.3
+
   # Formatters & Charts
   intl: ^0.19.0
   fl_chart: ^0.70.2

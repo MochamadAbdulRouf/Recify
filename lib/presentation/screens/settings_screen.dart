@@ -13,6 +13,7 @@ import '../../data/models/category_model.dart';
 import '../../data/models/wallet_model.dart';
 import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
+import '../providers/scanner_provider.dart';
 import '../../domain/backup/backup_manager.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -409,7 +410,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 22),
 
-            // 5. Section: Support & Info (Stitch Match)
+            // 5. Section: OCR & AI Parser
+            _buildSectionHeader('OCR & AI PARSER'),
+            _buildCardGroup([
+              Builder(
+                builder: (context) {
+                  final scannerProvider = context.watch<ScannerProvider>();
+                  return _buildSettingItem(
+                    icon: Icons.auto_awesome_rounded,
+                    iconColor: const Color(0xFF8B5CF6), // violet-500
+                    title: 'Gunakan AI Parser (Gemini)',
+                    subtitle: scannerProvider.useAiParser
+                        ? 'Parsing struk menggunakan Gemini AI'
+                        : 'Parsing struk menggunakan regex offline',
+                    trailing: Switch.adaptive(
+                      value: scannerProvider.useAiParser,
+                      onChanged: (val) => scannerProvider.setUseAiParser(val),
+                      activeTrackColor: AppColors.primary,
+                    ),
+                  );
+                },
+              ),
+              _buildDivider(),
+              Builder(
+                builder: (context) {
+                  final scannerProvider = context.watch<ScannerProvider>();
+                  return _buildSettingItem(
+                    icon: Icons.key_rounded,
+                    iconColor: AppColors.meshCyan,
+                    title: 'Gemini API Key',
+                    subtitle: scannerProvider.hasApiKey
+                        ? 'API key tersimpan ✓'
+                        : 'Belum dikonfigurasi',
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: scannerProvider.hasApiKey
+                                ? AppColors.secondary.withValues(alpha: 0.12)
+                                : AppColors.error.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            scannerProvider.hasApiKey ? 'Aktif' : 'Kosong',
+                            style: AppTypography.caption.copyWith(
+                              color: scannerProvider.hasApiKey ? AppColors.secondary : AppColors.error,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+                      ],
+                    ),
+                    onTap: () => _showApiKeyDialog(context),
+                  );
+                },
+              ),
+            ]),
+
+            const SizedBox(height: 22),
+
+            // 6. Section: Support & Info (Stitch Match)
             _buildSectionHeader('BANTUAN & INFORMASI'),
             _buildCardGroup([
               _buildSettingItem(
@@ -941,6 +1006,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SnackBar(
                     backgroundColor: AppColors.bgSurfaceElevated,
                     content: Text('Dompet "${updated.name}" berhasil diperbarui!', style: const TextStyle(color: Colors.white)),
+                  ),
+                );
+              }
+            },
+            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Gemini API Key Dialog
+  void _showApiKeyDialog(BuildContext context) {
+    final scannerProvider = context.read<ScannerProvider>();
+    final keyController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Gemini API Key', style: AppTypography.titleMedium),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Dapatkan API key gratis di aistudio.google.com. Key disimpan lokal di perangkat, tidak dikirim ke server manapun selain Google AI.',
+              style: AppTypography.caption.copyWith(color: AppColors.textSecondary, fontSize: 11),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: keyController,
+              autofocus: true,
+              obscureText: true,
+              style: AppTypography.bodyBold,
+              decoration: const InputDecoration(
+                hintText: 'AIza...',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () async {
+              final key = keyController.text.trim();
+              if (key.isEmpty) return;
+              await scannerProvider.setGeminiApiKey(key);
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: AppColors.bgSurfaceElevated,
+                    content: Text('API Key berhasil disimpan! ${key.length} karakter.', style: const TextStyle(color: Colors.white)),
                   ),
                 );
               }

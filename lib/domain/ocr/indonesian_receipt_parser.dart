@@ -5,6 +5,8 @@ class IndonesianReceiptParser {
   static const List<Map<String, String>> _merchantKeywordMap = [
     // Groceries / Minimarkets
     {'keyword': 'INDOMARET', 'category': 'cat_groceries'},
+    {'keyword': 'INDOMARCO', 'category': 'cat_groceries'},
+    {'keyword': 'IDM ', 'category': 'cat_groceries'},
     {'keyword': 'ALFAMART', 'category': 'cat_groceries'},
     {'keyword': 'ALFAMIDI', 'category': 'cat_groceries'},
     {'keyword': 'SUPERINDO', 'category': 'cat_groceries'},
@@ -90,6 +92,10 @@ class IndonesianReceiptParser {
     'SUB TOTAL',
     'SUBTOTAL',
     'TOTAL HARGA',
+    'HARGA JUAL',
+    'TOTAL HARGA JUAL',
+    'JUMLAH HARGA',
+    'TOTAL PENJUALAN',
     'TOTAL SEBELUM PAJAK',
     'SUB-TOTAL',
   ];
@@ -98,12 +104,21 @@ class IndonesianReceiptParser {
     'PAJAK',
     'PPN',
     'PB1',
+    'P81',
+    'PBI',
+    'P8I',
+    'PB 1',
+    'PB-1',
     'TAX',
     'PPN 11%',
     'PPN 10%',
     'PPN 12%',
     'SERVICE CHARGE',
     'SC ',
+    'TAX RESTO',
+    'PAJAK RESTO',
+    'RESTO',
+    'SERVICE',
   ];
 
   static const List<String> _discountKeywords = [
@@ -113,7 +128,10 @@ class IndonesianReceiptParser {
     'POTONGAN',
     'PROMO',
     'VOUCHER',
+    'VCHR',
+    'VC ',
     'SAVING',
+    'CASHBACK',
   ];
 
   /// Lines to skip when extracting receipt items
@@ -127,6 +145,9 @@ class IndonesianReceiptParser {
     'TOTAL TRANSAKSI',
     'TOTAL PEMBAYARAN',
     'TOTAL BELANJA',
+    'HARGA JUAL',
+    'TOTAL HARGA JUAL',
+    'JUMLAH HARGA',
     'BILL',
     'TAGIHAN',
     'NETTO',
@@ -139,6 +160,7 @@ class IndonesianReceiptParser {
     'TOTAL BARIS',
     'ITEM :',
     'QTY :',
+    'ITEMS',
     'PAX :',
     'PAX:',
     'TBL ',
@@ -155,12 +177,22 @@ class IndonesianReceiptParser {
     'WAKTU',
     'TANGGAL',
     'DATE',
+    'INFO :',
+    'PURPOSE :',
     'PAJAK',
     'PPN',
     'PB1',
+    'P81',
+    'PBI',
+    'P8I',
+    'PB 1',
+    'PB-1',
     'TAX',
     'SERVICE CHARGE',
     'SC ',
+    'TAX RESTO',
+    'PAJAK RESTO',
+    'RESTO',
     'PEMBULATAN',
     'ROUNDING',
     'DISKON',
@@ -169,6 +201,10 @@ class IndonesianReceiptParser {
     'POTONGAN',
     'PROMO',
     'VOUCHER',
+    'VCHR',
+    'VC ',
+    'VC:',
+    'VC.',
     'TUNAI',
     'CASH',
     'KEMBALI',
@@ -191,6 +227,23 @@ class IndonesianReceiptParser {
     'ALAMAT',
     'ADDRESS',
     'NPWP',
+    'JL ',
+    'JL.',
+    'JALAN ',
+    'KEC ',
+    'KEC.',
+    'KECAMATAN',
+    'KAB ',
+    'KAB.',
+    'KABUPATEN',
+    'KOTA ',
+    'KEL ',
+    'KEL.',
+    'KELURAHAN',
+    'PROV ',
+    'PROVINSI',
+    'POSTAL',
+    'KODE POS',
     'DEBIT',
     'KREDIT',
     'CREDIT',
@@ -236,13 +289,28 @@ class IndonesianReceiptParser {
     // Extract grand total with items context
     var total = _extractGrandTotal(lines, items);
 
-    // Cross-validation: if total is suspiciously small compared to items sum
+    // Cross-validation: if total is suspiciously small (e.g. grabbed 6 or 45 from Pax / Qty / Item count)
+    // ONLY trigger if total is clearly not a valid Rupiah total (< 1000) or tiny fraction of items.
+    // Never trigger if total >= 1000 to prevent valid totals (e.g. 63,000) from being overwritten
+    // by inflated itemsSum.
     if (items.isNotEmpty) {
       final itemsSum = items.fold(0.0, (sum, i) => sum + i.totalPrice);
-      if (itemsSum > 0 && (total < itemsSum * 0.5 || total < 500)) {
-        // Total was misparsed (e.g. grabbed 6 or 500), find proper total or fallback to items sum + tax
+      if (itemsSum > 0 && (total < 1000 || total < itemsSum * 0.05)) {
         final closest = _findClosestTotal(lines, itemsSum);
         total = closest ?? (itemsSum + tax - discount);
+      }
+    }
+
+    // Cross-validation: if total was not found or is equal to itemsSum,
+    // and subtotal + tax exists and is higher than total:
+    if (subtotal != null && tax > 0) {
+      final computedTotal = subtotal + tax - discount;
+      final itemsSum = items.isNotEmpty
+          ? items.fold(0.0, (sum, i) => sum + i.totalPrice)
+          : 0.0;
+      if (computedTotal > total &&
+          ((total - subtotal).abs() < 1.0 || (itemsSum > 0 && (total - itemsSum).abs() < 1.0))) {
+        total = computedTotal;
       }
     }
 
@@ -274,33 +342,93 @@ class IndonesianReceiptParser {
 
   String _fallbackMerchantName(List<String> lines) {
     return lines.firstWhere(
-      (l) =>
-          l.length >= 3 &&
-          l.length <= 35 &&
-          !RegExp(r'[0-9]{5,}').hasMatch(l) &&
-          !_isSkipItemLine(l),
-      orElse: () => 'Nota Belanja',
+      (l) {
+        if (l.length < 3 || l.length > 35) return false;
+        if (RegExp(r'^[0-9]+(\s|\.|x|X|\)|$)').hasMatch(l)) return false;
+        if (_isSkipItemLine(l)) return false;
+
+        final upper = l.toUpperCase();
+        // Reject voucher lines, addresses, phone, discounts
+        if (upper.startsWith('VC') ||
+            upper.contains('VOUCHER') ||
+            upper.contains('DISKON') ||
+            upper.contains('PROMO') ||
+            upper.contains('HEMAT')) {
+          return false;
+        }
+        if (upper.contains('(') || upper.contains(')')) return false;
+        if (RegExp(r'\b(JL|JALAN|KEC|KECAMATAN|KAB|KABUPATEN|KOTA|KEL|KELURAHAN|PROV)\b').hasMatch(upper)) {
+          return false;
+        }
+        if (upper.contains('HARGA') ||
+            upper.contains('TOTAL') ||
+            upper.contains('SUBTOTAL') ||
+            upper.contains('BAYAR') ||
+            upper.contains('CASH')) {
+          return false;
+        }
+
+        // Reject lines that are mostly digits or have a 5+ digit number
+        final compact = l.replaceAll(RegExp(r'[\s.,]+'), '');
+        if (RegExp(r'[0-9]{5,}').hasMatch(compact)) return false;
+        if (RegExp(r'^[0-9.,]+$').hasMatch(compact)) return false;
+        return true;
+      },
+      orElse: () => "Nota Belanja",
     );
   }
 
   String _extractMerchantName(List<String> lines) {
-    for (final line in lines.take(8)) {
+    // Find the first "items section" separator so we don't pick a keyword that
+    // legitimately appears in an item name (e.g. RAMEN inside "Beef Teriyaki Ramen").
+    int itemSectionStart = lines.length;
+    for (int i = 0; i < lines.length && i < 12; i++) {
+      final upper = lines[i].toUpperCase();
+      final isSep = upper.contains('---') ||
+          upper.contains('===') ||
+          upper.contains('***') ||
+          upper.contains('TBL ') ||
+          upper.contains('TABLE ') ||
+          upper.contains('KASIR') ||
+          upper.contains('SHIFT') ||
+          upper.contains('STRUK');
+      if (isSep) {
+        itemSectionStart = i;
+        break;
+      }
+    }
+
+    final headerLines = lines.take(itemSectionStart + 2).toList();
+
+    for (final line in headerLines) {
       final upper = line.toUpperCase();
+      if (_looksLikeItemRow(line)) continue;
       for (final entry in _merchantKeywordMap) {
         if (upper.contains(entry['keyword']!)) {
           return line.trim();
         }
       }
     }
-    for (final line in lines.take(4)) {
+    for (final line in headerLines) {
+      if (_looksLikeItemRow(line)) continue;
       if (line.length >= 4 &&
           line.length <= 30 &&
+          !RegExp(r'^\d').hasMatch(line) &&
           !RegExp(r'\d').hasMatch(line) &&
           !_isSkipItemLine(line)) {
         return line;
       }
     }
     return '';
+  }
+
+  /// Quick check: does this line look like an item row (qty + name + price)?
+  /// Used to prevent merchant-name heuristics from grabbing an item line.
+  bool _looksLikeItemRow(String line) {
+    final compact = line.replaceAll(RegExp(r'[\s.,]+'), '');
+    if (RegExp(r'[0-9]{5,}').hasMatch(compact)) return true;
+    if (RegExp(r'^\d+\s+\S+.*\d{3,}\s*$').hasMatch(line)) return true;
+    return false;
   }
 
   String _detectCategoryFromMerchant(String merchant) {
@@ -369,7 +497,60 @@ class IndonesianReceiptParser {
 
   bool _isSkipItemLine(String line) {
     final upper = line.toUpperCase();
-    return _skipItemKeywords.any((k) => upper.contains(k));
+    if (_skipItemKeywords.any((k) => upper.contains(k))) return true;
+
+    // Fuzzy matching for OCR misreads of critical keywords
+    // OCR often misreads "Total" as "Totol", "Totel", "Totai", "Tatal", etc.
+    // Also catches "Subtotal", "Sub total" variants with OCR errors
+    final cleaned = upper.replaceAll(RegExp(r'[\s]+'), '');
+    if (_fuzzyMatchesTotalKeyword(cleaned)) return true;
+
+    // Skip lines with discounts/vouchers in parentheses: e.g. "(1,900)" or "(-1.900)"
+    if (RegExp(r'\(\s*[-]?\s*[0-9.,]+\s*\)').hasMatch(line)) return true;
+
+    // Skip voucher lines: e.g. "VC GARUDAFOOD", "VC INDOMIE"
+    if (RegExp(r'^(VC|VCHR|VOUCHER)\b', caseSensitive: false).hasMatch(line.trim())) return true;
+
+    // Skip address lines: e.g. "JL RAYA...", "KEC BOJONGSOANG, KAB BANDUNG"
+    if (RegExp(r'\b(JL|JALAN|KEC|KECAMATAN|KAB|KABUPATEN|KOTA|KEL|KELURAHAN|PROV)\b').hasMatch(upper)) {
+      return true;
+    }
+
+    // Skip transaction/register metadata lines (e.g. "03.08.24-14:43/3.0.16/FGFF...")
+    if (RegExp(r'\d{2}[.-]\d{2}[.-]\d{2,4}.*\d{2}:\d{2}').hasMatch(line)) return true;
+    if (RegExp(r'[0-9]+/[A-Za-z0-9.]+/').hasMatch(line)) return true;
+
+    return false;
+  }
+
+  /// Fuzzy match for "TOTAL", "SUBTOTAL", "GRAND TOTAL" with OCR error tolerance
+  /// Catches misreads like TOTOL, TOTEL, TOTAI, TATAL, SUBTOTOL, etc.
+  bool _fuzzyMatchesTotalKeyword(String cleanedUpper) {
+    // Match patterns that look like TOTAL with 1-char substitution
+    // T-O-T-A-L where any single char might be wrong
+    if (RegExp(r'(^|SUB|GRAND)\s*T[O0]T[AO@][LI1]\b', caseSensitive: false).hasMatch(cleanedUpper)) {
+      return true;
+    }
+    // Match SUBTOTAL / SUB TOTAL variants
+    if (RegExp(r'SUB\s*T[O0]T[AO@][LI1]', caseSensitive: false).hasMatch(cleanedUpper)) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Check if a line looks like a summary/footer line (total, subtotal, tax, etc.)
+  /// Uses position-independent heuristics beyond keyword matching
+  bool _isSummaryLine(String line) {
+    // Lines where name part (before the price) is very short (<=8 chars)
+    // and looks like a total/tax keyword are likely summary lines
+    final match = RegExp(r'^(.+?)\s{2,}[\d.,]+\s*$').firstMatch(line);
+    if (match != null) {
+      final namePart = match.group(1)!.trim().toUpperCase();
+      if (namePart.length <= 10 && _fuzzyMatchesTotalKeyword(namePart.replaceAll(RegExp(r'\s+'), ''))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Extract items from receipt lines, handling both single-line and two-line item formats
@@ -398,6 +579,7 @@ class IndonesianReceiptParser {
 
       // Skip non-item lines
       if (_isSkipItemLine(line)) continue;
+      if (_isSummaryLine(line)) continue;
       if (RegExp(r'^[-=*_]{3,}$').hasMatch(line.replaceAll(' ', ''))) continue;
       if (line.length < 2) continue;
 
@@ -424,6 +606,13 @@ class IndonesianReceiptParser {
         continue;
       }
 
+      // Strategy B2: Minimarket format: "PIATTOS SAPI PNG 68G   2 11200   22,400"
+      final minimarketItem = _tryParseMinimarketItem(line);
+      if (minimarketItem != null) {
+        result.add(minimarketItem);
+        continue;
+      }
+
       // Strategy C: Single-Line with inline quantity (e.g. "INDOMIE 2x3500    7000")
       final inlineQtyItem = _tryParseInlineQty(line);
       if (inlineQtyItem != null) {
@@ -444,6 +633,23 @@ class IndonesianReceiptParser {
         result.add(simpleItem);
         continue;
       }
+    }
+
+    // Post-extraction validation: detect and remove items that are likely
+    // misidentified total/subtotal lines. An item whose price equals or
+    // exceeds the sum of all other items is almost certainly a total line.
+    if (result.length >= 3) {
+      result.removeWhere((item) {
+        final otherSum = result
+            .where((other) => other != item)
+            .fold(0.0, (s, i) => s + i.totalPrice);
+        // If a single item's price >= 90% of the sum of all OTHER items,
+        // it's very likely a total/subtotal line that leaked through
+        if (otherSum > 0 && item.totalPrice >= otherSum * 0.9) {
+          return true;
+        }
+        return false;
+      });
     }
 
     return result;
@@ -522,6 +728,30 @@ class IndonesianReceiptParser {
           quantity: qty,
           unitPrice: price / qty,
           totalPrice: price,
+        );
+      }
+    }
+    return null;
+  }
+
+  /// Single line with trailing quantity and unit price (Minimarket format):
+  /// "PIATTOS SAPI PNG 68G   2 11200   22,400"
+  ParsedReceiptItem? _tryParseMinimarketItem(String line) {
+    final pattern = RegExp(
+      r'^(.+?)\s+(\d{1,3})\s+([0-9]{1,3}(?:[.,][0-9]{3})*|[0-9]{2,})\s+([0-9]{1,3}(?:[.,][0-9]{3})*|[0-9]{2,})\s*$',
+    );
+    final match = pattern.firstMatch(line);
+    if (match != null) {
+      final name = _cleanItemName(match.group(1) ?? '');
+      final qty = double.tryParse(match.group(2) ?? '1') ?? 1.0;
+      final unitPrice = _parseNumber(match.group(3) ?? '');
+      final totalPrice = _parseNumber(match.group(4) ?? '');
+      if (_isValidItem(name, totalPrice) && totalPrice > 0) {
+        return ParsedReceiptItem(
+          itemName: name,
+          quantity: qty,
+          unitPrice: unitPrice > 0 ? unitPrice : (totalPrice / qty),
+          totalPrice: totalPrice,
         );
       }
     }
@@ -629,9 +859,28 @@ class IndonesianReceiptParser {
         upper == 'CASH' ||
         upper == 'TUNAI' ||
         upper == 'KEMBALI' ||
-        upper == 'CHANGE') {
+        upper == 'CHANGE' ||
+        upper.contains('HARGA JUAL') ||
+        upper.contains('TOTAL HARGA') ||
+        upper.contains('ROUNDING') ||
+        upper.contains('PEMBULATAN')) {
       return false;
     }
+    // Reject taxes and fees as items
+    if (RegExp(r'\b(PB1|P81|PBI|P8I|PB 1|PAJAK|PPN|TAX|RESTO|SERVICE|SC)\b').hasMatch(upper)) {
+      return false;
+    }
+    // Reject discounts and vouchers as items
+    if (RegExp(r'^(VC|VCHR|VOUCHER|DISKON|DISCOUNT|HEMAT|POTONGAN|PROMO)\b').hasMatch(upper)) {
+      return false;
+    }
+    // Reject address lines as items
+    if (RegExp(r'\b(JL|JALAN|KEC|KECAMATAN|KAB|KABUPATEN|KOTA|KEL|KELURAHAN|PROV)\b').hasMatch(upper)) {
+      return false;
+    }
+    // Fuzzy match: reject names that look like OCR-misread total/subtotal keywords
+    final cleanedUpper = upper.replaceAll(RegExp(r'[\s]+'), '');
+    if (_fuzzyMatchesTotalKeyword(cleanedUpper)) return false;
     return true;
   }
 
@@ -676,14 +925,26 @@ class IndonesianReceiptParser {
       'TOTAL TAGIHAN',
     ];
 
-    for (final kw in tier1Keywords) {
-      for (final line in normalizedLines.reversed) {
-        final upper = line.toUpperCase();
-        if (upper.contains(kw) && !isNonMonetaryLine(upper)) {
-          final amount = _extractAmountFromLine(line);
-          if (amount != null && amount >= 500) {
-            return amount;
-          }
+    for (int i = normalizedLines.length - 1; i >= 0; i--) {
+      final line = normalizedLines[i];
+      final upper = line.toUpperCase();
+      if (isNonMonetaryLine(upper)) continue;
+
+      bool matchesTier1 = tier1Keywords.any((kw) => upper.contains(kw));
+      if (!matchesTier1) {
+        // Fuzzy match for GRAND TOTAL variants: e.g. "GRAND TOTA1", "GRAND TOTAI", "G.TOTAL", "GR.TOTAL"
+        matchesTier1 = RegExp(r'\b(GRAND|G[.]?|GR[.]?)\s*T[O0]T[AO@][LI1]', caseSensitive: false).hasMatch(upper);
+      }
+
+      if (matchesTier1) {
+        final amount = _extractAmountFromLine(line);
+        if (amount != null && amount >= 500) {
+          return amount;
+        }
+        // If keyword is on its own line, check adjacent lines
+        final adjacent = _extractAmountFromAdjacentLine(normalizedLines, i);
+        if (adjacent != null && adjacent >= 500) {
+          return adjacent;
         }
       }
     }
@@ -694,27 +955,34 @@ class IndonesianReceiptParser {
       'TOTAL HARGA',
       'JUMLAH TOTAL',
       'AMOUNT DUE',
+      'TOTAL PENJUALAN',
     ];
 
-    for (final kw in tier2Keywords) {
-      for (final line in normalizedLines.reversed) {
-        final upper = line.toUpperCase();
-        if (upper.contains(kw) && !isNonMonetaryLine(upper)) {
-          final amount = _extractAmountFromLine(line);
-          if (amount != null && amount >= 500) {
-            return amount;
-          }
+    for (int i = normalizedLines.length - 1; i >= 0; i--) {
+      final line = normalizedLines[i];
+      final upper = line.toUpperCase();
+      if (isNonMonetaryLine(upper)) continue;
+
+      if (tier2Keywords.any((kw) => upper.contains(kw))) {
+        final amount = _extractAmountFromLine(line);
+        if (amount != null && amount >= 500) {
+          return amount;
+        }
+        final adjacent = _extractAmountFromAdjacentLine(normalizedLines, i);
+        if (adjacent != null && adjacent >= 500) {
+          return adjacent;
         }
       }
     }
 
-    // Tier 3: General "TOTAL", "BILL", "TAGIHAN" (skipping subtotal, tax, and item count lines)
-    final tier3Keywords = ['TOTAL', 'BILL', 'TAGIHAN', 'JUMLAH'];
+    // Tier 3: General "TOTAL", "BILL", "TAGIHAN", "JUMLAH", "HARGA JUAL"
+    final tier3Keywords = ['TOTAL', 'BILL', 'TAGIHAN', 'JUMLAH', 'HARGA JUAL'];
 
     for (final kw in tier3Keywords) {
-      for (final line in normalizedLines.reversed) {
+      for (int i = normalizedLines.length - 1; i >= 0; i--) {
+        final line = normalizedLines[i];
         final upper = line.toUpperCase();
-        if (_subtotalKeywords.any((k) => upper.contains(k)) ||
+        if (_subtotalKeywords.any((k) => k != kw && upper.contains(k)) ||
             _taxKeywords.any((k) => upper.contains(k)) ||
             _discountKeywords.any((k) => upper.contains(k)) ||
             isNonMonetaryLine(upper)) {
@@ -727,6 +995,41 @@ class IndonesianReceiptParser {
           if (amount != null && amount >= 1000) {
             return amount;
           }
+
+          // OCR may split keyword and amount across separate lines
+          final adjacentAmount = _extractAmountFromAdjacentLine(normalizedLines, i);
+          if (adjacentAmount != null && adjacentAmount >= 1000) {
+            return adjacentAmount;
+          }
+        }
+      }
+    }
+
+    // Tier 3.5: Fuzzy match for OCR-misread TOTAL (e.g. "Totol", "Totel", "Totai", "Tota1")
+    // This catches lines where OCR slightly garbled the "Total" keyword
+    for (int i = normalizedLines.length - 1; i >= 0; i--) {
+      final line = normalizedLines[i];
+      final upper = line.toUpperCase();
+
+      // Skip subtotal, tax, discount, and non-monetary lines
+      if (_subtotalKeywords.any((k) => upper.contains(k)) ||
+          _taxKeywords.any((k) => upper.contains(k)) ||
+          _discountKeywords.any((k) => upper.contains(k)) ||
+          isNonMonetaryLine(upper)) {
+        continue;
+      }
+
+      // Check if text portion fuzzy-matches "TOTAL"
+      final cleaned = upper.replaceAll(RegExp(r'[\s]+'), '');
+      if (_fuzzyMatchesTotalKeyword(cleaned)) {
+        final amount = _extractAmountFromLine(line);
+        if (amount != null && amount >= 1000) {
+          return amount;
+        }
+        // Also check adjacent lines for split keyword/amount
+        final adjacentAmount = _extractAmountFromAdjacentLine(normalizedLines, i);
+        if (adjacentAmount != null && adjacentAmount >= 1000) {
+          return adjacentAmount;
         }
       }
     }
@@ -751,6 +1054,47 @@ class IndonesianReceiptParser {
     }
 
     return 0.0;
+  }
+
+  /// When OCR splits a keyword and its amount across two lines (e.g. "Total" on
+  /// line i and "257,565" on line i+1), this method checks adjacent lines for
+  /// a standalone monetary amount.
+  double? _extractAmountFromAdjacentLine(List<String> lines, int keywordIndex) {
+    // Check lines AFTER the keyword first (up to 3 lines after)
+    for (int offset = 1; offset <= 3 && keywordIndex + offset < lines.length; offset++) {
+      final line = lines[keywordIndex + offset];
+      final upper = line.toUpperCase();
+      if (upper.contains('PRINTED') ||
+          upper.contains('TERIMA KASIH') ||
+          RegExp(r'^[-=*_]{3,}$').hasMatch(line.replaceAll(' ', ''))) {
+        continue;
+      }
+      final amount = _extractAmountFromLine(line);
+      if (amount != null && amount >= 500) {
+        // Ensure it's primarily a number line (e.g. "257,565" or "Rp 97.500" or ": 63,000")
+        final textPart = line.replaceAll(RegExp(r'[\d.,\s:RpIDR\-=]+'), '').trim();
+        if (textPart.length <= 4) {
+          return amount;
+        }
+      }
+    }
+
+    // Check lines BEFORE the keyword (up to 2 lines before)
+    for (int offset = 1; offset <= 2 && keywordIndex - offset >= 0; offset++) {
+      final line = lines[keywordIndex - offset];
+      if (RegExp(r'^[-=*_]{3,}$').hasMatch(line.replaceAll(' ', ''))) {
+        continue;
+      }
+      final amount = _extractAmountFromLine(line);
+      if (amount != null && amount >= 500) {
+        final textPart = line.replaceAll(RegExp(r'[\d.,\s:RpIDR\-=]+'), '').trim();
+        if (textPart.length <= 4) {
+          return amount;
+        }
+      }
+    }
+
+    return null;
   }
 
   /// Search for a grand total amount in lines that is close to or greater than items sum
@@ -795,28 +1139,48 @@ class IndonesianReceiptParser {
     return null;
   }
 
+  /// Extract total tax by summing ALL tax-related line items.
+  /// Receipts may have multiple tax charges (e.g. Service Charge + Tax Resto)
+  /// and we need to capture them all.
   double _extractTax(List<String> lines) {
+    double totalTax = 0.0;
+    final matchedLines = <String>{}; // Track already-matched lines to avoid double-counting
+
     for (final keyword in _taxKeywords) {
       for (final line in lines) {
-        if (line.toUpperCase().contains(keyword)) {
+        final upper = line.toUpperCase();
+        if (upper.contains(keyword) && !matchedLines.contains(line)) {
+          // Skip if this line also matches a subtotal keyword
+          if (_subtotalKeywords.any((k) => upper.contains(k))) continue;
           final amount = _extractAmountFromLine(_normalizeNumberSpacing(line));
-          if (amount != null && amount > 0) return amount;
+          if (amount != null && amount > 0) {
+            totalTax += amount;
+            matchedLines.add(line);
+          }
         }
       }
     }
-    return 0.0;
+    return totalTax;
   }
 
+  /// Extract total discount by summing all voucher/discount lines
   double _extractDiscount(List<String> lines) {
+    double totalDiscount = 0.0;
+    final matchedLines = <String>{};
+
     for (final keyword in _discountKeywords) {
       for (final line in lines) {
-        if (line.toUpperCase().contains(keyword)) {
+        final upper = line.toUpperCase();
+        if (upper.contains(keyword) && !matchedLines.contains(line)) {
           final amount = _extractAmountFromLine(_normalizeNumberSpacing(line));
-          if (amount != null && amount > 0) return amount;
+          if (amount != null && amount > 0) {
+            totalDiscount += amount;
+            matchedLines.add(line);
+          }
         }
       }
     }
-    return 0.0;
+    return totalDiscount;
   }
 
   double? _extractAmountFromLine(String line) {

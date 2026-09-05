@@ -33,7 +33,7 @@ class RecifyApp extends StatelessWidget {
           create: (_) => FinanceProvider()..loadInitialData(),
         ),
         ChangeNotifierProvider(
-          create: (_) => ScannerProvider(),
+          create: (_) => ScannerProvider()..initializeSettings(),
         ),
       ],
       child: MaterialApp(

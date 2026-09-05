@@ -131,6 +131,9 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                           style: AppTypography.bodyReg.copyWith(color: AppColors.textSecondary),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      // Validation Status Badge & Parser Source
+                      _buildValidationBadge(),
                     ],
                   ),
                 ),
@@ -248,6 +251,13 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                             ),
                           ],
                         ),
+
+                        // Stale date warning — receipt date differs from today,
+                        // transaction will not appear in current-month recap
+                        if (!_isDateToday) ...[
+                          const SizedBox(height: 10),
+                          _buildStaleDateWarning(),
+                        ],
 
                         const SizedBox(height: 12),
 
@@ -519,6 +529,106 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
     );
   }
 
+  Widget _buildValidationBadge() {
+    final scannerProvider = context.watch<ScannerProvider>();
+    final validationResult = scannerProvider.validationResult;
+    final parserSource = widget.parsedData.parserSource;
+
+    // Determine parser source label
+    final String parserLabel;
+    final IconData parserIcon;
+    if (parserSource == 'gemini') {
+      parserLabel = 'Gemini AI';
+      parserIcon = Icons.auto_awesome_rounded;
+    } else {
+      parserLabel = 'Offline Parser';
+      parserIcon = Icons.offline_bolt_rounded;
+    }
+
+    // Determine validation status
+    final String statusLabel;
+    final Color statusColor;
+    final IconData statusIcon;
+    if (validationResult == null) {
+      statusLabel = 'Not Validated';
+      statusColor = AppColors.textSecondary;
+      statusIcon = Icons.help_outline_rounded;
+    } else {
+      switch (validationResult.status) {
+        case 'valid':
+          statusLabel = 'Valid';
+          statusColor = const Color(0xFF4ADE80); // green-400
+          statusIcon = Icons.check_circle_rounded;
+          break;
+        case 'warning':
+          statusLabel = 'Periksa';
+          statusColor = const Color(0xFFFBBF24); // amber-400
+          statusIcon = Icons.warning_amber_rounded;
+          break;
+        default: // 'needs_review'
+          statusLabel = 'Perlu Review';
+          statusColor = const Color(0xFFF87171); // red-400
+          statusIcon = Icons.error_outline_rounded;
+          break;
+      }
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Parser Source Chip
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppColors.bgSurfaceElevated,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.borderSubtle),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(parserIcon, size: 14, color: AppColors.meshCyan),
+              const SizedBox(width: 5),
+              Text(
+                parserLabel,
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.meshCyan,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Validation Status Chip
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(statusIcon, size: 14, color: statusColor),
+              const SizedBox(width: 5),
+              Text(
+                statusLabel,
+                style: AppTypography.caption.copyWith(
+                  color: statusColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildReceiptPreviewHero() {
     return Container(
       height: 280,
@@ -618,6 +728,71 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool get _isDateToday {
+    final now = DateTime.now();
+    return _selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
+  }
+
+  String _daysAgoLabel(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final thatDay = DateTime(date.year, date.month, date.day);
+    final days = today.difference(thatDay).inDays;
+    if (days == 1) return 'kemarin';
+    if (days < 31) return '$days hari lalu';
+    final months = (days / 30.44).round();
+    return '$months bulan lalu';
+  }
+
+  Widget _buildStaleDateWarning() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBBF24).withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFBBF24).withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.event_repeat_rounded, size: 18, color: Color(0xFFFBBF24)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Tanggal struk: ${DateFormat('d MMM yyyy').format(_selectedDate)} '
+              '(${_daysAgoLabel(_selectedDate)}) — tidak masuk rekap bulan ini. '
+              'Tap di sini untuk ubah.',
+              style: AppTypography.caption.copyWith(
+                color: const Color(0xFFFBBF24),
+                fontSize: 11.5,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => setState(() => _selectedDate = DateTime.now()),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFBBF24).withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Pakai Hari Ini',
+                style: AppTypography.caption.copyWith(
+                  color: const Color(0xFFFBBF24),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
               ),
             ),
           ),

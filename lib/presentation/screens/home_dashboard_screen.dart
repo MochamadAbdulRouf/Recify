@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../components/obsidian_hero_card.dart';
 import '../components/quick_action_grid.dart';
+import '../components/scan_progress_dialog.dart';
 import '../components/transaction_list_item.dart';
 import '../providers/finance_provider.dart';
 import '../providers/scanner_provider.dart';
@@ -251,18 +253,7 @@ class HomeDashboardScreen extends StatelessWidget {
                   subtitle: Text('Scan nota langsung dengan OCR on-device', style: AppTypography.caption),
                   onTap: () async {
                     Navigator.pop(ctx);
-                    await scannerProvider.pickAndScanReceipt(ImageSource.camera);
-                    if (context.mounted && scannerProvider.lastScanResult != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => QuickVerificationScreen(
-                            parsedData: scannerProvider.lastScanResult!,
-                            receiptImagePath: scannerProvider.scannedReceiptImagePath,
-                          ),
-                        ),
-                      );
-                    }
+                    await _scanWithProgress(context, scannerProvider, ImageSource.camera);
                   },
                 ),
                 const Divider(height: 1, color: AppColors.borderSubtle),
@@ -279,18 +270,7 @@ class HomeDashboardScreen extends StatelessWidget {
                   subtitle: Text('Import gambar struk belanja tersimpan', style: AppTypography.caption),
                   onTap: () async {
                     Navigator.pop(ctx);
-                    await scannerProvider.pickAndScanReceipt(ImageSource.gallery);
-                    if (context.mounted && scannerProvider.lastScanResult != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => QuickVerificationScreen(
-                            parsedData: scannerProvider.lastScanResult!,
-                            receiptImagePath: scannerProvider.scannedReceiptImagePath,
-                          ),
-                        ),
-                      );
-                    }
+                    await _scanWithProgress(context, scannerProvider, ImageSource.gallery);
                   },
                 ),
               ],
@@ -299,6 +279,39 @@ class HomeDashboardScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Opens the live progress dialog, runs the scan pipeline, closes the
+  /// dialog, then navigates to verification on success.
+  Future<void> _scanWithProgress(
+    BuildContext context,
+    ScannerProvider scannerProvider,
+    ImageSource source,
+  ) async {
+    unawaited(showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      builder: (_) => const ScanProgressDialog(),
+    ));
+
+    await scannerProvider.pickAndScanReceipt(source);
+
+    if (context.mounted) {
+      // Close the progress dialog (safe even if already closed).
+      Navigator.of(context, rootNavigator: true).pop();
+      if (scannerProvider.lastScanResult != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => QuickVerificationScreen(
+              parsedData: scannerProvider.lastScanResult!,
+              receiptImagePath: scannerProvider.scannedReceiptImagePath,
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _showManualEntry(BuildContext context) {

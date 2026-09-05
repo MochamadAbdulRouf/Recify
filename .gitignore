@@ -54,3 +54,5 @@ mcp_config.json
 app.*.symbols
 app.*.map.json
 .widget_preview/
+OCR_IDEA.md
+implementation_plan_ocr-v1

@@ -27,42 +27,69 @@ class MLKitReceiptScanner {
   /// Works at the `TextLine` level (preserving intact words & numbers from ML Kit)
   /// rather than character or word tokens.
   String _reconstructLayout(RecognizedText recognizedText) {
-    // 1. Collect all lines across all blocks
+    // 1. Collect all lines across all blocks with tilt/slope calculation
     final List<_ReceiptLineSegment> allSegments = [];
+    final List<double> slopes = [];
 
     for (final block in recognizedText.blocks) {
       for (final line in block.lines) {
         final text = line.text.trim();
         if (text.isEmpty) continue;
         final rect = line.boundingBox;
+
+        double slope = 0.0;
+        if (line.cornerPoints.length >= 2) {
+          final p0 = line.cornerPoints[0];
+          final p1 = line.cornerPoints[1];
+          final dx = p1.x - p0.x;
+          final dy = p1.y - p0.y;
+          if (dx.abs() > 30) {
+            final s = dy / dx;
+            // Only consider reasonable slopes (tilt within ±25 degrees: tan(25°) ≈ 0.46)
+            if (s.abs() < 0.46) {
+              slope = s;
+              slopes.add(s);
+            }
+          }
+        }
+
         allSegments.add(_ReceiptLineSegment(
           text: text,
           left: rect.left.toDouble(),
           top: rect.top.toDouble(),
           right: rect.right.toDouble(),
           bottom: rect.bottom.toDouble(),
+          slope: slope,
         ));
       }
     }
 
     if (allSegments.isEmpty) return recognizedText.text;
 
-    // 2. Sort all segments strictly from top to bottom
-    allSegments.sort((a, b) => a.top.compareTo(b.top));
+    // Compute median slope across all text lines to determine overall receipt tilt
+    double medianSlope = 0.0;
+    if (slopes.isNotEmpty) {
+      slopes.sort();
+      medianSlope = slopes[slopes.length ~/ 2];
+    }
 
-    // 3. Cluster segments into visual horizontal rows
+    // 2. Sort all segments strictly from top to bottom by tilt-adjusted vertical position
+    allSegments.sort((a, b) => a.adjustedY(medianSlope).compareTo(b.adjustedY(medianSlope)));
+
+    // 3. Cluster segments into visual horizontal rows using tilt-compensated coordinates
     final List<List<_ReceiptLineSegment>> rows = [];
 
     for (final segment in allSegments) {
       bool placed = false;
       for (final row in rows) {
-        // Average centerY and height of existing segments in this row
-        final rowCenterY = row.map((s) => s.centerY).reduce((a, b) => a + b) / row.length;
+        // Average adjustedY and height of existing segments in this row
+        final rowAdjustedY = row.map((s) => s.adjustedY(medianSlope)).reduce((a, b) => a + b) / row.length;
         final rowHeight = row.map((s) => s.height).reduce((a, b) => a + b) / row.length;
 
-        // Tolerance: segments within 55% of average row height belong to the same visual line
-        final tolerance = (rowHeight * 0.55).clamp(8.0, 40.0);
-        if ((segment.centerY - rowCenterY).abs() < tolerance) {
+        // Tolerance: segments within 65% of average row height belong to the same visual line
+        // Increased clamp range to allow high-res camera photos (2400px) to cluster properly
+        final tolerance = (rowHeight * 0.65).clamp(10.0, 60.0);
+        if ((segment.adjustedY(medianSlope) - rowAdjustedY).abs() < tolerance) {
           row.add(segment);
           placed = true;
           break;
@@ -73,10 +100,10 @@ class MLKitReceiptScanner {
       }
     }
 
-    // 4. Sort rows from top to bottom by their vertical center
+    // 4. Sort rows from top to bottom by their tilt-adjusted vertical center
     rows.sort((rowA, rowB) {
-      final centerA = rowA.map((s) => s.centerY).reduce((a, b) => a + b) / rowA.length;
-      final centerB = rowB.map((s) => s.centerY).reduce((a, b) => a + b) / rowB.length;
+      final centerA = rowA.map((s) => s.adjustedY(medianSlope)).reduce((a, b) => a + b) / rowA.length;
+      final centerB = rowB.map((s) => s.adjustedY(medianSlope)).reduce((a, b) => a + b) / rowB.length;
       return centerA.compareTo(centerB);
     });
 
@@ -122,7 +149,9 @@ class _ReceiptLineSegment {
   final double right;
   final double bottom;
   final double centerY;
+  final double centerX;
   final double height;
+  final double slope;
 
   _ReceiptLineSegment({
     required this.text,
@@ -130,6 +159,11 @@ class _ReceiptLineSegment {
     required this.top,
     required this.right,
     required this.bottom,
+    this.slope = 0.0,
   })  : centerY = (top + bottom) / 2,
+        centerX = (left + right) / 2,
         height = (bottom - top).abs();
+
+  /// Project the Y center to an imaginary vertical axis through X=0, removing tilt
+  double adjustedY(double medianSlope) => centerY - (centerX * medianSlope);
 }
