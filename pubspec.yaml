@@ -41,9 +41,22 @@ dependencies:
   excel: ^4.0.6
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
 
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  image_path: "assets/icon/logo-recify.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_background_image: "assets/icon/adaptive-background.png"
+  adaptive_icon_foreground: "assets/icon/adaptive-foreground.png"
+  android: true
+  ios: false
+  web:
+    generate: false
+  windows:
+    generate: false
