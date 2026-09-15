@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 
@@ -17,8 +18,9 @@ class FloatingIslandNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     return Container(
-      margin: const EdgeInsets.only(left: 20, right: 20, bottom: 24),
+      margin: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
       child: Stack(
         alignment: Alignment.center,
         clipBehavior: Clip.none,
@@ -29,7 +31,7 @@ class FloatingIslandNavBar extends StatelessWidget {
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceDim.withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(32),
@@ -50,14 +52,14 @@ class FloatingIslandNavBar extends StatelessWidget {
                       index: 0,
                       icon: Icons.dashboard_outlined,
                       activeIcon: Icons.dashboard_rounded,
-                      label: 'Beranda',
+                      label: s.home,
                     ),
                     // Tab 1: Analytics
                     _buildNavItem(
                       index: 1,
                       icon: Icons.bar_chart_outlined,
                       activeIcon: Icons.bar_chart_rounded,
-                      label: 'Statistik',
+                      label: s.statistics,
                     ),
                     // Center Gap for FAB
                     const SizedBox(width: 52),
@@ -66,14 +68,14 @@ class FloatingIslandNavBar extends StatelessWidget {
                       index: 2,
                       icon: Icons.account_balance_wallet_outlined,
                       activeIcon: Icons.account_balance_wallet_rounded,
-                      label: 'Riwayat',
+                      label: s.history,
                     ),
                     // Tab 3: Settings
                     _buildNavItem(
                       index: 3,
                       icon: Icons.tune_outlined,
                       activeIcon: Icons.tune_rounded,
-                      label: 'Akun',
+                      label: s.account,
                     ),
                   ],
                 ),

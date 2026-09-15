@@ -13,15 +13,16 @@ class DateFormatter {
     return DateFormat('dd MMM').format(date);
   }
 
-  static String formatRelative(int timestampMs) {
+  static String formatRelative(int timestampMs, {bool isEn = false}) {
     final date = DateTime.fromMillisecondsSinceEpoch(timestampMs);
     final now = DateTime.now();
+    final time = DateFormat('HH:mm').format(date);
     if (date.year == now.year && date.month == now.month && date.day == now.day) {
-      return 'Today, ${DateFormat('HH:mm').format(date)}';
+      return isEn ? 'Today, $time' : 'Hari ini, $time';
     } else if (date.year == now.year &&
         date.month == now.month &&
         date.day == now.subtract(const Duration(days: 1)).day) {
-      return 'Yesterday, ${DateFormat('HH:mm').format(date)}';
+      return isEn ? 'Yesterday, $time' : 'Kemarin, $time';
     }
     return DateFormat('d MMM, HH:mm').format(date);
   }

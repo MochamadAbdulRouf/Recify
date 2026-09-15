@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
@@ -14,16 +15,15 @@ class AnalyticsScreen extends StatefulWidget {
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
-  int _selectedPeriodIndex = 1; // 0: Harian, 1: Mingguan, 2: Bulanan
+  int _selectedPeriodIndex = 1; // 0: Daily, 1: Weekly, 2: Monthly
   int? _selectedBarIndex;
 
-  final List<String> _periodTabs = ['Harian', 'Mingguan', 'Bulanan'];
-  final List<String> _dayLabels = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-  final List<String> _dayFullNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+  List<String> _periodTabs(AppStrings s) => [s.daily, s.weekly, s.monthly];
 
   @override
   Widget build(BuildContext context) {
     final financeProvider = context.watch<FinanceProvider>();
+    final s = AppStrings.of(context);
     final totalExpense = financeProvider.monthlyExpense;
 
     // 1. Calculate Real Category Breakdown from SQLite transactions
@@ -31,7 +31,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final Map<String, int> categoryCounts = {};
     for (final tx in financeProvider.transactions) {
       if (tx.type == 'EXPENSE') {
-        final catName = tx.category?.name ?? 'Umum';
+        final catName = tx.category?.name ?? s.umum;
         categoryTotals[catName] = (categoryTotals[catName] ?? 0) + tx.amount;
         categoryCounts[catName] = (categoryCounts[catName] ?? 0) + 1;
       }
@@ -70,7 +70,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     final activeIndex = _selectedBarIndex ?? highestSpendDayIndex;
     final activeSpendAmount = daySpendings[activeIndex];
-    final activeDayName = _dayFullNames[activeIndex];
+    final activeDayName = s.daysFull[activeIndex];
+    final dayLabels = s.daysShort;
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
@@ -82,12 +83,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Statistik & Analisis',
+              s.statsTitle,
               style: AppTypography.headlineMd.copyWith(fontSize: 20),
             ),
             const SizedBox(height: 2),
             Text(
-              'Laporan Pengeluaran & Arus Kas',
+              s.statsSubtitle,
               style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
             ),
           ],
@@ -95,7 +96,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -108,7 +109,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 border: Border.all(color: AppColors.borderSubtle),
               ),
               child: Row(
-                children: List.generate(_periodTabs.length, (index) {
+                children: List.generate(_periodTabs(s).length, (index) {
                   final isSelected = _selectedPeriodIndex == index;
                   return Expanded(
                     child: GestureDetector(
@@ -130,7 +131,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                               : null,
                         ),
                         child: Text(
-                          _periodTabs[index],
+                          _periodTabs(s)[index],
                           textAlign: TextAlign.center,
                           style: AppTypography.labelMd.copyWith(
                             color: isSelected ? AppColors.primaryLight : AppColors.textSecondary,
@@ -179,7 +180,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     ),
 
                     Padding(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -192,7 +193,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Total Pengeluaran',
+                                    s.totalSpending,
                                     style: AppTypography.bodyReg.copyWith(
                                       color: AppColors.textSecondary,
                                       fontSize: 13,
@@ -268,7 +269,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                 Text(
                                   activeSpendAmount > 0
                                       ? CurrencyFormatter.formatRupiah(activeSpendAmount)
-                                      : 'Tidak ada pengeluaran',
+                                      : s.noSpending,
                                   style: AppTypography.caption.copyWith(
                                     color: activeSpendAmount > 0 ? AppColors.primaryLight : AppColors.textSecondary,
                                     fontWeight: FontWeight.w700,
@@ -282,7 +283,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                           // Fluid Modern Bar Chart Canvas (Zero Overflow Guarantee)
                           SizedBox(
-                            height: 130,
+                            height: 210,
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: List.generate(7, (i) {
@@ -347,7 +348,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                                           // Day Label
                                           Text(
-                                            _dayLabels[i],
+                                            dayLabels[i],
                                             style: AppTypography.caption.copyWith(
                                               color: isHighlighted ? AppColors.primaryLight : AppColors.textSecondary,
                                               fontWeight: isHighlighted ? FontWeight.w700 : FontWeight.w500,
@@ -376,9 +377,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Rincian Kategori Pengeluaran', style: AppTypography.titleSm),
+                Text(s.categoryBreakdown, style: AppTypography.titleSm),
                 Text(
-                  '${sortedCategories.length} Kategori',
+                  '${sortedCategories.length} ${s.categoriesLabel}',
                   style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                 ),
               ],
@@ -400,10 +401,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   children: [
                     const Icon(Icons.pie_chart_outline_rounded, size: 40, color: AppColors.textSecondary),
                     const SizedBox(height: 12),
-                    Text('Belum ada data pengeluaran', style: AppTypography.bodyBold),
+                    Text(s.noSpendingData, style: AppTypography.bodyBold),
                     const SizedBox(height: 4),
                     Text(
-                      'Catat transaksi atau pindai struk untuk melihat statistik visual.',
+                      s.noSpendingDataHint,
                       style: AppTypography.caption,
                       textAlign: TextAlign.center,
                     ),
@@ -419,7 +420,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: AppColors.bgSurface,
                       borderRadius: BorderRadius.circular(18),
@@ -449,7 +450,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                     Text(entry.key, style: AppTypography.bodyBold.copyWith(fontSize: 14)),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '$count Transaksi',
+                                      '$count ${s.transactionsLabel}',
                                       style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                                     ),
                                   ],
@@ -492,7 +493,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 );
               }),
 
-            const SizedBox(height: 100), // Space for Floating Island Navbar
+            const SizedBox(height: 132), // Space for Floating Island + FAB
           ],
         ),
       ),

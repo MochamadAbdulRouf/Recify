@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/providers/finance_provider.dart';
+import 'presentation/providers/locale_provider.dart';
 import 'presentation/providers/scanner_provider.dart';
 import 'presentation/screens/main_shell_screen.dart';
 
@@ -34,6 +35,9 @@ class RecifyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => ScannerProvider()..initializeSettings(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => LocaleProvider()..load(),
         ),
       ],
       child: MaterialApp(

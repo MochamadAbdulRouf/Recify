@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
@@ -17,12 +18,13 @@ class TransactionListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     final isIncome = transaction.type == 'INCOME';
     final amountText = (isIncome ? '+' : '-') + CurrencyFormatter.formatRupiah(transaction.amount);
-    final dateStr = DateFormatter.formatRelative(transaction.transactionDate);
+    final dateStr = DateFormatter.formatRelative(transaction.transactionDate, isEn: s.isEn);
 
     // Icon & Color styling based on category
-    final categoryName = transaction.category?.name ?? 'Umum';
+    final categoryName = transaction.category?.name ?? s.umum;
     IconData categoryIcon = Icons.receipt_long_rounded;
     Color iconColor = AppColors.primaryLight;
     Color iconBg = AppColors.primary.withValues(alpha: 0.12);
@@ -46,7 +48,7 @@ class TransactionListItem extends StatelessWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: AppColors.bgSurface,
         borderRadius: BorderRadius.circular(16),
@@ -59,7 +61,7 @@ class TransactionListItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(
               children: [
                 // Category Icon
@@ -81,7 +83,7 @@ class TransactionListItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        transaction.merchantName ?? transaction.category?.name ?? 'Transaksi',
+                        transaction.merchantName ?? transaction.category?.name ?? s.transactionWord,
                         style: AppTypography.bodyBold.copyWith(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.w600,

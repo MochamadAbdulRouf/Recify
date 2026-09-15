@@ -6,6 +6,7 @@ import '../../data/models/transaction_item_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/wallet_model.dart';
 import '../../data/repositories/finance_repository.dart';
+import '../../core/utils/trend_calculator.dart';
 import '../../domain/backup/backup_manager.dart';
 import '../../domain/export/report_exporter.dart';
 
@@ -63,6 +64,21 @@ class FinanceProvider with ChangeNotifier {
   double get monthlyIncome => totalIncomeThisMonth;
   double get monthlyExpense => totalExpenseThisMonth;
   List<TransactionModel> get recentTransactions => _transactions;
+
+  /// Weekly balance trend: this week's net flow (income − expense) as a share
+  /// of the current wallet balance. Renders as a percent, or as a nominal
+  /// amount when the percent would round to 0.0%.
+  BalanceTrend get weeklyBalanceTrend => TrendCalculator.weeklyBalanceTrend(
+        transactions: _transactions,
+        currentBalance: totalBalance,
+        now: DateTime.now(),
+      );
+
+  /// Timestamp of the newest record (creation time) — for "Updated X ago".
+  int? get lastDataTimestamp {
+    if (_transactions.isEmpty) return null;
+    return _transactions.map((t) => t.createdAt).reduce((a, b) => a > b ? a : b);
+  }
 
   Future<void> loadInitialData() async {
     _isLoading = true;

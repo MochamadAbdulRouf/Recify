@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../data/models/transaction_model.dart';
@@ -17,11 +18,18 @@ class TransactionHistoryScreen extends StatefulWidget {
 }
 
 class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
-  String _selectedFilter = 'Semua';
+  // Filter stored as type key so locale switch never breaks matching
+  String _selectedFilter = 'ALL';
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
-  final List<String> _filters = ['Semua', 'Pengeluaran', 'Pemasukan'];
+  static const List<String> _filters = ['ALL', 'EXPENSE', 'INCOME'];
+
+  String _filterLabel(AppStrings s, String key) {
+    if (key == 'EXPENSE') return s.filterExpense;
+    if (key == 'INCOME') return s.filterIncome;
+    return s.filterAll;
+  }
 
   @override
   void dispose() {
@@ -32,6 +40,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final financeProvider = context.watch<FinanceProvider>();
+    final s = AppStrings.of(context);
 
     // Filter transactions
     final filtered = financeProvider.transactions.where((t) {
@@ -42,8 +51,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
       if (!matchesSearch) return false;
 
-      if (_selectedFilter == 'Pengeluaran') return t.type == 'EXPENSE';
-      if (_selectedFilter == 'Pemasukan') return t.type == 'INCOME';
+      if (_selectedFilter == 'EXPENSE') return t.type == 'EXPENSE';
+      if (_selectedFilter == 'INCOME') return t.type == 'INCOME';
       return true;
     }).toList();
 
@@ -54,11 +63,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       final now = DateTime.now();
       String header;
       if (date.year == now.year && date.month == now.month && date.day == now.day) {
-        header = 'HARI INI';
+        header = s.isEn ? 'TODAY' : 'HARI INI';
       } else if (date.year == now.year &&
           date.month == now.month &&
           date.day == now.subtract(const Duration(days: 1)).day) {
-        header = 'KEMARIN';
+        header = s.isEn ? 'YESTERDAY' : 'KEMARIN';
       } else {
         header = DateFormat('d MMM yyyy').format(date).toUpperCase();
       }
@@ -76,10 +85,10 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Riwayat Transaksi', style: AppTypography.headlineMd.copyWith(fontSize: 20)),
+            Text(s.historyTitle, style: AppTypography.headlineMd.copyWith(fontSize: 20)),
             const SizedBox(height: 2),
             Text(
-              '${filtered.length} transaksi tercatat',
+              s.historyCount(filtered.length),
               style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
             ),
           ],
@@ -140,8 +149,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                         controller: _searchController,
                         onChanged: (val) => setState(() => _searchQuery = val),
                         style: AppTypography.bodyMedium.copyWith(fontSize: 13),
-                        decoration: const InputDecoration(
-                          hintText: 'Cari transaksi, merchant, catatan...',
+                        decoration: InputDecoration(
+                          hintText: s.searchHint,
                           border: InputBorder.none,
                           focusedBorder: InputBorder.none,
                           enabledBorder: InputBorder.none,
@@ -188,7 +197,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                           ),
                         ),
                         child: Text(
-                          f,
+                          _filterLabel(s, f),
                           style: AppTypography.caption.copyWith(
                             color: isSelected ? Colors.white : AppColors.textSecondary,
                             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
@@ -211,19 +220,19 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 children: [
                   const Icon(Icons.search_off_rounded, size: 48, color: AppColors.textSecondary),
                   const SizedBox(height: 12),
-                  Text('Tidak ada transaksi ditemukan', style: AppTypography.bodyBold),
+                  Text(s.emptyHistoryTitle, style: AppTypography.bodyBold),
                   const SizedBox(height: 4),
-                  Text('Coba ubah kata kunci pencarian atau filter', style: AppTypography.caption),
+                  Text(s.emptyHistoryHint, style: AppTypography.caption),
                 ],
               ),
             )
           : ListView.builder(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               itemCount: grouped.length + 1,
               itemBuilder: (ctx, index) {
                 if (index == grouped.length) {
-                  return const SizedBox(height: 100); // Space for Floating Island Navbar
+                  return const SizedBox(height: 132); // Space for Floating Island + FAB
                 }
 
                 final header = grouped.keys.elementAt(index);

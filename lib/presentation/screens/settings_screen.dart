@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/i18n/app_strings.dart';
 import '../../core/services/profile_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
@@ -13,6 +14,7 @@ import '../../data/models/category_model.dart';
 import '../../data/models/wallet_model.dart';
 import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
+import '../providers/locale_provider.dart';
 import '../providers/scanner_provider.dart';
 import '../../domain/backup/backup_manager.dart';
 
@@ -405,6 +407,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle: '${financeProvider.categories.length} Kategori • Tambah & Kelola',
                 trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
                 onTap: () => _showManageCategoriesSheet(context, financeProvider),
+              ),
+            ]),
+
+            const SizedBox(height: 22),
+
+            // Section: Preferences (Language)
+            _buildSectionHeader('PREFERENSI'),
+            _buildCardGroup([
+              Builder(
+                builder: (context) {
+                  final locale = context.watch<LocaleProvider>();
+                  final s = AppStrings.of(context);
+                  return _buildSettingItem(
+                    icon: Icons.language_rounded,
+                    iconColor: AppColors.meshCyan,
+                    title: s.language,
+                    subtitle: locale.isEn ? s.english : s.indonesian,
+                    trailing: Switch.adaptive(
+                      value: locale.isEn,
+                      onChanged: (val) => locale.setLocale(val ? 'en' : 'id'),
+                      activeTrackColor: AppColors.primary,
+                    ),
+                  );
+                },
               ),
             ]),
 

@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../components/obsidian_hero_card.dart';
@@ -27,6 +28,7 @@ class HomeDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final financeProvider = context.watch<FinanceProvider>();
     final scannerProvider = context.watch<ScannerProvider>();
+    final s = AppStrings.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
@@ -63,7 +65,7 @@ class HomeDashboardScreen extends StatelessWidget {
                             Text('Recify', style: AppTypography.headlineMd.copyWith(fontSize: 22)),
                             const SizedBox(height: 2),
                             Text(
-                              'Pelacak Pengeluaran & OCR Lokal',
+                              s.appTagline,
                               style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                             ),
                           ],
@@ -99,7 +101,7 @@ class HomeDashboardScreen extends StatelessWidget {
           physics: const BouncingScrollPhysics(),
           slivers: [
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   // 1. Obsidian Hero Card (Real Metrics)
@@ -107,7 +109,6 @@ class HomeDashboardScreen extends StatelessWidget {
                     totalBalance: financeProvider.totalBalance,
                     monthlyIncome: financeProvider.monthlyIncome,
                     monthlyExpense: financeProvider.monthlyExpense,
-                    onEditBalance: () => _showManualEntry(context),
                   ),
 
                   const SizedBox(height: 20),
@@ -125,12 +126,12 @@ class HomeDashboardScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Aktivitas Terbaru', style: AppTypography.titleSm),
+                      Text(s.recentActivity, style: AppTypography.titleSm),
                       if (financeProvider.recentTransactions.isNotEmpty)
                         GestureDetector(
                           onTap: () => onNavigateTab?.call(2), // Jump to History
                           child: Text(
-                            'Lihat Semua',
+                            s.viewAll,
                             style: AppTypography.labelMd.copyWith(
                               color: AppColors.primaryLight,
                               fontWeight: FontWeight.w600,
@@ -160,7 +161,7 @@ class HomeDashboardScreen extends StatelessWidget {
                       );
                     }),
 
-                  const SizedBox(height: 100), // Padding for Floating Island
+                  const SizedBox(height: 132), // Space for Floating Island + FAB
                 ]),
               ),
             ),
@@ -171,6 +172,7 @@ class HomeDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context, ScannerProvider scannerProvider) {
+    final s = AppStrings.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
       decoration: BoxDecoration(
@@ -191,12 +193,12 @@ class HomeDashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            'Belum ada transaksi tercatat',
+            s.noTransactionsYet,
             style: AppTypography.bodyBold.copyWith(color: AppColors.textPrimary),
           ),
           const SizedBox(height: 4),
           Text(
-            'Ambil foto nota atau catat pengeluaran Anda',
+            s.noTransactionsHint,
             style: AppTypography.caption,
             textAlign: TextAlign.center,
           ),
@@ -207,7 +209,7 @@ class HomeDashboardScreen extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             icon: const Icon(Icons.camera_alt_outlined, size: 16, color: AppColors.primaryLight),
-            label: Text('Mulai Scan Nota', style: AppTypography.caption.copyWith(color: AppColors.primaryLight)),
+            label: Text(s.startScan, style: AppTypography.caption.copyWith(color: AppColors.primaryLight)),
             onPressed: () => _handleScanReceipt(context, scannerProvider),
           ),
         ],
@@ -238,7 +240,7 @@ class HomeDashboardScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-                Text('Pilih Sumber Foto Nota', style: AppTypography.titleMedium),
+                Text(AppStrings.of(ctx).chooseSource, style: AppTypography.titleMedium),
                 const SizedBox(height: 16),
                 ListTile(
                   leading: Container(
@@ -249,8 +251,8 @@ class HomeDashboardScreen extends StatelessWidget {
                     ),
                     child: const Icon(Icons.camera_alt_rounded, color: AppColors.primaryLight),
                   ),
-                  title: Text('Ambil Foto Kamera', style: AppTypography.bodyBold),
-                  subtitle: Text('Scan nota langsung dengan OCR on-device', style: AppTypography.caption),
+                  title: Text(AppStrings.of(ctx).cameraOption, style: AppTypography.bodyBold),
+                  subtitle: Text(AppStrings.of(ctx).cameraOptionHint, style: AppTypography.caption),
                   onTap: () async {
                     Navigator.pop(ctx);
                     await _scanWithProgress(context, scannerProvider, ImageSource.camera);
@@ -266,8 +268,8 @@ class HomeDashboardScreen extends StatelessWidget {
                     ),
                     child: const Icon(Icons.photo_library_rounded, color: AppColors.secondary),
                   ),
-                  title: Text('Pilih dari Galeri', style: AppTypography.bodyBold),
-                  subtitle: Text('Import gambar struk belanja tersimpan', style: AppTypography.caption),
+                  title: Text(AppStrings.of(ctx).galleryOption, style: AppTypography.bodyBold),
+                  subtitle: Text(AppStrings.of(ctx).receiptImageSaved, style: AppTypography.caption),
                   onTap: () async {
                     Navigator.pop(ctx);
                     await _scanWithProgress(context, scannerProvider, ImageSource.gallery);
@@ -331,14 +333,14 @@ class HomeDashboardScreen extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: AppColors.bgSurfaceElevated,
-            content: Text('Laporan tersimpan di: $path', style: const TextStyle(color: Colors.white)),
+            content: Text('${AppStrings.of(context).reportSaved}$path', style: const TextStyle(color: Colors.white)),
           ),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ekspor gagal: $e')),
+          SnackBar(content: Text('${AppStrings.of(context).exportFailed}$e')),
         );
       }
     }

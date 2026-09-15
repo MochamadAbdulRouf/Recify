@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 
@@ -16,6 +17,7 @@ class QuickActionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     return Column(
       children: [
         // Primary Scan CTA Bar (Tactile, High-Agency)
@@ -55,7 +57,7 @@ class QuickActionGrid extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Pindai Struk Belanja',
+                        s.scanReceipt,
                         style: AppTypography.bodyBold.copyWith(
                           color: Colors.white,
                           fontSize: 15,
@@ -63,7 +65,7 @@ class QuickActionGrid extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Ekstraksi total harga & item secara lokal (AI)',
+                        s.scanReceiptSubtitle,
                         style: AppTypography.caption.copyWith(
                           color: Colors.white.withValues(alpha: 0.8),
                         ),
@@ -112,7 +114,7 @@ class QuickActionGrid extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Text('Catat Manual', style: AppTypography.bodyBold.copyWith(fontSize: 13)),
+                      Text(s.manualEntry, style: AppTypography.bodyBold.copyWith(fontSize: 13)),
                     ],
                   ),
                 ),
@@ -147,7 +149,7 @@ class QuickActionGrid extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Text('Ekspor Laporan', style: AppTypography.bodyBold.copyWith(fontSize: 13)),
+                      Text(s.exportReport, style: AppTypography.bodyBold.copyWith(fontSize: 13)),
                     ],
                   ),
                 ),
