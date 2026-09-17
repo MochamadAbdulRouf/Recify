@@ -30,6 +30,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Mali-G57 + Impeller/Vulkan corrupts blurred mask layers (red band artifact).
+             ponytail: Skia fallback until Impeller fixes Mali blur masks; try removing after Flutter upgrade. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
     </application>
     <queries>
         <intent>

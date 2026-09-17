@@ -80,6 +80,38 @@ class FinanceProvider with ChangeNotifier {
     return _transactions.map((t) => t.createdAt).reduce((a, b) => a > b ? a : b);
   }
 
+  /// Records captured today — drives the hero card's second status pill.
+  int get todayCount {
+    final now = DateTime.now();
+    return _transactions.where((t) {
+      final d = DateTime.fromMillisecondsSinceEpoch(t.createdAt);
+      return d.year == now.year && d.month == now.month && d.day == now.day;
+    }).length;
+  }
+
+  /// Biggest expense category this month, for the analytics insight card.
+  ({String name, double amount, int percent})? get topExpenseCategory {
+    final now = DateTime.now();
+    final byCategory = <String, double>{};
+    var total = 0.0;
+    for (final t in _transactions) {
+      final d = DateTime.fromMillisecondsSinceEpoch(t.transactionDate);
+      if (t.type != 'EXPENSE' || d.month != now.month || d.year != now.year) {
+        continue;
+      }
+      final name = t.category?.name ?? 'Umum';
+      byCategory[name] = (byCategory[name] ?? 0) + t.amount;
+      total += t.amount;
+    }
+    if (byCategory.isEmpty || total <= 0) return null;
+    final top = byCategory.entries.reduce((a, b) => a.value >= b.value ? a : b);
+    return (
+      name: top.key,
+      amount: top.value,
+      percent: ((top.value / total) * 100).round(),
+    );
+  }
+
   Future<void> loadInitialData() async {
     _isLoading = true;
     notifyListeners();

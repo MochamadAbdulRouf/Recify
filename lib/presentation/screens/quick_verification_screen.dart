@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
@@ -12,6 +14,7 @@ import '../../data/models/parsed_receipt_data.dart';
 import '../../data/models/transaction_item_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/wallet_model.dart';
+import '../components/glass_panel.dart';
 import '../providers/finance_provider.dart';
 import '../providers/scanner_provider.dart';
 
@@ -26,7 +29,8 @@ class QuickVerificationScreen extends StatefulWidget {
   });
 
   @override
-  State<QuickVerificationScreen> createState() => _QuickVerificationScreenState();
+  State<QuickVerificationScreen> createState() =>
+      _QuickVerificationScreenState();
 }
 
 class _QuickVerificationScreenState extends State<QuickVerificationScreen>
@@ -46,9 +50,12 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
   void initState() {
     super.initState();
     _merchantController = TextEditingController(
-      text: widget.parsedData.merchantName.isNotEmpty ? widget.parsedData.merchantName : 'Toko Retail',
+      text: widget.parsedData.merchantName.isNotEmpty
+          ? widget.parsedData.merchantName
+          : 'Toko Retail',
     );
-    _amountController = TextEditingController(text: widget.parsedData.grandTotal.toInt().toString());
+    _amountController = TextEditingController(
+        text: widget.parsedData.grandTotal.toInt().toString());
     _notesController = TextEditingController(text: 'OCR Scan Nota');
     _selectedDate = widget.parsedData.transactionDate;
     _editableItems = List.from(widget.parsedData.items);
@@ -99,11 +106,13 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
   @override
   Widget build(BuildContext context) {
     final financeProvider = context.watch<FinanceProvider>();
+    final s = AppStrings.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
       body: Stack(
         children: [
+          const Positioned.fill(child: MeshBackdrop()),
           // Scrollable Content
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
@@ -115,20 +124,22 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
 
                 // 2. Verification Form Header
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   child: Column(
                     children: [
                       Center(
                         child: Text(
-                          'Verify Details',
+                          s.verifyDetails,
                           style: AppTypography.displayLgMobile,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Center(
                         child: Text(
-                          'Review extracted data before saving.',
-                          style: AppTypography.bodyReg.copyWith(color: AppColors.textSecondary),
+                          s.reviewExtracted,
+                          style: AppTypography.bodyReg
+                              .copyWith(color: AppColors.textSecondary),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -140,13 +151,9 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
 
                 // 3. Form Input Cards
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.bgSurface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.borderSubtle),
-                    ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: GlassPanel(
+                    radius: 20,
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,17 +164,20 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                             // Amount Field
                             Expanded(
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: AppColors.bgSurfaceElevated,
+                                  color: AppColors.surfaceContainerHighest
+                                      .withValues(alpha: 0.35),
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: AppColors.borderSubtle),
+                                  border:
+                                      Border.all(color: AppColors.borderSubtle),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'AMOUNT',
+                                      s.fieldAmount,
                                       style: AppTypography.caption.copyWith(
                                         color: AppColors.textSecondary,
                                         fontWeight: FontWeight.w600,
@@ -187,7 +197,8 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                           child: TextField(
                                             controller: _amountController,
                                             keyboardType: TextInputType.number,
-                                            style: AppTypography.headlineMd.copyWith(
+                                            style: AppTypography.headlineMd
+                                                .copyWith(
                                               color: AppColors.textPrimary,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -212,17 +223,21 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                               child: GestureDetector(
                                 onTap: _pickDate,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 10),
                                   decoration: BoxDecoration(
-                                    color: AppColors.bgSurfaceElevated,
+                                    color: AppColors.surfaceContainerHighest
+                                        .withValues(alpha: 0.35),
                                     borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: AppColors.borderSubtle),
+                                    border: Border.all(
+                                        color: AppColors.borderSubtle),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'DATE',
+                                        s.fieldDate,
                                         style: AppTypography.caption.copyWith(
                                           color: AppColors.textSecondary,
                                           fontWeight: FontWeight.w600,
@@ -232,12 +247,17 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                       const SizedBox(height: 6),
                                       Row(
                                         children: [
-                                          const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primary),
+                                          const Icon(
+                                              Icons.calendar_today_rounded,
+                                              size: 16,
+                                              color: AppColors.primary),
                                           const SizedBox(width: 6),
                                           Expanded(
                                             child: Text(
-                                              DateFormat('d MMM yyyy').format(_selectedDate),
-                                              style: AppTypography.bodyBold.copyWith(fontSize: 13),
+                                              DateFormat('d MMM yyyy')
+                                                  .format(_selectedDate),
+                                              style: AppTypography.bodyBold
+                                                  .copyWith(fontSize: 13),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
@@ -263,9 +283,11 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
 
                         // Merchant / Toko Input
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: AppColors.bgSurfaceElevated,
+                            color: AppColors.surfaceContainerHighest
+                                .withValues(alpha: 0.35),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(color: AppColors.borderSubtle),
                           ),
@@ -273,7 +295,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'MERCHANT / STORE',
+                                s.fieldMerchant,
                                 style: AppTypography.caption.copyWith(
                                   color: AppColors.textSecondary,
                                   fontWeight: FontWeight.w600,
@@ -284,11 +306,11 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                               TextField(
                                 controller: _merchantController,
                                 style: AppTypography.bodyBold,
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   border: InputBorder.none,
                                   isDense: true,
                                   contentPadding: EdgeInsets.zero,
-                                  hintText: 'Nama Toko (e.g. Indomaret, Starbucks)',
+                                  hintText: s.merchantHint,
                                 ),
                               ),
                             ],
@@ -299,9 +321,11 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
 
                         // Category Dropdown Card
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: AppColors.bgSurfaceElevated,
+                            color: AppColors.surfaceContainerHighest
+                                .withValues(alpha: 0.35),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(color: AppColors.borderSubtle),
                           ),
@@ -309,7 +333,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'CATEGORY',
+                                s.fieldCategory,
                                 style: AppTypography.caption.copyWith(
                                   color: AppColors.textSecondary,
                                   fontWeight: FontWeight.w600,
@@ -321,8 +345,9 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                 child: DropdownButton<CategoryModel>(
                                   value: _selectedCategory,
                                   isExpanded: true,
-                                  dropdownColor: AppColors.bgSurfaceElevated,
-                                  icon: const Icon(Icons.expand_more_rounded, color: AppColors.textSecondary),
+                                  dropdownColor: AppColors.surfaceContainerHigh,
+                                  icon: const Icon(Icons.expand_more_rounded,
+                                      color: AppColors.textSecondary),
                                   items: financeProvider.categories.map((c) {
                                     return DropdownMenuItem(
                                       value: c,
@@ -332,8 +357,10 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                             width: 28,
                                             height: 28,
                                             decoration: BoxDecoration(
-                                              color: AppColors.meshViolet.withValues(alpha: 0.2),
-                                              borderRadius: BorderRadius.circular(8),
+                                              color: AppColors.meshViolet
+                                                  .withValues(alpha: 0.2),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
                                             child: const Icon(
                                               Icons.label_rounded,
@@ -342,12 +369,14 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                             ),
                                           ),
                                           const SizedBox(width: 10),
-                                          Text(c.name, style: AppTypography.bodyBold),
+                                          Text(c.name,
+                                              style: AppTypography.bodyBold),
                                         ],
                                       ),
                                     );
                                   }).toList(),
-                                  onChanged: (cat) => setState(() => _selectedCategory = cat),
+                                  onChanged: (cat) =>
+                                      setState(() => _selectedCategory = cat),
                                 ),
                               ),
                             ],
@@ -358,9 +387,11 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
 
                         // Wallet Selector Card
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: AppColors.bgSurfaceElevated,
+                            color: AppColors.surfaceContainerHighest
+                                .withValues(alpha: 0.35),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(color: AppColors.borderSubtle),
                           ),
@@ -368,7 +399,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'PAID FROM WALLET',
+                                s.fieldWallet,
                                 style: AppTypography.caption.copyWith(
                                   color: AppColors.textSecondary,
                                   fontWeight: FontWeight.w600,
@@ -380,22 +411,29 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                 child: DropdownButton<WalletModel>(
                                   value: _selectedWallet,
                                   isExpanded: true,
-                                  dropdownColor: AppColors.bgSurfaceElevated,
-                                  icon: const Icon(Icons.expand_more_rounded, color: AppColors.textSecondary),
+                                  dropdownColor: AppColors.surfaceContainerHigh,
+                                  icon: const Icon(Icons.expand_more_rounded,
+                                      color: AppColors.textSecondary),
                                   items: financeProvider.wallets.map((w) {
                                     return DropdownMenuItem(
                                       value: w,
                                       child: Row(
                                         children: [
-                                          const Icon(Icons.account_balance_wallet_rounded, size: 18, color: AppColors.meshCyan),
+                                          const Icon(
+                                              Icons
+                                                  .account_balance_wallet_rounded,
+                                              size: 18,
+                                              color: AppColors.meshCyan),
                                           const SizedBox(width: 10),
-                                          Text('${w.name} (${CurrencyFormatter.formatRupiah(w.currentBalance)})',
+                                          Text(
+                                              '${w.name} (${CurrencyFormatter.formatRupiah(w.currentBalance)})',
                                               style: AppTypography.bodyBold),
                                         ],
                                       ),
                                     );
                                   }).toList(),
-                                  onChanged: (w) => setState(() => _selectedWallet = w),
+                                  onChanged: (w) =>
+                                      setState(() => _selectedWallet = w),
                                 ),
                               ),
                             ],
@@ -405,30 +443,38 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                         // Itemized Breakdown Section
                         if (_editableItems.isNotEmpty) ...[
                           const SizedBox(height: 18),
-                          Text('Rincian Belanja (${_editableItems.length} item)', style: AppTypography.titleSm),
+                          Text(s.receiptItems(_editableItems.length),
+                              style: AppTypography.titleSm),
                           const SizedBox(height: 8),
                           ..._editableItems.map((item) {
                             return Container(
                               margin: const EdgeInsets.only(bottom: 6),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: AppColors.bgSurfaceElevated,
+                                color: AppColors.surfaceContainerHighest
+                                    .withValues(alpha: 0.35),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: AppColors.borderSubtle),
+                                border:
+                                    Border.all(color: AppColors.borderSubtle),
                               ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Text(
                                       '${item.itemName} (${item.quantity}x)',
-                                      style: AppTypography.bodyReg.copyWith(fontSize: 13),
+                                      style: AppTypography.bodyReg
+                                          .copyWith(fontSize: 13),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                   Text(
-                                    CurrencyFormatter.formatRupiah(item.totalPrice),
-                                    style: AppTypography.bodyBold.copyWith(fontSize: 13),
+                                    CurrencyFormatter.formatRupiah(
+                                        item.totalPrice),
+                                    style: AppTypography.bodyBold
+                                        .copyWith(fontSize: 13),
                                   ),
                                 ],
                               ),
@@ -440,7 +486,8 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                   ),
                 ),
 
-                const SizedBox(height: 120), // Bottom padding for sticky action bar
+                const SizedBox(
+                    height: 120), // Bottom padding for sticky action bar
               ],
             ),
           ),
@@ -450,76 +497,93 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
             bottom: 0,
             left: 0,
             right: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                color: AppColors.bgSurface.withValues(alpha: 0.95),
-                border: const Border(top: BorderSide(color: AppColors.borderSubtle)),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x66000000),
-                    blurRadius: 20,
-                    offset: Offset(0, -4),
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  decoration: BoxDecoration(
+                    color:
+                        AppColors.surfaceContainerLow.withValues(alpha: 0.82),
+                    border: const Border(
+                        top: BorderSide(color: AppColors.borderSubtle)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x66000000),
+                        blurRadius: 20,
+                        offset: Offset(0, -4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: SafeArea(
-                top: false,
-                child: Row(
-                  children: [
-                    // Close / Cancel Button
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: AppColors.bgSurfaceElevated,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.borderSubtle),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.close_rounded, color: AppColors.onSurfaceVariant),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    // Retake Button
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: AppColors.bgSurfaceElevated,
-                          side: const BorderSide(color: AppColors.borderSubtle),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: SafeArea(
+                    top: false,
+                    child: Row(
+                      children: [
+                        // Close / Cancel Button
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceContainerHighest
+                                .withValues(alpha: 0.35),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.borderSubtle),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.close_rounded,
+                                color: AppColors.onSurfaceVariant),
+                            onPressed: () => Navigator.pop(context),
+                          ),
                         ),
-                        icon: const Icon(Icons.photo_camera_rounded, size: 18, color: AppColors.onSurface),
-                        label: Text('Retake', style: AppTypography.bodyBold),
-                        onPressed: _retakeReceipt,
-                      ),
-                    ),
 
-                    const SizedBox(width: 12),
+                        const SizedBox(width: 12),
 
-                    // Confirm Save Button
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          elevation: 6,
-                          shadowColor: const Color(0x662F6BFF),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        // Retake Button
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: AppColors.surfaceContainerHigh,
+                              side: const BorderSide(
+                                  color: AppColors.borderSubtle),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            icon: const Icon(Icons.photo_camera_rounded,
+                                size: 18, color: AppColors.onSurface),
+                            label:
+                                Text(s.retake, style: AppTypography.bodyBold),
+                            onPressed: _retakeReceipt,
+                          ),
                         ),
-                        icon: const Icon(Icons.check_rounded, size: 18, color: Colors.white),
-                        label: Text(
-                          'Confirm',
-                          style: AppTypography.bodyBold.copyWith(color: Colors.white),
+
+                        const SizedBox(width: 12),
+
+                        // Confirm Save Button
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              elevation: 6,
+                              shadowColor: const Color(0x662F6BFF),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            icon: const Icon(Icons.check_rounded,
+                                size: 18, color: Colors.white),
+                            label: Text(
+                              s.confirm,
+                              style: AppTypography.bodyBold
+                                  .copyWith(color: Colors.white),
+                            ),
+                            onPressed: _saveTransaction,
+                          ),
                         ),
-                        onPressed: _saveTransaction,
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -530,6 +594,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
   }
 
   Widget _buildValidationBadge() {
+    final s = AppStrings.of(context);
     final scannerProvider = context.watch<ScannerProvider>();
     final validationResult = scannerProvider.validationResult;
     final parserSource = widget.parsedData.parserSource;
@@ -538,10 +603,10 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
     final String parserLabel;
     final IconData parserIcon;
     if (parserSource == 'gemini') {
-      parserLabel = 'Gemini AI';
+      parserLabel = s.parserGemini;
       parserIcon = Icons.auto_awesome_rounded;
     } else {
-      parserLabel = 'Offline Parser';
+      parserLabel = s.parserOffline;
       parserIcon = Icons.offline_bolt_rounded;
     }
 
@@ -550,23 +615,23 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
     final Color statusColor;
     final IconData statusIcon;
     if (validationResult == null) {
-      statusLabel = 'Not Validated';
+      statusLabel = s.statusNotValidated;
       statusColor = AppColors.textSecondary;
       statusIcon = Icons.help_outline_rounded;
     } else {
       switch (validationResult.status) {
         case 'valid':
-          statusLabel = 'Valid';
+          statusLabel = s.statusValid;
           statusColor = const Color(0xFF4ADE80); // green-400
           statusIcon = Icons.check_circle_rounded;
           break;
         case 'warning':
-          statusLabel = 'Periksa';
+          statusLabel = s.statusCheck;
           statusColor = const Color(0xFFFBBF24); // amber-400
           statusIcon = Icons.warning_amber_rounded;
           break;
         default: // 'needs_review'
-          statusLabel = 'Perlu Review';
+          statusLabel = s.statusNeedsReview;
           statusColor = const Color(0xFFF87171); // red-400
           statusIcon = Icons.error_outline_rounded;
           break;
@@ -580,7 +645,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: AppColors.bgSurfaceElevated,
+            color: AppColors.surfaceContainerHighest.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: AppColors.borderSubtle),
           ),
@@ -630,6 +695,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
   }
 
   Widget _buildReceiptPreviewHero() {
+    final s = AppStrings.of(context);
     return Container(
       height: 280,
       width: double.infinity,
@@ -641,9 +707,11 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
         fit: StackFit.expand,
         children: [
           // Image / Receipt photo
-          if (widget.receiptImagePath != null && File(widget.receiptImagePath!).existsSync())
+          if (widget.receiptImagePath != null &&
+              File(widget.receiptImagePath!).existsSync())
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(32)),
               child: Image.file(
                 File(widget.receiptImagePath!),
                 fit: BoxFit.cover,
@@ -659,7 +727,8 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                 ),
               ),
               child: const Center(
-                child: Icon(Icons.receipt_rounded, size: 80, color: Color(0x33FFFFFF)),
+                child: Icon(Icons.receipt_rounded,
+                    size: 80, color: Color(0x33FFFFFF)),
               ),
             ),
 
@@ -695,7 +764,8 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.bgSurfaceElevated.withValues(alpha: 0.85),
+                color:
+                    AppColors.surfaceContainerHighest.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: AppColors.borderSubtle),
               ),
@@ -719,7 +789,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'OCR ACTIVE',
+                    s.ocrActive,
                     style: AppTypography.caption.copyWith(
                       color: AppColors.secondaryFixed,
                       fontWeight: FontWeight.w700,
@@ -748,29 +818,33 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
     final today = DateTime(now.year, now.month, now.day);
     final thatDay = DateTime(date.year, date.month, date.day);
     final days = today.difference(thatDay).inDays;
-    if (days == 1) return 'kemarin';
-    if (days < 31) return '$days hari lalu';
-    final months = (days / 30.44).round();
-    return '$months bulan lalu';
+    final s = AppStrings.of(context);
+    if (days == 1) return s.yesterday.toLowerCase();
+    if (days < 31) return s.daysAgo(days);
+    return s.monthsAgo((days / 30.44).round());
   }
 
   Widget _buildStaleDateWarning() {
+    final s = AppStrings.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFFBBF24).withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFBBF24).withValues(alpha: 0.35)),
+        border:
+            Border.all(color: const Color(0xFFFBBF24).withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.event_repeat_rounded, size: 18, color: Color(0xFFFBBF24)),
+          const Icon(Icons.event_repeat_rounded,
+              size: 18, color: Color(0xFFFBBF24)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Tanggal struk: ${DateFormat('d MMM yyyy').format(_selectedDate)} '
-              '(${_daysAgoLabel(_selectedDate)}) — tidak masuk rekap bulan ini. '
-              'Tap di sini untuk ubah.',
+              s.staleDateWarning(
+                DateFormat('d MMM yyyy').format(_selectedDate),
+                _daysAgoLabel(_selectedDate),
+              ),
               style: AppTypography.caption.copyWith(
                 color: const Color(0xFFFBBF24),
                 fontSize: 11.5,
@@ -787,7 +861,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                'Pakai Hari Ini',
+                s.useToday,
                 style: AppTypography.caption.copyWith(
                   color: const Color(0xFFFBBF24),
                   fontWeight: FontWeight.w700,
@@ -841,22 +915,25 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
   }
 
   void _saveTransaction() async {
-    final amount = double.tryParse(_amountController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+    final s = AppStrings.of(context);
+    final amount = double.tryParse(
+            _amountController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+        0.0;
     if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nominal harus lebih dari 0!')),
+        SnackBar(content: Text(s.errAmountZero)),
       );
       return;
     }
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pilih kategori terlebih dahulu!')),
+        SnackBar(content: Text(s.errPickCategory)),
       );
       return;
     }
     if (_selectedWallet == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pilih dompet/wallet terlebih dahulu!')),
+        SnackBar(content: Text(s.errPickWallet)),
       );
       return;
     }
@@ -896,9 +973,12 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: AppColors.bgSurfaceElevated,
+            backgroundColor: AppColors.surfaceContainerHigh,
             content: Text(
-              'Transaksi ${_merchantController.text} sebesar ${CurrencyFormatter.formatRupiah(amount)} tersimpan!',
+              s.savedScan(
+                _merchantController.text,
+                CurrencyFormatter.formatRupiah(amount),
+              ),
               style: const TextStyle(color: Colors.white),
             ),
           ),
@@ -911,7 +991,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
           SnackBar(
             backgroundColor: Colors.red.shade800,
             content: Text(
-              'Gagal menyimpan transaksi: $e',
+              s.saveFailed('$e'),
               style: const TextStyle(color: Colors.white),
             ),
           ),

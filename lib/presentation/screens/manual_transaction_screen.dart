@@ -1,7 +1,10 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
@@ -9,6 +12,7 @@ import '../../core/utils/currency_input_formatter.dart';
 import '../../data/models/category_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/wallet_model.dart';
+import '../components/glass_panel.dart';
 import '../providers/finance_provider.dart';
 
 class ManualTransactionScreen extends StatefulWidget {
@@ -60,356 +64,345 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
   @override
   Widget build(BuildContext context) {
     final financeProvider = context.watch<FinanceProvider>();
+    final s = AppStrings.of(context);
     final isExpense = _transactionType == 'EXPENSE';
     final amountColor = isExpense ? AppColors.error : AppColors.secondary;
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.bgSurface,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.borderSubtle),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: ClipOval(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerHigh.withValues(alpha: 0.60),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.borderSubtle),
+                ),
+                child: IconButton(
+                  iconSize: 18,
+                  icon: const Icon(Icons.arrow_back_rounded,
+                      color: AppColors.textPrimary),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
             ),
-            child: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 18),
           ),
-          onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Catat Transaksi Manual',
+          s.manualEntryTitle,
           style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Large Amount Hero Card (Red for Expense, Emerald for Income)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-              decoration: BoxDecoration(
-                color: AppColors.bgSurfaceElevated.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.borderSubtle),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x40000000),
-                    blurRadius: 20,
-                    offset: Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Currency & Transaction Type Switcher Pill
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _transactionType = isExpense ? 'INCOME' : 'EXPENSE';
-                        final matching = financeProvider.categories.where((c) => c.type == _transactionType);
-                        if (matching.isNotEmpty) {
-                          _selectedCategory = matching.first;
-                        }
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.borderSubtle),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: amountColor,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            isExpense ? 'IDR • Pengeluaran' : 'IDR • Pemasukan',
-                            style: AppTypography.caption.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.expand_more_rounded, size: 16, color: AppColors.textSecondary),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Large Display Numeric Input (Red for Expense, Emerald for Income)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
+      body: Stack(
+        children: [
+          const Positioned.fill(child: MeshBackdrop()),
+          SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(24, 96, 24, 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Amount hero — glass with the v2 gradient
+                GlassPanel(
+                  radius: 24,
+                  padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+                  fill: AppColors.heroCardGradient,
+                  glowBlobs: true,
+                  child: Column(
                     children: [
-                      Text(
-                        'Rp',
-                        style: AppTypography.headlineMd.copyWith(
-                          fontSize: 32,
-                          color: amountColor,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Flexible(
-                        child: IntrinsicWidth(
-                          child: TextField(
-                            controller: _amountController,
-                            keyboardType: TextInputType.number,
-                            autofocus: true,
-                            textAlign: TextAlign.center,
-                            inputFormatters: [
-                              ThousandsSeparatorInputFormatter(),
-                            ],
-                            style: AppTypography.displayLg.copyWith(
-                              fontSize: 48,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -1.0,
-                              color: amountColor,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: '0',
-                              hintStyle: AppTypography.displayLg.copyWith(
-                                fontSize: 48,
-                                color: amountColor.withValues(alpha: 0.35),
+                      // Currency + type switcher
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _transactionType = isExpense ? 'INCOME' : 'EXPENSE';
+                            final matching = financeProvider.categories
+                                .where((c) => c.type == _transactionType);
+                            if (matching.isNotEmpty) {
+                              _selectedCategory = matching.first;
+                            }
+                          });
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceContainerLowest
+                                    .withValues(alpha: 0.80),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: AppColors.borderSubtle),
                               ),
-                              border: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              errorBorder: InputBorder.none,
-                              disabledBorder: InputBorder.none,
-                              filled: false,
-                              contentPadding: EdgeInsets.zero,
-                              isDense: true,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: amountColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    isExpense ? s.typeExpense : s.typeIncome,
+                                    style: AppTypography.caption.copyWith(
+                                      color: AppColors.textPrimary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.expand_more_rounded,
+                                      size: 16, color: AppColors.textSecondary),
+                                ],
+                              ),
                             ),
                           ),
                         ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Large numeric input
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            'Rp',
+                            style: AppTypography.headlineMd.copyWith(
+                              fontSize: 32,
+                              color: amountColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: IntrinsicWidth(
+                              child: TextField(
+                                controller: _amountController,
+                                keyboardType: TextInputType.number,
+                                autofocus: true,
+                                textAlign: TextAlign.center,
+                                inputFormatters: [
+                                  ThousandsSeparatorInputFormatter(),
+                                ],
+                                style: AppTypography.displayLg.copyWith(
+                                  fontSize: 48,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -1.0,
+                                  color: amountColor,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: '0',
+                                  hintStyle: AppTypography.displayLg.copyWith(
+                                    fontSize: 48,
+                                    color: amountColor.withValues(alpha: 0.35),
+                                  ),
+                                  border: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  errorBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  filled: false,
+                                  contentPadding: EdgeInsets.zero,
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 22),
-
-            // 2. Horizontal Scrollable Category Carousel
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Kategori Transaksi', style: AppTypography.titleSm),
-                Text(
-                  'Geser untuk pilih',
-                  style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildCategoryHorizontalList(financeProvider),
-
-            const SizedBox(height: 20),
-
-            // 3. Transaction Name / Merchant Input
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: AppColors.bgSurface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.borderSubtle),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Nama Transaksi / Tempat',
-                    style: AppTypography.bodyBold.copyWith(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _titleController,
-                    style: AppTypography.bodyLarge.copyWith(fontSize: 15, color: AppColors.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: isExpense
-                          ? 'Contoh: Kopi Kenangan, Beli Bensin, Indomaret'
-                          : 'Contoh: Gaji Bulanan, Bonus, Transfer Masuk',
-                      hintStyle: AppTypography.bodyReg.copyWith(
-                        color: AppColors.textMuted,
-                        fontSize: 14,
-                      ),
-                      border: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      errorBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      filled: false,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // 4. Date Card
-            _buildActionCard(
-              icon: Icons.calendar_today_rounded,
-              label: 'Tanggal Transaksi',
-              value: _formatDateLabel(_selectedDate),
-              trailingIcon: Icons.chevron_right_rounded,
-              onTap: _pickDate,
-            ),
-
-            const SizedBox(height: 12),
-
-            // 5. Wallet Card
-            _buildActionCard(
-              icon: Icons.account_balance_wallet_rounded,
-              label: 'Dompet Pembayaran',
-              value: _selectedWallet?.name ?? 'Pilih Dompet',
-              trailingIcon: Icons.expand_more_rounded,
-              onTap: () => _showWalletPicker(financeProvider),
-            ),
-
-            const SizedBox(height: 12),
-
-            // 6. Notes Input Card (Optional)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: AppColors.bgSurface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.borderSubtle),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Catatan Tambahan (Opsional)',
-                    style: AppTypography.bodyBold.copyWith(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _notesController,
-                    style: AppTypography.bodyReg.copyWith(fontSize: 14, color: AppColors.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: 'Keterangan atau rincian item...',
-                      hintStyle: AppTypography.bodyReg.copyWith(
-                        color: AppColors.textMuted,
-                        fontSize: 14,
-                      ),
-                      border: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      errorBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      filled: false,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // 7. Bottom Action CTAs
-            Row(
-              children: [
-                // Cancel
-                Expanded(
-                  flex: 1,
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      'Batal',
-                      style: AppTypography.bodyBold.copyWith(
-                        color: AppColors.textSecondary,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ),
                 ),
 
-                const SizedBox(width: 12),
+                const SizedBox(height: 22),
 
-                // Save CTA
-                Expanded(
-                  flex: 2,
-                  child: GestureDetector(
-                    onTap: _saveTransaction,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryCtaGradient,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.35),
-                            blurRadius: 18,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Center(
+                // 2. Category carousel
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(s.categorySectionTitle, style: AppTypography.titleSm),
+                    Text(
+                      s.swipeToPick,
+                      style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildCategoryHorizontalList(financeProvider),
+
+                const SizedBox(height: 20),
+
+                // 3. Merchant name input
+                _buildInputCard(
+                  label: s.nameLabel,
+                  hint: isExpense ? s.nameHintExpense : s.nameHintIncome,
+                  controller: _titleController,
+                  style: AppTypography.bodyLarge
+                      .copyWith(fontSize: 15, color: AppColors.textPrimary),
+                  hintStyle: AppTypography.bodyReg
+                      .copyWith(color: AppColors.textMuted, fontSize: 14),
+                ),
+
+                const SizedBox(height: 12),
+
+                // 4. Date
+                _buildActionCard(
+                  icon: Icons.calendar_today_rounded,
+                  label: s.dateLabel,
+                  value: _formatDateLabel(_selectedDate, s),
+                  trailingIcon: Icons.chevron_right_rounded,
+                  onTap: _pickDate,
+                ),
+
+                const SizedBox(height: 12),
+
+                // 5. Wallet
+                _buildActionCard(
+                  icon: Icons.account_balance_wallet_rounded,
+                  label: s.walletLabel,
+                  value: _selectedWallet?.name ?? s.chooseWallet,
+                  trailingIcon: Icons.expand_more_rounded,
+                  onTap: () => _showWalletPicker(financeProvider),
+                ),
+
+                const SizedBox(height: 12),
+
+                // 6. Notes
+                _buildInputCard(
+                  label: s.notesLabel,
+                  hint: s.notesHint,
+                  controller: _notesController,
+                  style: AppTypography.bodyReg
+                      .copyWith(fontSize: 14, color: AppColors.textPrimary),
+                  hintStyle: AppTypography.bodyReg
+                      .copyWith(color: AppColors.textMuted, fontSize: 14),
+                ),
+
+                const SizedBox(height: 32),
+
+                // 7. CTAs
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(28)),
+                        ),
+                        onPressed: () => Navigator.pop(context),
                         child: Text(
-                          'Simpan Transaksi',
+                          s.cancel,
                           style: AppTypography.bodyBold.copyWith(
-                            color: Colors.white,
+                            color: AppColors.textSecondary,
                             fontSize: 15,
                           ),
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: GestureDetector(
+                        onTap: _saveTransaction,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryCtaGradient,
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.35),
+                                blurRadius: 18,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              s.saveTransaction,
+                              style: AppTypography.bodyBold.copyWith(
+                                color: Colors.white,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+
+                const SizedBox(height: 40),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(height: 40),
-          ],
-        ),
+  Widget _buildInputCard({
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    required TextStyle style,
+    required TextStyle hintStyle,
+  }) {
+    return GlassPanel(
+      radius: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTypography.bodyBold.copyWith(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            style: style,
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: hintStyle,
+              border: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              filled: false,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildCategoryHorizontalList(FinanceProvider provider) {
-    final categories = provider.categories.where((c) => c.type == _transactionType).toList();
+    final categories =
+        provider.categories.where((c) => c.type == _transactionType).toList();
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -428,54 +421,60 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                   _selectedCategory = cat;
                 });
               },
-              child: Container(
-                width: 86,
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.surfaceContainerHigh : AppColors.bgSurface,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: isSelected ? AppColors.borderMedium : AppColors.borderSubtle,
-                  ),
-                  boxShadow: isSelected
-                      ? const [
-                          BoxShadow(
-                            color: Color(0x33000000),
-                            blurRadius: 10,
-                            offset: Offset(0, 4),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  child: Container(
+                    width: 86,
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.surfaceContainerHigh.withValues(alpha: 0.90)
+                          : AppColors.surfaceContainerLow.withValues(alpha: 0.70),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.borderMedium
+                            : AppColors.borderSubtle,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.surfaceContainerHighest,
+                            shape: BoxShape.circle,
                           ),
-                        ]
-                      : null,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primary : AppColors.bgSurfaceElevated,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        iconData,
-                        size: 22,
-                        color: isSelected ? Colors.white : AppColors.textSecondary,
-                      ),
+                          child: Icon(
+                            iconData,
+                            size: 22,
+                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          cat.name,
+                          style: AppTypography.caption.copyWith(
+                            color: isSelected
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary,
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontSize: 11,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      cat.name,
-                      style: AppTypography.caption.copyWith(
-                        color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        fontSize: 11,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -520,20 +519,16 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: GlassPanel(
+        radius: 18,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.bgSurface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.borderSubtle),
-        ),
         child: Row(
           children: [
             Container(
               width: 38,
               height: 38,
               decoration: const BoxDecoration(
-                color: AppColors.surfaceContainerHigh,
+                color: AppColors.surfaceContainerHighest,
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 18, color: AppColors.textPrimary),
@@ -546,7 +541,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                   Text(
                     label,
                     style: AppTypography.caption.copyWith(
-                      color: AppColors.textSecondary,
+                      color: AppColors.onSurfaceVariant,
                       fontSize: 11,
                     ),
                   ),
@@ -565,14 +560,15 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
     );
   }
 
-  String _formatDateLabel(DateTime date) {
+  String _formatDateLabel(DateTime date, AppStrings s) {
     final now = DateTime.now();
+    final time = DateFormat('d MMM').format(date);
     if (date.year == now.year && date.month == now.month && date.day == now.day) {
-      return 'Hari ini, ${DateFormat('d MMM').format(date)}';
+      return s.todayLabel(time);
     } else if (date.year == now.year &&
         date.month == now.month &&
         date.day == now.subtract(const Duration(days: 1)).day) {
-      return 'Kemarin, ${DateFormat('d MMM').format(date)}';
+      return s.yesterdayLabel(time);
     }
     return DateFormat('EEE, d MMM yyyy').format(date);
   }
@@ -588,7 +584,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
           data: ThemeData.dark().copyWith(
             colorScheme: const ColorScheme.dark(
               primary: AppColors.primary,
-              surface: AppColors.bgSurface,
+              surface: AppColors.surfaceContainerLow,
             ),
           ),
           child: child!,
@@ -601,31 +597,34 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
   }
 
   void _showWalletPicker(FinanceProvider provider) {
+    final s = AppStrings.of(context);
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.bgSurface,
+      backgroundColor: AppColors.surfaceContainerLow,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Pilih Dompet / Sumber Dana', style: AppTypography.titleMedium),
+                Text(s.selectWalletTitle, style: AppTypography.titleMedium),
                 const SizedBox(height: 14),
                 ...provider.wallets.map((w) {
                   return ListTile(
-                    leading: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primaryLight),
+                    leading: const Icon(Icons.account_balance_wallet_rounded,
+                        color: AppColors.primaryLight),
                     title: Text(w.name, style: AppTypography.bodyBold),
                     subtitle: Text(
-                      'Saldo: ${CurrencyFormatter.formatRupiah(w.currentBalance)}',
+                      '${s.balanceLabel}: ${CurrencyFormatter.formatRupiah(w.currentBalance)}',
                       style: AppTypography.caption,
                     ),
                     trailing: _selectedWallet?.id == w.id
-                        ? const Icon(Icons.check_circle_rounded, color: AppColors.secondary)
+                        ? const Icon(Icons.check_circle_rounded,
+                            color: AppColors.secondary)
                         : null,
                     onTap: () {
                       setState(() => _selectedWallet = w);
@@ -642,20 +641,17 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
   }
 
   void _saveTransaction() async {
-    // Clean string by removing dot separators
+    final s = AppStrings.of(context);
     final cleanDigits = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
     final amount = double.tryParse(cleanDigits) ?? 0.0;
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Masukkan nominal transaksi yang valid')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.errAmount)));
       return;
     }
 
     if (_selectedCategory == null || _selectedWallet == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pilih kategori dan dompet transaksi')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(s.errCategoryWallet)));
       return;
     }
 
@@ -681,9 +677,9 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: AppColors.bgSurfaceElevated,
+          backgroundColor: AppColors.surfaceContainerHigh,
           content: Text(
-            'Transaksi "$merchantName" sebesar ${CurrencyFormatter.formatRupiah(amount)} berhasil disimpan!',
+            s.savedTransaction(merchantName, CurrencyFormatter.formatRupiah(amount)),
             style: const TextStyle(color: Colors.white),
           ),
         ),
