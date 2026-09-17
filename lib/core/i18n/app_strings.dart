@@ -195,6 +195,22 @@ class AppStrings {
       ? 'Record a transaction or scan a receipt to see visual stats.'
       : 'Catat transaksi atau pindai struk untuk melihat statistik visual.';
 
+  // ── Stats: Expense/Income Toggle ──
+  String get expensesTab => isEn ? 'Expenses' : 'Pengeluaran';
+  String get incomeTab => isEn ? 'Income' : 'Pemasukan';
+  String get totalIncome => isEn ? 'Total Income' : 'Total Pemasukan';
+  String get noIncome => isEn ? 'No income' : 'Tidak ada pemasukan';
+  String get incomeCategoryBreakdown =>
+      isEn ? 'Income by Category' : 'Rincian Kategori Pemasukan';
+  String get noIncomeData =>
+      isEn ? 'No income data yet' : 'Belum ada data pemasukan';
+  String get noIncomeDataHint => isEn
+      ? 'Record an income transaction to see visual stats.'
+      : 'Catat transaksi pemasukan untuk melihat statistik visual.';
+  String insightTopIncomeCategory(String category, int percent) => isEn
+      ? '$category is $percent% of this month\'s income'
+      : '$category menyumbang $percent% pemasukan bulan ini';
+
   // ── History ──
   String get historyTitle => isEn ? 'Transaction History' : 'Riwayat Transaksi';
   String historyCount(int n) =>

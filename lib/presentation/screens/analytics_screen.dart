@@ -16,8 +16,12 @@ class AnalyticsScreen extends StatefulWidget {
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
+  int _selectedTypeIndex = 0; // 0: Expenses, 1: Income
   int _selectedPeriodIndex = 1; // 0: Daily, 1: Weekly, 2: Monthly
   int? _selectedBarIndex;
+
+  bool get _isExpense => _selectedTypeIndex == 0;
+  String get _txType => _isExpense ? 'EXPENSE' : 'INCOME';
 
   List<String> _periodTabs(AppStrings s) => [s.daily, s.weekly, s.monthly];
 
@@ -27,55 +31,77 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final s = AppStrings.of(context);
     final now = DateTime.now();
 
-    // 1. Category breakdown — scoped to the current month so it shares a basis
-    //    with the hero figure. Percentages use the sum of the categories shown
-    //    as denominator, which keeps them at or below 100%.
+    // ── 1. Category breakdown (scoped to current month) ──
     final Map<String, double> categoryTotals = {};
     final Map<String, int> categoryCounts = {};
-    var monthExpense = 0.0;
+    var monthTotal = 0.0;
     for (final tx in financeProvider.transactions) {
-      if (tx.type != 'EXPENSE') continue;
+      if (tx.type != _txType) continue;
       final d = DateTime.fromMillisecondsSinceEpoch(tx.transactionDate);
       if (d.month != now.month || d.year != now.year) continue;
       final catName = tx.category?.name ?? s.umum;
       categoryTotals[catName] = (categoryTotals[catName] ?? 0) + tx.amount;
       categoryCounts[catName] = (categoryCounts[catName] ?? 0) + 1;
-      monthExpense += tx.amount;
+      monthTotal += tx.amount;
     }
 
     final sortedCategories = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    // 2. Weekly day-by-day spending (Mon–Sun)
-    final List<double> daySpendings = List.filled(7, 0.0);
+    // ── 2. Weekly day-by-day data (Mon–Sun) ──
+    final List<double> dayAmounts = List.filled(7, 0.0);
     final currentWeekMonday = now.subtract(Duration(days: now.weekday - 1));
 
     for (final tx in financeProvider.transactions) {
-      if (tx.type != 'EXPENSE') continue;
+      if (tx.type != _txType) continue;
       final txDate = DateTime.fromMillisecondsSinceEpoch(tx.transactionDate);
       final diffDays = txDate
           .difference(DateTime(currentWeekMonday.year, currentWeekMonday.month,
               currentWeekMonday.day))
           .inDays;
       if (diffDays >= 0 && diffDays < 7) {
-        daySpendings[diffDays] += tx.amount;
+        dayAmounts[diffDays] += tx.amount;
       }
     }
 
-    var maxDaySpend = 0.0;
-    var highestSpendDayIndex = (now.weekday - 1).clamp(0, 6);
-    for (var i = 0; i < daySpendings.length; i++) {
-      if (daySpendings[i] > maxDaySpend) {
-        maxDaySpend = daySpendings[i];
-        highestSpendDayIndex = i;
+    var maxDayAmount = 0.0;
+    var highestDayIndex = (now.weekday - 1).clamp(0, 6);
+    for (var i = 0; i < dayAmounts.length; i++) {
+      if (dayAmounts[i] > maxDayAmount) {
+        maxDayAmount = dayAmounts[i];
+        highestDayIndex = i;
       }
     }
-    if (maxDaySpend <= 0) maxDaySpend = 100000.0;
 
-    final activeIndex = _selectedBarIndex ?? highestSpendDayIndex;
-    final activeSpendAmount = daySpendings[activeIndex];
-    final insight = financeProvider.topExpenseCategory;
-    final heroExpense = monthExpense > 0 ? monthExpense : financeProvider.monthlyExpense;
+    // Use wallet balance as the basis for bar height proportions.
+    // Each bar = (dayAmount / totalBalance), capped at 100%.
+    final totalBalance = financeProvider.totalBalance;
+    final hasBalance = totalBalance > 0;
+
+    final activeIndex = _selectedBarIndex ?? highestDayIndex;
+    final activeAmount = dayAmounts[activeIndex];
+    final activePercent = hasBalance
+        ? ((activeAmount / totalBalance) * 100).clamp(0.0, 100.0)
+        : 0.0;
+
+    // ── 3. Insight ──
+    final insight = _isExpense
+        ? financeProvider.topExpenseCategory
+        : _topIncomeCategory(financeProvider, now);
+
+    final heroTotal = monthTotal > 0
+        ? monthTotal
+        : (_isExpense
+            ? financeProvider.monthlyExpense
+            : financeProvider.monthlyIncome);
+
+    // ── Active bar gradient & glow based on type ──
+    final activeBarGradient =
+        _isExpense ? AppColors.barActiveGradient : AppColors.barIncomeGradient;
+    final activeBarGlow =
+        _isExpense ? AppColors.primary : AppColors.statusPositive;
+    final tooltipDotColor =
+        _isExpense ? const Color(0xFF3B82F6) : const Color(0xFF4EDEA3);
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
@@ -103,6 +129,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ═══════════════════════════════════════════
+                // EXPENSE / INCOME TOGGLE (NEW)
+                // ═══════════════════════════════════════════
+                _GlassTypeToggle(
+                  labels: [s.expensesTab, s.incomeTab],
+                  icons: const [
+                    Icons.trending_down_rounded,
+                    Icons.trending_up_rounded,
+                  ],
+                  index: _selectedTypeIndex,
+                  onChanged: (i) => setState(() {
+                    _selectedTypeIndex = i;
+                    _selectedBarIndex = null; // reset bar selection
+                  }),
+                ),
+
+                const SizedBox(height: 12),
+
+                // ═══════════════════════════════════════════
+                // PERIOD TABS (Daily / Weekly / Monthly)
+                // ═══════════════════════════════════════════
                 GlassSegmentedTabs(
                   labels: _periodTabs(s),
                   index: _selectedPeriodIndex,
@@ -111,7 +158,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                 const SizedBox(height: 20),
 
-                // Glass hero: figure + period line + bar chart
+                // ═══════════════════════════════════════════
+                // GLASS HERO: Total + Bar Chart
+                // ═══════════════════════════════════════════
                 GlassPanel(
                   padding: const EdgeInsets.all(24),
                   fill: AppColors.heroCardGradient,
@@ -119,7 +168,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   child: Column(
                     children: [
                       Text(
-                        CurrencyFormatter.formatRupiah(heroExpense),
+                        CurrencyFormatter.formatRupiah(heroTotal),
                         style: AppTypography.displayLg.copyWith(
                           fontSize: 30,
                           fontWeight: FontWeight.w700,
@@ -137,7 +186,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Day inspector
+                      // Day inspector pill
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
@@ -151,8 +200,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             Container(
                               width: 7,
                               height: 7,
-                              decoration: const BoxDecoration(
-                                color: AppColors.primary,
+                              decoration: BoxDecoration(
+                                color: activeBarGlow,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -164,12 +213,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                               ),
                             ),
                             Text(
-                              activeSpendAmount > 0
-                                  ? CurrencyFormatter.formatRupiah(activeSpendAmount)
-                                  : s.noSpending,
+                              activeAmount > 0
+                                  ? '${CurrencyFormatter.formatRupiah(activeAmount)} (${activePercent.toStringAsFixed(1)}%)'
+                                  : (_isExpense ? s.noSpending : s.noIncome),
                               style: AppTypography.caption.copyWith(
-                                color: activeSpendAmount > 0
-                                    ? AppColors.primaryLight
+                                color: activeAmount > 0
+                                    ? (_isExpense
+                                        ? AppColors.primaryLight
+                                        : AppColors.statusPositive)
                                     : AppColors.textSecondary,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -180,16 +231,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Bar chart — bars sit directly on the glass, not in a nested panel
+                      // Bar chart
                       SizedBox(
                         height: 200,
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: List.generate(7, (i) {
                             final isActive = i == activeIndex;
-                            // 0.78 ceiling leaves headroom for the floating tooltip.
-                            final factor =
-                                (daySpendings[i] / maxDaySpend).clamp(0.10, 0.78);
+                            // Bar height = day amount as % of total balance.
+                            // Floor at 0.05 so zero-amount days still show a
+                            // sliver; cap at 0.90 to leave tooltip headroom.
+                            final factor = hasBalance
+                                ? (dayAmounts[i] / totalBalance).clamp(
+                                    dayAmounts[i] > 0 ? 0.05 : 0.03, 0.90)
+                                : (maxDayAmount > 0
+                                    ? (dayAmounts[i] / maxDayAmount)
+                                        .clamp(0.10, 0.78)
+                                    : 0.10);
 
                             return Expanded(
                               child: GestureDetector(
@@ -214,7 +272,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                             child: Container(
                                               decoration: BoxDecoration(
                                                 gradient: isActive
-                                                    ? AppColors.barActiveGradient
+                                                    ? activeBarGradient
                                                     : null,
                                                 color: isActive
                                                     ? null
@@ -232,7 +290,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                                 boxShadow: isActive
                                                     ? [
                                                         BoxShadow(
-                                                          color: AppColors.primary
+                                                          color: activeBarGlow
                                                               .withValues(alpha: 0.65),
                                                           blurRadius: 24,
                                                         ),
@@ -241,12 +299,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                               ),
                                             ),
                                           ),
-                                          if (isActive && activeSpendAmount > 0)
+                                          if (isActive && activeAmount > 0)
                                             Positioned(
                                               bottom: barHeight + 8,
                                               child: _ChartTooltip(
                                                 label: CurrencyFormatter
-                                                    .formatRupiah(activeSpendAmount),
+                                                    .formatRupiah(activeAmount),
+                                                percent: hasBalance
+                                                    ? '${((dayAmounts[activeIndex] / totalBalance) * 100).clamp(0, 100).toStringAsFixed(1)}%'
+                                                    : null,
+                                                dotColor: tooltipDotColor,
                                               ),
                                             ),
                                           Positioned(
@@ -280,7 +342,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                       const SizedBox(height: 34),
 
-                      // Tap hint, matching v2's footer rule
+                      // Tap hint
                       Container(
                         padding: const EdgeInsets.only(top: 14),
                         decoration: const BoxDecoration(
@@ -302,7 +364,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                 const SizedBox(height: 16),
 
-                // Insight row — flat, no blur (v2 keeps this one un-glassed)
+                // ═══════════════════════════════════════════
+                // INSIGHT ROW
+                // ═══════════════════════════════════════════
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -315,11 +379,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.20),
+                          color: (_isExpense
+                                  ? AppColors.primary
+                                  : AppColors.statusPositive)
+                              .withValues(alpha: 0.20),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.auto_awesome_rounded,
-                            size: 20, color: AppColors.primaryLight),
+                        child: Icon(Icons.auto_awesome_rounded,
+                            size: 20,
+                            color: _isExpense
+                                ? AppColors.primaryLight
+                                : AppColors.statusPositive),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -333,7 +403,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             const SizedBox(height: 2),
                             Text(
                               insight != null
-                                  ? s.insightTopCategory(insight.name, insight.percent)
+                                  ? (_isExpense
+                                      ? s.insightTopCategory(
+                                          insight.name, insight.percent)
+                                      : s.insightTopIncomeCategory(
+                                          insight.name, insight.percent))
                                   : s.insightEmpty,
                               style: AppTypography.caption
                                   .copyWith(color: AppColors.onSurfaceVariant),
@@ -349,11 +423,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                 const SizedBox(height: 24),
 
-                // Category breakdown header
+                // ═══════════════════════════════════════════
+                // CATEGORY BREAKDOWN
+                // ═══════════════════════════════════════════
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(s.categoryBreakdown, style: AppTypography.titleSm),
+                    Text(
+                      _isExpense
+                          ? s.categoryBreakdown
+                          : s.incomeCategoryBreakdown,
+                      style: AppTypography.titleSm,
+                    ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
@@ -384,13 +465,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     alignment: Alignment.center,
                     child: Column(
                       children: [
-                        const Icon(Icons.pie_chart_outline_rounded,
-                            size: 40, color: AppColors.textSecondary),
+                        Icon(
+                          _isExpense
+                              ? Icons.pie_chart_outline_rounded
+                              : Icons.account_balance_wallet_outlined,
+                          size: 40,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(height: 12),
-                        Text(s.noSpendingData, style: AppTypography.bodyBold),
+                        Text(
+                          _isExpense ? s.noSpendingData : s.noIncomeData,
+                          style: AppTypography.bodyBold,
+                        ),
                         const SizedBox(height: 4),
                         Text(
-                          s.noSpendingDataHint,
+                          _isExpense ? s.noSpendingDataHint : s.noIncomeDataHint,
                           style: AppTypography.caption,
                           textAlign: TextAlign.center,
                         ),
@@ -400,7 +489,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 else
                   ...sortedCategories.map((entry) {
                     final percentage =
-                        monthExpense > 0 ? (entry.value / monthExpense) : 0.0;
+                        monthTotal > 0 ? (entry.value / monthTotal) : 0.0;
                     final count = categoryCounts[entry.key] ?? 0;
                     final meta = _getCategoryMeta(entry.key);
 
@@ -485,7 +574,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                 const SizedBox(height: 14),
 
-                // Export card
+                // ═══════════════════════════════════════════
+                // EXPORT CARD
+                // ═══════════════════════════════════════════
                 GlassPanel(
                   radius: 20,
                   padding: const EdgeInsets.all(16),
@@ -532,6 +623,29 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
+  /// Top income category for insight card (mirrors topExpenseCategory logic).
+  ({String name, double amount, int percent})? _topIncomeCategory(
+      FinanceProvider provider, DateTime now) {
+    final byCategory = <String, double>{};
+    var total = 0.0;
+    for (final t in provider.transactions) {
+      final d = DateTime.fromMillisecondsSinceEpoch(t.transactionDate);
+      if (t.type != 'INCOME' || d.month != now.month || d.year != now.year) {
+        continue;
+      }
+      final name = t.category?.name ?? 'Umum';
+      byCategory[name] = (byCategory[name] ?? 0) + t.amount;
+      total += t.amount;
+    }
+    if (byCategory.isEmpty || total <= 0) return null;
+    final top = byCategory.entries.reduce((a, b) => a.value >= b.value ? a : b);
+    return (
+      name: top.key,
+      amount: top.value,
+      percent: ((top.value / total) * 100).round(),
+    );
+  }
+
   String _periodLine(DateTime now, AppStrings s) {
     const idMonths = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -559,17 +673,125 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       return _CategoryMeta(Icons.bolt_rounded, AppColors.meshIndigo);
     } else if (lower.contains('hiburan') || lower.contains('game') || lower.contains('nonton')) {
       return _CategoryMeta(Icons.movie_rounded, AppColors.primaryLight);
+    } else if (lower.contains('gaji') || lower.contains('salary') || lower.contains('upah')) {
+      return _CategoryMeta(Icons.payments_rounded, AppColors.statusPositive);
+    } else if (lower.contains('bonus') || lower.contains('hadiah') || lower.contains('gift')) {
+      return _CategoryMeta(Icons.card_giftcard_rounded, AppColors.meshViolet);
+    } else if (lower.contains('investasi') || lower.contains('invest') || lower.contains('dividen')) {
+      return _CategoryMeta(Icons.show_chart_rounded, AppColors.meshCyan);
+    } else if (lower.contains('freelance') || lower.contains('proyek') || lower.contains('project')) {
+      return _CategoryMeta(Icons.work_rounded, AppColors.meshIndigo);
     }
     return _CategoryMeta(Icons.category_rounded, AppColors.primaryLight);
   }
 }
 
-/// Floating chart tooltip: `bg-[#0b0f1a]/90 backdrop-blur-xl border-white/20`
-/// with a rotated caret square underneath.
+// ═══════════════════════════════════════════════════════════════════
+// EXPENSE / INCOME TOGGLE (Stitch v2 pill with icons)
+// ═══════════════════════════════════════════════════════════════════
+
+/// Matches the Stitch v2 HTML:
+/// `p-1 bg-[#151926]/70 backdrop-blur-xl border border-white/10 rounded-full`
+/// with an active pill: `bg-primary-container text-white shadow-[0_4px_16px...]`
+class _GlassTypeToggle extends StatelessWidget {
+  const _GlassTypeToggle({
+    required this.labels,
+    required this.icons,
+    required this.index,
+    required this.onChanged,
+  });
+
+  final List<String> labels;
+  final List<IconData> icons;
+  final int index;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xB3151926), // #151926 at 70%
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.borderSubtle),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0DFFFFFF), // inset shimmer approximation
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < labels.length; i++)
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onChanged(i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: i == index ? AppColors.primaryContainer : null,
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: i == index
+                        ? [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.40),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        icons[i],
+                        size: 18,
+                        color: i == index
+                            ? Colors.white
+                            : AppColors.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        labels[i],
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight:
+                              i == index ? FontWeight.w600 : FontWeight.w500,
+                          color: i == index
+                              ? Colors.white
+                              : AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART TOOLTIP
+// ═══════════════════════════════════════════════════════════════════
+
 class _ChartTooltip extends StatelessWidget {
-  const _ChartTooltip({required this.label});
+  const _ChartTooltip({
+    required this.label,
+    this.percent,
+    this.dotColor = const Color(0xFF3B82F6),
+  });
 
   final String label;
+  final String? percent;
+  final Color dotColor;
 
   @override
   Widget build(BuildContext context) {
@@ -592,17 +814,17 @@ class _ChartTooltip extends StatelessWidget {
               Container(
                 width: 6,
                 height: 6,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF3B82F6),
+                decoration: BoxDecoration(
+                  color: dotColor,
                   shape: BoxShape.circle,
                   boxShadow: [
-                    BoxShadow(color: Color(0xFF3B82F6), blurRadius: 6),
+                    BoxShadow(color: dotColor, blurRadius: 6),
                   ],
                 ),
               ),
               const SizedBox(width: 6),
               Text(
-                label,
+                percent != null ? '$label ($percent)' : label,
                 style: AppTypography.caption.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,

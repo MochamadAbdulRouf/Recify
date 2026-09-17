@@ -93,6 +93,16 @@ class AppColors {
     ],
   );
 
+  /// Income bar: mint-green gradient matching secondary/statusPositive
+  static const LinearGradient barIncomeGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFF4EDEA3),
+      Color(0xFF10B981),
+    ],
+  );
+
   static const LinearGradient primaryCtaGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
