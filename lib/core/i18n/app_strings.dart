@@ -75,7 +75,7 @@ class AppStrings {
       isEn ? 'CSV ready for your records' : 'CSV siap untuk arsip Anda';
   String activeCount(int n) => isEn ? '$n active' : '$n aktif';
   String get tapBarHint =>
-      isEn ? 'Tap a bar to see that day' : 'Ketuk batang untuk lihat hari itu';
+      isEn ? 'Tap a bar to see that period' : 'Ketuk batang untuk lihat periode itu';
   String get totalLabel => isEn ? 'Total' : 'Total';
 
   // ── Manual entry ──
@@ -210,6 +210,19 @@ class AppStrings {
   String insightTopIncomeCategory(String category, int percent) => isEn
       ? '$category is $percent% of this month\'s income'
       : '$category menyumbang $percent% pemasukan bulan ini';
+
+  List<String> get monthsShort => isEn
+      ? const [
+          'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+        ]
+      : const [
+          'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+          'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+        ];
+
+  /// Label minggu berjalan pada sumbu grafik.
+  String get thisWeekNow => isEn ? 'This week' : 'Minggu ini';
 
   // ── History ──
   String get historyTitle => isEn ? 'Transaction History' : 'Riwayat Transaksi';

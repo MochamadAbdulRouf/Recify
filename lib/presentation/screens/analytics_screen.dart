@@ -4,6 +4,8 @@ import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/utils/date_formatter.dart';
+import '../../core/utils/period_aggregator.dart';
 import '../components/glass_panel.dart';
 import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
@@ -48,40 +50,38 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final sortedCategories = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    // ── 2. Weekly day-by-day data (Mon–Sun) ──
-    final List<double> dayAmounts = List.filled(7, 0.0);
-    final currentWeekMonday = now.subtract(Duration(days: now.weekday - 1));
+    // ── 2. Period buckets: Daily (3 hari) / Weekly (6 minggu) /
+    // Monthly (6 bulan), difilter per tipe transaksi terpilih. ──
+    final granularity = switch (_selectedPeriodIndex) {
+      0 => PeriodGranularity.daily,
+      1 => PeriodGranularity.weekly,
+      _ => PeriodGranularity.monthly,
+    };
 
-    for (final tx in financeProvider.transactions) {
-      if (tx.type != _txType) continue;
-      final txDate = DateTime.fromMillisecondsSinceEpoch(tx.transactionDate);
-      final diffDays = txDate
-          .difference(DateTime(currentWeekMonday.year, currentWeekMonday.month,
-              currentWeekMonday.day))
-          .inDays;
-      if (diffDays >= 0 && diffDays < 7) {
-        dayAmounts[diffDays] += tx.amount;
+    final buckets = PeriodAggregator.aggregate(
+      transactions: financeProvider.transactions,
+      type: _txType,
+      granularity: granularity,
+      now: now,
+    );
+
+    // Basis tinggi bar = bucket terbesar dalam jendela (relatif antar
+    // periode), bukan saldo — supaya perbandingan antar tab bermakna.
+    var maxBucketAmount = 0.0;
+    var highestBucketIndex = buckets.length - 1; // default: periode berjalan
+    for (var i = 0; i < buckets.length; i++) {
+      if (buckets[i].total > maxBucketAmount) {
+        maxBucketAmount = buckets[i].total;
+        highestBucketIndex = i;
       }
     }
 
-    var maxDayAmount = 0.0;
-    var highestDayIndex = (now.weekday - 1).clamp(0, 6);
-    for (var i = 0; i < dayAmounts.length; i++) {
-      if (dayAmounts[i] > maxDayAmount) {
-        maxDayAmount = dayAmounts[i];
-        highestDayIndex = i;
-      }
-    }
-
-    // Use wallet balance as the basis for bar height proportions.
-    // Each bar = (dayAmount / totalBalance), capped at 100%.
-    final totalBalance = financeProvider.totalBalance;
-    final hasBalance = totalBalance > 0;
-
-    final activeIndex = _selectedBarIndex ?? highestDayIndex;
-    final activeAmount = dayAmounts[activeIndex];
-    final activePercent = hasBalance
-        ? ((activeAmount / totalBalance) * 100).clamp(0.0, 100.0)
+    final activeIndex =
+        (_selectedBarIndex ?? highestBucketIndex).clamp(0, buckets.length - 1);
+    final activeBucket = buckets[activeIndex];
+    final activeAmount = activeBucket.total;
+    final activePercent = maxBucketAmount > 0
+        ? ((activeAmount / maxBucketAmount) * 100).clamp(0.0, 100.0)
         : 0.0;
 
     // ── 3. Insight ──
@@ -89,8 +89,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         ? financeProvider.topExpenseCategory
         : _topIncomeCategory(financeProvider, now);
 
-    final heroTotal = monthTotal > 0
-        ? monthTotal
+    final heroTotal = buckets.fold<double>(0, (m, b) => m + b.total);
+    final heroTotalOrFallback = heroTotal > 0
+        ? heroTotal
         : (_isExpense
             ? financeProvider.monthlyExpense
             : financeProvider.monthlyIncome);
@@ -153,7 +154,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 GlassSegmentedTabs(
                   labels: _periodTabs(s),
                   index: _selectedPeriodIndex,
-                  onChanged: (i) => setState(() => _selectedPeriodIndex = i),
+                  onChanged: (i) => setState(() {
+                    _selectedPeriodIndex = i;
+                    _selectedBarIndex = null; // rentang bar berubah
+                  }),
                 ),
 
                 const SizedBox(height: 20),
@@ -168,7 +172,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   child: Column(
                     children: [
                       Text(
-                        CurrencyFormatter.formatRupiah(heroTotal),
+                        CurrencyFormatter.formatRupiah(heroTotalOrFallback),
                         style: AppTypography.displayLg.copyWith(
                           fontSize: 30,
                           fontWeight: FontWeight.w700,
@@ -207,7 +211,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              '${s.daysFull[activeIndex]}: ',
+                              '${_bucketAxisLabel(buckets, activeIndex, s)}: ',
                               style: AppTypography.caption.copyWith(
                                 color: AppColors.onSurfaceVariant,
                               ),
@@ -231,23 +235,25 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Bar chart
+                      // Bar chart: jumlah bar = jumlah bucket periode aktif.
                       SizedBox(
                         height: 200,
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
-                          children: List.generate(7, (i) {
+                          children: List.generate(buckets.length, (i) {
                             final isActive = i == activeIndex;
-                            // Bar height = day amount as % of total balance.
-                            // Floor at 0.05 so zero-amount days still show a
-                            // sliver; cap at 0.90 to leave tooltip headroom.
-                            final factor = hasBalance
-                                ? (dayAmounts[i] / totalBalance).clamp(
-                                    dayAmounts[i] > 0 ? 0.05 : 0.03, 0.90)
-                                : (maxDayAmount > 0
-                                    ? (dayAmounts[i] / maxDayAmount)
-                                        .clamp(0.10, 0.78)
-                                    : 0.10);
+                            final bucketTotal = buckets[i].total;
+                            // Tinggi = total bucket / bucket terbesar.
+                            // Floor supaya bar nol tetap terlihat seulas;
+                            // cap 0.90 supaya tooltip tidak kepotong.
+                            final factor = maxBucketAmount > 0
+                                ? (bucketTotal / maxBucketAmount).clamp(
+                                    bucketTotal > 0 ? 0.05 : 0.03, 0.90)
+                                : 0.10;
+                            // Periode berjalan belum penuh → redupkan supaya
+                            // tidak dibaca sebagai penurunan.
+                            final dimCurrent =
+                                buckets[i].isCurrent && !isActive;
 
                             return Expanded(
                               child: GestureDetector(
@@ -276,8 +282,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                                     : null,
                                                 color: isActive
                                                     ? null
-                                                    : Colors.white
-                                                        .withValues(alpha: 0.08),
+                                                    : Colors.white.withValues(
+                                                        alpha: dimCurrent
+                                                            ? 0.04
+                                                            : 0.08),
                                                 borderRadius:
                                                     BorderRadius.circular(999),
                                                 border: Border.all(
@@ -305,8 +313,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                               child: _ChartTooltip(
                                                 label: CurrencyFormatter
                                                     .formatRupiah(activeAmount),
-                                                percent: hasBalance
-                                                    ? '${((dayAmounts[activeIndex] / totalBalance) * 100).clamp(0, 100).toStringAsFixed(1)}%'
+                                                percent: maxBucketAmount > 0
+                                                    ? '${activePercent.toStringAsFixed(1)}%'
                                                     : null,
                                                 dotColor: tooltipDotColor,
                                               ),
@@ -316,7 +324,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                             left: 0,
                                             right: 0,
                                             child: Text(
-                                              s.daysShort[i],
+                                              _bucketAxisLabel(buckets, i, s),
                                               textAlign: TextAlign.center,
                                               style: AppTypography.caption.copyWith(
                                                 color: isActive
@@ -644,6 +652,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       amount: top.value,
       percent: ((top.value / total) * 100).round(),
     );
+  }
+
+  /// Label sumbu-X untuk bar ke-[index], tergantung tab periode aktif.
+  /// Daftar bucket diteruskan eksplisit karena helper ini dipanggil dari
+  /// dalam `build` sesudah `buckets` dihitung.
+  String _bucketAxisLabel(
+      List<PeriodBucket> buckets, int index, AppStrings s) {
+    return switch (_selectedPeriodIndex) {
+      // Daily: tanggal singkat; bar terakhir = hari ini.
+      0 => DateFormatter.formatDayMonth(buckets[index].start),
+      // Weekly: rentang Senin–Minggu; bar terakhir = minggu berjalan.
+      1 => buckets[index].isCurrent
+          ? s.thisWeekNow
+          : '${buckets[index].start.day}–${buckets[index].end.subtract(const Duration(days: 1)).day} ${s.monthsShort[buckets[index].start.month - 1]}',
+      // Monthly: nama bulan singkat.
+      _ => s.monthsShort[buckets[index].start.month - 1],
+    };
   }
 
   String _periodLine(DateTime now, AppStrings s) {
