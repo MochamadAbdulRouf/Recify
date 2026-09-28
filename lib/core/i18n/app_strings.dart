@@ -328,4 +328,258 @@ class AppStrings {
   String get yesterday => isEn ? 'yesterday' : 'kemarin';
   String daysAgo(int n) => isEn ? '$n days ago' : '$n hari lalu';
   String monthsAgo(int n) => isEn ? '$n months ago' : '$n bulan lalu';
+
+  // ── Settings / Account screen ──
+  String get profileSettings =>
+      isEn ? 'Profile & Settings' : 'Profil & Pengaturan';
+  String get accountSecuritySubtitle => isEn
+      ? 'Local Account Preferences & Security'
+      : 'Preferensi & Keamanan Akun Lokal';
+  String get offlineNote => isEn
+      ? '100% Offline • Local SQLite Storage'
+      : '100% Offline • Penyimpanan SQLite Lokal';
+  String get sectionAccountSecurity =>
+      isEn ? 'ACCOUNT & SECURITY' : 'AKUN & KEAMANAN';
+  String get sectionDataManager => isEn ? 'DATA MANAGEMENT' : 'MANAJEMEN DATA';
+  String get sectionPrefsDisplay =>
+      isEn ? 'PREFERENCES & DISPLAY' : 'PREFERENSI & TAMPILAN';
+  String get sectionPrefs => isEn ? 'PREFERENCES' : 'PREFERENSI';
+  String get sectionHelpInfo =>
+      isEn ? 'HELP & INFORMATION' : 'BANTUAN & INFORMASI';
+
+  String get manageWallets => isEn ? 'Wallets & Accounts' : 'Kelola Dompet & Akun';
+  String walletCountSubtitle(int n) => isEn
+      ? '$n Wallet${n == 1 ? '' : 's'} • Edit Balance & Add'
+      : '$n Dompet • Edit Saldo & Tambah';
+  String get securityData => isEn ? 'Data Security' : 'Keamanan Data';
+  String get onDeviceProtection =>
+      isEn ? 'On-Device Protection' : 'Proteksi On-Device';
+  String get activeStatus => isEn ? 'Active' : 'Aktif';
+  String get mainCurrency => isEn ? 'Primary Currency' : 'Mata Uang Utama';
+  String get rupiahFormat =>
+      isEn ? 'Indonesian Rupiah Format' : 'Format Rupiah Indonesia';
+  String get idrFormat => 'IDR (Rp)';
+
+  String get localBackupRestore =>
+      isEn ? 'Local Backup & Restore' : 'Cadangan & Pemulihan Lokal';
+  String get localBackupSubtitle => isEn
+      ? 'Backup & restore SQLite database'
+      : 'Backup & Restore database SQLite';
+  String get exportTransactions =>
+      isEn ? 'Export Transaction Data' : 'Ekspor Data Transaksi';
+  String get exportTransactionsSubtitle => isEn
+      ? 'Save to Download folder (Excel / CSV)'
+      : 'Simpan ke folder Download (Excel / CSV)';
+  String get clearImageCache =>
+      isEn ? 'Clear Image Cache' : 'Bersihkan Cache Gambar';
+  String get clearImageCacheSubtitle => isEn
+      ? 'Delete temporary OCR scan files'
+      : 'Hapus file temporary scan OCR';
+
+  String get deepObsidianTheme =>
+      isEn ? 'Deep Obsidian Dark Theme' : 'Tema Deep Obsidian Dark';
+  String get deepObsidianSubtitle =>
+      isEn ? 'Anti-glare OLED dark mode' : 'Mode Gelap OLED Anti-Silau';
+  String get ledgerCategories =>
+      isEn ? 'Ledger Categories' : 'Kategori Pembukuan';
+  String categoryCountSubtitle(int n) => isEn
+      ? '$n Categor${n == 1 ? 'y' : 'ies'} • Add & Manage'
+      : '$n Kategori • Tambah & Kelola';
+  String get monthlyBudget => isEn ? 'Monthly Budget' : 'Budget Bulanan';
+
+  String get geminiAiParser => isEn ? 'Use AI Parser (Gemini)' : 'Gunakan AI Parser (Gemini)';
+  String get geminiParserOn => isEn
+      ? 'Parse receipts with Gemini AI'
+      : 'Parsing struk menggunakan Gemini AI';
+  String get geminiParserOff => isEn
+      ? 'Parse receipts with offline regex'
+      : 'Parsing struk menggunakan regex offline';
+  String get apiKeyStored => isEn ? 'API key saved ✓' : 'API key tersimpan ✓';
+  String get notConfigured => isEn ? 'Not configured' : 'Belum dikonfigurasi';
+  String get emptyStatus => isEn ? 'Empty' : 'Kosong';
+
+  String get helpCenter =>
+      isEn ? 'Help Center & Guide' : 'Pusat Bantuan & Panduan';
+  String get helpCenterSubtitle => isEn
+      ? 'How to scan receipts & auto recap'
+      : 'Cara scan struk & rekap otomatis';
+  String get guideTitle => isEn ? 'Recify Guide' : 'Panduan Recify';
+  String get guideBody => isEn
+      ? '1. Tap the camera button in the middle of the bottom menu to scan a receipt.\n'
+          '2. Make sure the receipt is flat and the text is clearly readable.\n'
+          '3. Verify the total & save to your local SQLite database.\n'
+          '4. Export accounting reports to Excel/CSV straight to the Download folder.'
+      : '1. Buka tombol kamera di tengah menu bawah untuk scan struk belanja.\n'
+          '2. Pastikan nota rata dan tulisan terbaca jelas.\n'
+          '3. Verifikasi total & simpan ke database SQLite lokal Anda.\n'
+          '4. Ekspor laporan pembukuan ke format Excel/CSV langsung di folder Download.';
+  String get understood => isEn ? 'Got it' : 'Mengerti';
+  String get closeButton => isEn ? 'Close' : 'Tutup';
+  String get privacyPolicy => isEn ? 'Privacy Policy' : 'Kebijakan Privasi';
+  String get privacySubtitle => 'Zero Cloud • 100% Offline AI';
+  String get privacyBody => isEn
+      ? 'Recify is built on a philosophy of total privacy. No cloud servers, no third-party analytics, no tracking of your personal data.'
+      : 'Recify dirancang dengan filosofi privasi total. Tidak ada server cloud, analitik pihak ketiga, atau pelacakan data pribadi Anda.';
+  String get versionLabel => isEn
+      ? 'Recify Version 1.0.0 (Build 2026)'
+      : 'Recify Versi 1.0.0 (Build 2026)';
+
+  String get editUserProfile =>
+      isEn ? 'Edit User Profile' : 'Edit Profil Pengguna';
+  String get camera => isEn ? 'Camera' : 'Kamera';
+  String get gallery => isEn ? 'Gallery' : 'Galeri';
+  String get usernameField => isEn ? 'USERNAME' : 'NAMA PENGGUNA';
+  String get usernameHint =>
+      isEn ? 'Enter your name...' : 'Masukkan nama Anda...';
+  String get saveChanges => isEn ? 'Save Changes' : 'Simpan Perubahan';
+
+  String get add => isEn ? 'Add' : 'Tambah';
+  String get editBalance => isEn ? 'Edit Balance' : 'Edit Saldo';
+  String get editWallet => isEn ? 'Edit Wallet' : 'Edit Dompet';
+  String get walletName => isEn ? 'Wallet Name' : 'Nama Dompet';
+  String get currentBalanceLabel =>
+      isEn ? 'Current Balance (Rp)' : 'Saldo Saat Ini (Rp)';
+  String get save => isEn ? 'Save' : 'Simpan';
+  String get apiKeyHelp => isEn
+      ? 'Get a free API key at aistudio.google.com. The key is stored locally on your device and is never sent to any server other than Google AI.'
+      : 'Dapatkan API key gratis di aistudio.google.com. Key disimpan lokal di perangkat, tidak dikirim ke server manapun selain Google AI.';
+  String get addWalletTitle => isEn ? 'New Wallet' : 'Tambah Dompet Baru';
+  String get walletNameField =>
+      isEn ? 'Wallet / Account Name' : 'Nama Dompet / Akun';
+  String get walletNameHint => isEn
+      ? 'e.g. BCA, GoPay, Cash Wallet'
+      : 'Contoh: BCA, GoPay, Dompet Tunai';
+  String get accountType => isEn ? 'Account Type' : 'Tipe Akun';
+  String get initialBalanceLabel =>
+      isEn ? 'Initial Balance (Rp)' : 'Saldo Awal (Rp)';
+
+  // Delete wallet (Poin 1)
+  String get hapus => isEn ? 'Delete' : 'Hapus';
+  String get deleteWalletConfirmTitle => isEn ? 'Delete Wallet?' : 'Hapus Dompet?';
+  String deleteWalletBody(String name) => isEn
+      ? 'Wallet "$name" will be removed permanently. A wallet that still contains transactions cannot be deleted.'
+      : 'Dompet "$name" akan dihapus permanen. Dompet yang masih berisi transaksi tidak bisa dihapus.';
+  String get deleteWalletLastGuard => isEn
+      ? 'The last wallet cannot be deleted'
+      : 'Dompet terakhir tidak bisa dihapus';
+  String get deleteWalletInUse => isEn
+      ? 'Wallet still contains transactions and cannot be deleted.'
+      : 'Dompet masih berisi transaksi dan tidak bisa dihapus.';
+  String deleteWalletSuccess(String name) => isEn
+      ? 'Wallet "$name" deleted'
+      : 'Dompet "$name" berhasil dihapus!';
+  String deleteWalletFailed(String e) =>
+      isEn ? 'Failed to delete wallet: $e' : 'Gagal menghapus dompet: $e';
+
+  String get backupSectionTitle =>
+      isEn ? 'Data Backup & Restore' : 'Cadangan & Pemulihan Data';
+  String get backupSectionSubtitle => isEn
+      ? 'Secure your financial database offline'
+      : 'Amankan database keuangan Anda secara offline';
+  String get createBackup => isEn ? 'Create New Backup' : 'Buat Cadangan Baru';
+  String get createBackupSubtitle => isEn
+      ? 'Save a JSON file to your phone Download folder'
+      : 'Simpan file JSON ke folder Download HP';
+  String get restoreBackup => isEn
+      ? 'Restore from Backup File'
+      : 'Pulihkan dari File Cadangan';
+  String get restoreBackupSubtitle => isEn
+      ? 'Pick from the backup files found'
+      : 'Pilih dari file cadangan yang ditemukan';
+  String get chooseBackupFile =>
+      isEn ? 'Choose Backup File' : 'Pilih File Cadangan';
+  String backupsFound(int n) => isEn
+      ? '$n backup file${n == 1 ? '' : 's'} found in the Download folder'
+      : 'Ditemukan $n file cadangan di folder Download';
+  String get noBackupYet =>
+      isEn ? 'No Recify backup files yet' : 'Belum ada file cadangan Recify';
+  String get noBackupHint => isEn
+      ? 'Create a new backup first to save it to Download.'
+      : 'Buat cadangan baru terlebih dahulu untuk menyimpannya ke Download.';
+
+  String get exportSubtitle => isEn
+      ? 'Pick a report file format to save to the Download folder'
+      : 'Pilih format file laporan untuk disimpan ke folder Download';
+  String get excelFormat => 'Microsoft Excel (.xlsx)';
+  String get excelFormatDesc => isEn
+      ? 'Neatly formatted table with colors & cell headers'
+      : 'Tabel terformat rapi dengan warna & header sel';
+  String get csvFormat => isEn ? 'CSV Format (.csv)' : 'Format CSV (.csv)';
+  String get csvFormatDesc => isEn
+      ? 'Compatible with all accounting apps'
+      : 'Kompatibel dengan semua aplikasi pembukuan';
+  String get downloadToFolder =>
+      isEn ? 'Download to Download Folder' : 'Unduh ke Folder Download';
+
+  String get createCategory => isEn ? 'Create Category' : 'Buat Kategori';
+  String get createCategoryTitle =>
+      isEn ? 'Create New Category' : 'Buat Kategori Baru';
+  String get categoryName => isEn ? 'Category Name' : 'Nama Kategori';
+  String get categoryNameHint => isEn
+      ? 'e.g. Streaming, Hobbies, Donations'
+      : 'Contoh: Streaming, Hobi, Donasi';
+  String get transactionType =>
+      isEn ? 'Transaction Type' : 'Tipe Transaksi';
+  String categoryAdded(String name) => isEn
+      ? 'Category "$name" added!'
+      : 'Kategori "$name" berhasil ditambahkan!';
+
+  String get noLimitYet => isEn
+      ? 'No limit • Set per category'
+      : 'Belum ada limit • Atur per kategori';
+  String budgetSummary(int set, String spent, String limit) => isEn
+      ? '$set categories • $spent / $limit'
+      : '$set kategori • $spent / $limit';
+  String get budgetHint => isEn
+      ? 'Tap a category to set or change its monthly limit'
+      : 'Ketuk kategori untuk atur atau ubah limit bulanan';
+  String get noExpenseCategories => isEn
+      ? 'No expense categories yet'
+      : 'Belum ada kategori pengeluaran';
+  String spentLabel(String amount) =>
+      isEn ? 'Used: $amount' : 'Terpakai: $amount';
+  String get setLimit => isEn ? 'Set Limit' : 'Atur Limit';
+  String limitTitle(String name) =>
+      isEn ? 'Limit for $name' : 'Limit $name';
+  String get monthlyLimitField =>
+      isEn ? 'Monthly Limit (Rp)' : 'Limit Bulanan (Rp)';
+  String get limitHint => isEn ? 'e.g. 1,500,000' : 'Contoh: 1.500.000';
+  String limitDeleted(String name) =>
+      isEn ? 'Limit $name deleted' : 'Limit $name dihapus';
+  String limitSaved(String name, String value) =>
+      isEn ? 'Limit $name: $value' : 'Limit $name: $value';
+
+  // ── Settings snackbars ──
+  String get cacheCleared => isEn
+      ? 'Temporary cache cleared!'
+      : 'Cache sementara berhasil dibersihkan!';
+  String cacheFailed(String e) =>
+      isEn ? 'Failed to clear cache: $e' : 'Gagal membersihkan cache: $e';
+  String get profileSaved => isEn ? 'Profile saved!' : 'Profil berhasil disimpan!';
+  String get userNameDefault => isEn ? 'Recify User' : 'Pengguna Recify';
+  String walletUpdated(String name) => isEn
+      ? 'Wallet "$name" updated!'
+      : 'Dompet "$name" berhasil diperbarui!';
+  String apiKeySavedMsg(int n) => isEn
+      ? 'API key saved! $n characters.'
+      : 'API Key berhasil disimpan! $n karakter.';
+  String walletAdded(String name) => isEn
+      ? 'Wallet "$name" added!'
+      : 'Dompet "$name" berhasil ditambahkan!';
+  String backupSaved(String path) => isEn
+      ? 'Backup saved at: $path'
+      : 'Cadangan tersimpan di: $path';
+  String backupFailed(String e) =>
+      isEn ? 'Backup failed: $e' : 'Gagal backup: $e';
+  String get restoreDone => isEn
+      ? 'Data restored from backup!'
+      : 'Data berhasil dipulihkan dari cadangan!';
+  String restoreFailed(String e) =>
+      isEn ? 'Failed to restore: $e' : 'Gagal memulihkan: $e';
+  String exportDone(String path) => isEn
+      ? 'Report exported to: $path'
+      : 'Laporan berhasil diekspor ke: $path';
+  String exportTransactionsFailed(String e) => isEn
+      ? 'Export failed: $e'
+      : 'Gagal mengekspor: $e';
 }

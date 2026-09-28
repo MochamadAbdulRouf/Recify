@@ -78,6 +78,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _clearCache() async {
+    final s = AppStrings.of(context);
     try {
       final tempDir = await getTemporaryDirectory();
       if (tempDir.existsSync()) {
@@ -92,16 +93,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await _calculateCacheSize();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             backgroundColor: AppColors.bgSurfaceElevated,
-            content: Text('Cache sementara berhasil dibersihkan!', style: TextStyle(color: Colors.white)),
+            content: Text(s.cacheCleared, style: const TextStyle(color: Colors.white)),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal membersihkan cache: $e')),
+          SnackBar(content: Text(s.cacheFailed(e.toString()))),
         );
       }
     }
@@ -110,6 +111,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final financeProvider = context.watch<FinanceProvider>();
+    final s = AppStrings.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
@@ -120,10 +122,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Profil & Pengaturan', style: AppTypography.headlineMd.copyWith(fontSize: 20)),
+            Text(s.profileSettings, style: AppTypography.headlineMd.copyWith(fontSize: 20)),
             const SizedBox(height: 2),
             Text(
-              'Preferensi & Keamanan Akun Lokal',
+              s.accountSecuritySubtitle,
               style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
             ),
           ],
@@ -214,7 +216,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _userName,
+                    _userName.isEmpty || _userName == 'Pengguna Recify'
+                        ? s.userNameDefault
+                        : _userName,
                     style: AppTypography.headlineMd.copyWith(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(width: 6),
@@ -231,7 +235,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 border: Border.all(color: AppColors.borderSubtle),
               ),
               child: Text(
-                '100% Offline • Penyimpanan SQLite Lokal',
+                s.offlineNote,
                 style: AppTypography.caption.copyWith(color: AppColors.textSecondary, fontSize: 11),
               ),
             ),
@@ -239,13 +243,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 28),
 
             // 2. Section: Account & Security (Stitch Match)
-            _buildSectionHeader('AKUN & KEAMANAN'),
+            _buildSectionHeader(s.sectionAccountSecurity),
             _buildCardGroup([
               _buildSettingItem(
                 icon: Icons.account_balance_wallet_rounded,
                 iconColor: AppColors.primary,
-                title: 'Kelola Dompet & Akun',
-                subtitle: '${financeProvider.wallets.length} Dompet • Edit Saldo & Tambah',
+                title: s.manageWallets,
+                subtitle: s.walletCountSubtitle(financeProvider.wallets.length),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -266,8 +270,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSettingItem(
                 icon: Icons.lock_rounded,
                 iconColor: AppColors.secondary,
-                title: 'Keamanan Data',
-                subtitle: 'Proteksi On-Device',
+                title: s.securityData,
+                subtitle: s.onDeviceProtection,
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -275,7 +279,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'Aktif',
+                    s.activeStatus,
                     style: AppTypography.caption.copyWith(
                       color: AppColors.secondary,
                       fontWeight: FontWeight.w700,
@@ -288,8 +292,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSettingItem(
                 icon: Icons.payments_rounded,
                 iconColor: AppColors.meshCyan,
-                title: 'Mata Uang Utama',
-                subtitle: 'Format Rupiah Indonesia',
+                title: s.mainCurrency,
+                subtitle: s.rupiahFormat,
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -297,7 +301,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'IDR (Rp)',
+                    s.idrFormat,
                     style: AppTypography.caption.copyWith(
                       color: AppColors.primaryLight,
                       fontWeight: FontWeight.w700,
@@ -311,13 +315,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 22),
 
             // 3. Section: Data Management (Stitch Match)
-            _buildSectionHeader('MANAJEMEN DATA'),
+            _buildSectionHeader(s.sectionDataManager),
             _buildCardGroup([
               _buildSettingItem(
                 icon: Icons.backup_rounded,
                 iconColor: AppColors.meshCyan,
-                title: 'Cadangan & Pemulihan Lokal',
-                subtitle: 'Backup & Restore database SQLite',
+                title: s.localBackupRestore,
+                subtitle: s.localBackupSubtitle,
                 trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
                 onTap: () => _showBackupRestoreSheet(context, financeProvider),
               ),
@@ -325,8 +329,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSettingItem(
                 icon: Icons.ios_share_rounded,
                 iconColor: AppColors.meshViolet,
-                title: 'Ekspor Data Transaksi',
-                subtitle: 'Simpan ke folder Download (Excel / CSV)',
+                title: s.exportTransactions,
+                subtitle: s.exportTransactionsSubtitle,
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -348,8 +352,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSettingItem(
                 icon: Icons.delete_sweep_rounded,
                 iconColor: AppColors.error,
-                title: 'Bersihkan Cache Gambar',
-                subtitle: 'Hapus file temporary scan OCR',
+                title: s.clearImageCache,
+                subtitle: s.clearImageCacheSubtitle,
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -379,13 +383,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 22),
 
             // 4. Section: Preferences (Stitch Match)
-            _buildSectionHeader('PREFERENSI & TAMPILAN'),
+            _buildSectionHeader(s.sectionPrefsDisplay),
             _buildCardGroup([
               _buildSettingItem(
                 icon: Icons.dark_mode_rounded,
                 iconColor: AppColors.textPrimary,
-                title: 'Tema Deep Obsidian Dark',
-                subtitle: 'Mode Gelap OLED Anti-Silau',
+                title: s.deepObsidianTheme,
+                subtitle: s.deepObsidianSubtitle,
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -393,7 +397,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'Aktif',
+                    s.activeStatus,
                     style: AppTypography.caption.copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
@@ -406,9 +410,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSettingItem(
                 icon: Icons.category_rounded,
                 iconColor: AppColors.meshIndigo,
-                title: 'Kategori Pembukuan',
+                title: s.ledgerCategories,
                 subtitle:
-                    '${financeProvider.categories.length} Kategori • Tambah & Kelola',
+                    s.categoryCountSubtitle(financeProvider.categories.length),
                 trailing: const Icon(Icons.chevron_right_rounded,
                     color: AppColors.textSecondary, size: 18),
                 onTap: () =>
@@ -418,7 +422,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSettingItem(
                 icon: Icons.savings_rounded,
                 iconColor: AppColors.statusWarning,
-                title: 'Budget Bulanan',
+                title: s.monthlyBudget,
                 subtitle: _budgetSubtitle(financeProvider),
                 trailing: const Icon(Icons.chevron_right_rounded,
                     color: AppColors.textSecondary, size: 18),
@@ -429,7 +433,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 22),
 
             // Section: Preferences (Language)
-            _buildSectionHeader('PREFERENSI'),
+            _buildSectionHeader(s.sectionPrefs),
             _buildCardGroup([
               Builder(
                 builder: (context) {
@@ -461,10 +465,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   return _buildSettingItem(
                     icon: Icons.auto_awesome_rounded,
                     iconColor: const Color(0xFF8B5CF6), // violet-500
-                    title: 'Gunakan AI Parser (Gemini)',
+                    title: s.geminiAiParser,
                     subtitle: scannerProvider.useAiParser
-                        ? 'Parsing struk menggunakan Gemini AI'
-                        : 'Parsing struk menggunakan regex offline',
+                        ? s.geminiParserOn
+                        : s.geminiParserOff,
                     trailing: Switch.adaptive(
                       value: scannerProvider.useAiParser,
                       onChanged: (val) => scannerProvider.setUseAiParser(val),
@@ -482,8 +486,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     iconColor: AppColors.meshCyan,
                     title: 'Gemini API Key',
                     subtitle: scannerProvider.hasApiKey
-                        ? 'API key tersimpan ✓'
-                        : 'Belum dikonfigurasi',
+                        ? s.apiKeyStored
+                        : s.notConfigured,
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -496,7 +500,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            scannerProvider.hasApiKey ? 'Aktif' : 'Kosong',
+                            scannerProvider.hasApiKey ? s.activeStatus : s.emptyStatus,
                             style: AppTypography.caption.copyWith(
                               color: scannerProvider.hasApiKey ? AppColors.secondary : AppColors.error,
                               fontWeight: FontWeight.w700,
@@ -517,13 +521,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 22),
 
             // 6. Section: Support & Info (Stitch Match)
-            _buildSectionHeader('BANTUAN & INFORMASI'),
+            _buildSectionHeader(s.sectionHelpInfo),
             _buildCardGroup([
               _buildSettingItem(
                 icon: Icons.help_center_rounded,
                 iconColor: AppColors.textSecondary,
-                title: 'Pusat Bantuan & Panduan',
-                subtitle: 'Cara scan struk & rekap otomatis',
+                title: s.helpCenter,
+                subtitle: s.helpCenterSubtitle,
                 trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
                 onTap: () {
                   showDialog(
@@ -531,18 +535,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     builder: (ctx) => AlertDialog(
                       backgroundColor: AppColors.bgSurface,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      title: Text('Panduan Recify', style: AppTypography.titleMedium),
+                      title: Text(s.guideTitle, style: AppTypography.titleMedium),
                       content: Text(
-                        '1. Buka tombol kamera di tengah menu bawah untuk scan struk belanja.\n'
-                        '2. Pastikan nota rata dan tulisan terbaca jelas.\n'
-                        '3. Verifikasi total & simpan ke database SQLite lokal Anda.\n'
-                        '4. Ekspor laporan pembukuan ke format Excel/CSV langsung di folder Download.',
+                        s.guideBody,
                         style: AppTypography.bodyReg,
                       ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Mengerti', style: TextStyle(color: AppColors.primaryLight)),
+                          child: Text(s.understood, style: const TextStyle(color: AppColors.primaryLight)),
                         ),
                       ],
                     ),
@@ -553,8 +554,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSettingItem(
                 icon: Icons.policy_rounded,
                 iconColor: AppColors.textSecondary,
-                title: 'Kebijakan Privasi',
-                subtitle: 'Zero Cloud • 100% Offline AI',
+                title: s.privacyPolicy,
+                subtitle: s.privacySubtitle,
                 trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
                 onTap: () {
                   showDialog(
@@ -562,15 +563,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     builder: (ctx) => AlertDialog(
                       backgroundColor: AppColors.bgSurface,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      title: Text('Kebijakan Privasi', style: AppTypography.titleMedium),
+                      title: Text(s.privacyPolicy, style: AppTypography.titleMedium),
                       content: Text(
-                        'Recify dirancang dengan filosofi privasi total. Tidak ada server cloud, analitik pihak ketiga, atau pelacakan data pribadi Anda.',
+                        s.privacyBody,
                         style: AppTypography.bodyReg,
                       ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Tutup', style: TextStyle(color: AppColors.primaryLight)),
+                          child: Text(s.closeButton, style: const TextStyle(color: AppColors.primaryLight)),
                         ),
                       ],
                     ),
@@ -583,7 +584,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             // App Version Badge
             Text(
-              'Recify Versi 1.0.0 (Build 2026)',
+              s.versionLabel,
               style: AppTypography.caption.copyWith(color: AppColors.textSecondary, fontSize: 11),
             ),
 
@@ -596,7 +597,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // --- 1. EDIT PROFILE BOTTOM SHEET ---
   void _showEditProfileSheet() {
-    final nameController = TextEditingController(text: _userName);
+    final s = AppStrings.of(context);
+    final nameController = TextEditingController(
+        text: _userName == 'Pengguna Recify' ? s.userNameDefault : _userName);
     String? tempAvatarPath = _avatarPath;
     bool isSaving = false;
 
@@ -610,6 +613,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final s = AppStrings.of(context);
             return SafeArea(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -631,7 +635,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text('Edit Profil Pengguna', style: AppTypography.titleMedium),
+                    Text(s.editUserProfile, style: AppTypography.titleMedium),
                     const SizedBox(height: 20),
 
                     // Avatar Preview
@@ -676,7 +680,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           ),
                           icon: const Icon(Icons.camera_alt_rounded, size: 16),
-                          label: const Text('Kamera', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          label: Text(s.camera, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                           onPressed: () async {
                             final picker = ImagePicker();
                             final photo = await picker.pickImage(source: ImageSource.camera, maxWidth: 600, imageQuality: 85);
@@ -696,7 +700,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           ),
                           icon: const Icon(Icons.photo_library_rounded, size: 16),
-                          label: const Text('Galeri', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          label: Text(s.gallery, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                           onPressed: () async {
                             final picker = ImagePicker();
                             final photo = await picker.pickImage(source: ImageSource.gallery, maxWidth: 600, imageQuality: 85);
@@ -728,13 +732,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('NAMA PENGGUNA', style: AppTypography.caption.copyWith(fontSize: 10, letterSpacing: 1.1)),
+                          Text(s.usernameField, style: AppTypography.caption.copyWith(fontSize: 10, letterSpacing: 1.1)),
                           const SizedBox(height: 4),
                           TextField(
                             controller: nameController,
                             style: AppTypography.bodyBold.copyWith(fontSize: 15),
-                            decoration: const InputDecoration(
-                              hintText: 'Masukkan nama Anda...',
+                            decoration: InputDecoration(
+                              hintText: s.usernameHint,
                               border: InputBorder.none,
                               focusedBorder: InputBorder.none,
                               enabledBorder: InputBorder.none,
@@ -794,9 +798,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     Navigator.of(ctx).pop();
                                   }
                                   messenger.showSnackBar(
-                                    const SnackBar(
+                                    SnackBar(
                                       backgroundColor: AppColors.bgSurfaceElevated,
-                                      content: Text('Profil berhasil disimpan!', style: TextStyle(color: Colors.white)),
+                                      content: Text(s.profileSaved, style: const TextStyle(color: Colors.white)),
                                     ),
                                   );
                                 }
@@ -824,7 +828,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                   )
                                 : Text(
-                                    'Simpan Perubahan',
+                                    s.saveChanges,
                                     style: AppTypography.bodyBold.copyWith(color: Colors.white, fontSize: 15),
                                   ),
                           ),
@@ -853,6 +857,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final s = AppStrings.of(context);
             return SafeArea(
               child: Container(
                 constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.75),
@@ -872,7 +877,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Kelola Dompet & Akun', style: AppTypography.titleMedium),
+                        Text(s.manageWallets, style: AppTypography.titleMedium),
                         GestureDetector(
                           onTap: () {
                             Navigator.pop(ctx);
@@ -889,7 +894,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 const Icon(Icons.add_rounded, size: 16, color: AppColors.primaryLight),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'Tambah',
+                                  s.add,
                                   style: AppTypography.caption.copyWith(
                                     color: AppColors.primaryLight,
                                     fontWeight: FontWeight.w700,
@@ -934,7 +939,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(wallet.name, style: AppTypography.bodyBold),
-                                      Text(wallet.type, style: AppTypography.caption),
+                                      Text(_walletTypeLabel(wallet.type, s), style: AppTypography.caption),
                                     ],
                                   ),
                                 ),
@@ -952,9 +957,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         _showEditWalletDialog(context, provider, wallet);
                                       },
                                       child: Text(
-                                        'Edit Saldo',
+                                        s.editBalance,
                                         style: AppTypography.caption.copyWith(
                                           color: AppColors.primaryLight,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    GestureDetector(
+                                      onTap: () {
+                                        if (provider.wallets.length <= 1) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                                content: Text(
+                                                    s.deleteWalletLastGuard)),
+                                          );
+                                          return;
+                                        }
+                                        _confirmDeleteWallet(context, provider,
+                                            wallet, setSheetState, s);
+                                      },
+                                      child: Text(
+                                        s.hapus,
+                                        style: AppTypography.caption.copyWith(
+                                          color: AppColors.error,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -977,22 +1005,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // Konfirmasi hapus dompet: guard dompet terakhir, dialog dulu,
+  // FK RESTRICT (wallet berisi transaksi) → SnackBar jelas.
+  Future<void> _confirmDeleteWallet(
+    BuildContext context,
+    FinanceProvider provider,
+    WalletModel wallet,
+    StateSetter setSheetState,
+    AppStrings s,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(s.deleteWalletConfirmTitle, style: AppTypography.titleMedium),
+        content: Text(s.deleteWalletBody(wallet.name), style: AppTypography.bodyReg),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(s.cancel, style: const TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(s.hapus, style: const TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await provider.deleteWallet(wallet.id);
+      if (provider.selectedWalletId == wallet.id) {
+        provider.selectWallet(null);
+      }
+      setSheetState(() {});
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.bgSurfaceElevated,
+            content: Text(s.deleteWalletSuccess(wallet.name),
+                style: const TextStyle(color: Colors.white)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().toLowerCase().contains('foreign key')
+                  ? s.deleteWalletInUse
+                  : s.deleteWalletFailed(e.toString()),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   // Edit Wallet Dialog
   void _showEditWalletDialog(BuildContext context, FinanceProvider provider, WalletModel wallet) {
     final nameController = TextEditingController(text: wallet.name);
     final balanceController = TextEditingController(text: wallet.currentBalance.toInt().toString());
+    final s = AppStrings.of(context);
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Edit Dompet', style: AppTypography.titleMedium),
+        title: Text(s.editWallet, style: AppTypography.titleMedium),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Nama Dompet', style: AppTypography.caption),
+            Text(s.walletName, style: AppTypography.caption),
             const SizedBox(height: 4),
             TextField(
               controller: nameController,
@@ -1003,7 +1092,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            Text('Saldo Saat Ini (Rp)', style: AppTypography.caption),
+            Text(s.currentBalanceLabel, style: AppTypography.caption),
             const SizedBox(height: 4),
             TextField(
               controller: balanceController,
@@ -1020,7 +1109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+            child: Text(s.cancel, style: const TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1047,12 +1136,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     backgroundColor: AppColors.bgSurfaceElevated,
-                    content: Text('Dompet "${updated.name}" berhasil diperbarui!', style: const TextStyle(color: Colors.white)),
+                    content: Text(s.walletUpdated(updated.name), style: const TextStyle(color: Colors.white)),
                   ),
                 );
               }
             },
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+            child: Text(s.save, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1063,6 +1152,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showApiKeyDialog(BuildContext context) {
     final scannerProvider = context.read<ScannerProvider>();
     final keyController = TextEditingController();
+    final s = AppStrings.of(context);
 
     showDialog(
       context: context,
@@ -1075,7 +1165,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Dapatkan API key gratis di aistudio.google.com. Key disimpan lokal di perangkat, tidak dikirim ke server manapun selain Google AI.',
+              s.apiKeyHelp,
               style: AppTypography.caption.copyWith(color: AppColors.textSecondary, fontSize: 11),
             ),
             const SizedBox(height: 14),
@@ -1095,7 +1185,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+            child: Text(s.cancel, style: const TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () async {
@@ -1107,16 +1197,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     backgroundColor: AppColors.bgSurfaceElevated,
-                    content: Text('API Key berhasil disimpan! ${key.length} karakter.', style: const TextStyle(color: Colors.white)),
+                    content: Text(s.apiKeySavedMsg(key.length), style: const TextStyle(color: Colors.white)),
                   ),
                 );
               }
             },
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+            child: Text(s.save, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
+  }
+
+  // Label tipe dompet untuk ditampilkan — nilai DB (types) tidak berubah.
+  String _walletTypeLabel(String type, AppStrings s) {
+    if (type == 'Tunai') return s.isEn ? 'Cash' : 'Tunai';
+    if (type == 'Investasi') return s.isEn ? 'Investment' : 'Investasi';
+    return type; // Bank, E-Wallet
   }
 
   // Add Wallet Dialog
@@ -1125,6 +1222,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final balanceController = TextEditingController();
     String selectedType = 'Bank';
     final types = ['Bank', 'E-Wallet', 'Tunai', 'Investasi'];
+    final s = AppStrings.of(context);
 
     showDialog(
       context: context,
@@ -1132,31 +1230,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: AppColors.bgSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Tambah Dompet Baru', style: AppTypography.titleMedium),
+          title: Text(s.addWalletTitle, style: AppTypography.titleMedium),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Nama Dompet / Akun', style: AppTypography.caption),
+              Text(s.walletNameField, style: AppTypography.caption),
               const SizedBox(height: 4),
               TextField(
                 controller: nameController,
                 style: AppTypography.bodyBold,
-                decoration: const InputDecoration(
-                  hintText: 'Contoh: BCA, GoPay, Dompet Tunai',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: InputDecoration(
+                  hintText: s.walletNameHint,
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
               const SizedBox(height: 14),
-              Text('Tipe Akun', style: AppTypography.caption),
+              Text(s.accountType, style: AppTypography.caption),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 8,
                 children: types.map((t) {
                   final isSelected = selectedType == t;
                   return ChoiceChip(
-                    label: Text(t, style: TextStyle(color: isSelected ? Colors.white : AppColors.textSecondary, fontSize: 12)),
+                    label: Text(_walletTypeLabel(t, s), style: TextStyle(color: isSelected ? Colors.white : AppColors.textSecondary, fontSize: 12)),
                     selected: isSelected,
                     selectedColor: AppColors.primary,
                     backgroundColor: AppColors.bgSurfaceElevated,
@@ -1165,7 +1263,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 }).toList(),
               ),
               const SizedBox(height: 14),
-              Text('Saldo Awal (Rp)', style: AppTypography.caption),
+              Text(s.initialBalanceLabel, style: AppTypography.caption),
               const SizedBox(height: 4),
               TextField(
                 controller: balanceController,
@@ -1183,7 +1281,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+              child: Text(s.cancel, style: const TextStyle(color: AppColors.textSecondary)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -1212,12 +1310,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       backgroundColor: AppColors.bgSurfaceElevated,
-                      content: Text('Dompet "$name" berhasil ditambahkan!', style: const TextStyle(color: Colors.white)),
+                      content: Text(s.walletAdded(name), style: const TextStyle(color: Colors.white)),
                     ),
                   );
                 }
               },
-              child: const Text('Tambah', style: TextStyle(color: Colors.white)),
+              child: Text(s.add, style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -1227,6 +1325,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // --- 3. BACKUP & RESTORE BOTTOM SHEET ---
   void _showBackupRestoreSheet(BuildContext context, FinanceProvider provider) {
+    final s = AppStrings.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.bgSurface,
@@ -1249,10 +1348,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text('Cadangan & Pemulihan Data', style: AppTypography.titleMedium),
+                Text(s.backupSectionTitle, style: AppTypography.titleMedium),
                 const SizedBox(height: 6),
                 Text(
-                  'Amankan database keuangan Anda secara offline',
+                  s.backupSectionSubtitle,
                   style: AppTypography.caption,
                 ),
                 const SizedBox(height: 20),
@@ -1273,8 +1372,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       child: const Icon(Icons.cloud_upload_rounded, color: AppColors.meshCyan, size: 22),
                     ),
-                    title: Text('Buat Cadangan Baru', style: AppTypography.bodyBold),
-                    subtitle: Text('Simpan file JSON ke folder Download HP', style: AppTypography.caption),
+                    title: Text(s.createBackup, style: AppTypography.bodyBold),
+                    subtitle: Text(s.createBackupSubtitle, style: AppTypography.caption),
                     trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
                     onTap: () async {
                       Navigator.pop(ctx);
@@ -1284,13 +1383,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               backgroundColor: AppColors.bgSurfaceElevated,
-                              content: Text('Cadangan tersimpan di: $path', style: const TextStyle(color: Colors.white)),
+                              content: Text(s.backupSaved(path), style: const TextStyle(color: Colors.white)),
                             ),
                           );
                         }
                       } catch (e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal backup: $e')));
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.backupFailed(e.toString()))));
                         }
                       }
                     },
@@ -1315,8 +1414,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       child: const Icon(Icons.restore_page_rounded, color: AppColors.secondary, size: 22),
                     ),
-                    title: Text('Pulihkan dari File Cadangan', style: AppTypography.bodyBold),
-                    subtitle: Text('Pilih dari file cadangan yang ditemukan', style: AppTypography.caption),
+                    title: Text(s.restoreBackup, style: AppTypography.bodyBold),
+                    subtitle: Text(s.restoreBackupSubtitle, style: AppTypography.caption),
                     trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
                     onTap: () {
                       Navigator.pop(ctx);
@@ -1338,6 +1437,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final backups = await BackupManager.listAvailableBackups();
 
     if (!context.mounted) return;
+    final s = AppStrings.of(context);
 
     showModalBottomSheet(
       context: context,
@@ -1361,10 +1461,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text('Pilih File Cadangan', style: AppTypography.titleMedium),
+                Text(s.chooseBackupFile, style: AppTypography.titleMedium),
                 const SizedBox(height: 4),
                 Text(
-                  'Ditemukan ${backups.length} file cadangan di folder Download',
+                  s.backupsFound(backups.length),
                   style: AppTypography.caption,
                 ),
                 const SizedBox(height: 16),
@@ -1376,10 +1476,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         const Icon(Icons.folder_off_rounded, color: AppColors.textSecondary, size: 36),
                         const SizedBox(height: 10),
-                        Text('Belum ada file cadangan Recify', style: AppTypography.bodyBold),
+                        Text(s.noBackupYet, style: AppTypography.bodyBold),
                         const SizedBox(height: 4),
                         Text(
-                          'Buat cadangan baru terlebih dahulu untuk menyimpannya ke Download.',
+                          s.noBackupHint,
                           style: AppTypography.caption,
                           textAlign: TextAlign.center,
                         ),
@@ -1407,13 +1507,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           try {
                             await provider.restoreBackup(file);
                             messenger.showSnackBar(
-                              const SnackBar(
+                              SnackBar(
                                 backgroundColor: AppColors.bgSurfaceElevated,
-                                content: Text('Data berhasil dipulihkan dari cadangan!', style: TextStyle(color: Colors.white)),
+                                content: Text(s.restoreDone, style: const TextStyle(color: Colors.white)),
                               ),
                             );
                           } catch (e) {
-                            messenger.showSnackBar(SnackBar(content: Text('Gagal memulihkan: $e')));
+                            messenger.showSnackBar(SnackBar(content: Text(s.restoreFailed(e.toString()))));
                           }
                         },
                       ),
@@ -1430,6 +1530,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // --- 4. EXPORT FORMAT DIALOG (EXCEL / CSV TO DOWNLOADS) ---
   void _showExportDialog(BuildContext context, FinanceProvider provider) {
     String selectedFormat = 'excel';
+    final s = AppStrings.of(context);
 
     showModalBottomSheet(
       context: context,
@@ -1455,10 +1556,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text('Ekspor Data Transaksi', style: AppTypography.titleMedium),
+                    Text(s.exportTransactions, style: AppTypography.titleMedium),
                     const SizedBox(height: 4),
                     Text(
-                      'Pilih format file laporan untuk disimpan ke folder Download',
+                      s.exportSubtitle,
                       style: AppTypography.caption,
                       textAlign: TextAlign.center,
                     ),
@@ -1492,8 +1593,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Microsoft Excel (.xlsx)', style: AppTypography.bodyBold),
-                                  Text('Tabel terformat rapi dengan warna & header sel', style: AppTypography.caption),
+                                  Text(s.excelFormat, style: AppTypography.bodyBold),
+                                  Text(s.excelFormatDesc, style: AppTypography.caption),
                                 ],
                               ),
                             ),
@@ -1534,8 +1635,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Format CSV (.csv)', style: AppTypography.bodyBold),
-                                  Text('Kompatibel dengan semua aplikasi pembukuan', style: AppTypography.caption),
+                                  Text(s.csvFormat, style: AppTypography.bodyBold),
+                                  Text(s.csvFormatDesc, style: AppTypography.caption),
                                 ],
                               ),
                             ),
@@ -1558,13 +1659,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 backgroundColor: AppColors.bgSurfaceElevated,
-                                content: Text('Laporan berhasil diekspor ke: $path', style: const TextStyle(color: Colors.white)),
+                                content: Text(s.exportDone(path), style: const TextStyle(color: Colors.white)),
                               ),
                             );
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengekspor: $e')));
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.exportTransactionsFailed(e.toString()))));
                           }
                         }
                       },
@@ -1577,7 +1678,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         child: Center(
                           child: Text(
-                            'Unduh ke Folder Download',
+                            s.downloadToFolder,
                             style: AppTypography.bodyBold.copyWith(color: Colors.white),
                           ),
                         ),
@@ -1608,6 +1709,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             final categories = provider.categories.where((c) => c.type == activeType).toList();
+            final s = AppStrings.of(context);
 
             return SafeArea(
               child: Container(
@@ -1628,7 +1730,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Kategori Pembukuan', style: AppTypography.titleMedium),
+                        Text(s.ledgerCategories, style: AppTypography.titleMedium),
                         GestureDetector(
                           onTap: () {
                             Navigator.pop(ctx);
@@ -1645,7 +1747,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 const Icon(Icons.add_rounded, size: 16, color: AppColors.primaryLight),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'Buat Kategori',
+                                  s.createCategory,
                                   style: AppTypography.caption.copyWith(
                                     color: AppColors.primaryLight,
                                     fontWeight: FontWeight.w700,
@@ -1676,7 +1778,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                               child: Center(
                                 child: Text(
-                                  'Pengeluaran',
+                                  s.expense,
                                   style: AppTypography.bodyBold.copyWith(
                                     color: activeType == 'EXPENSE' ? AppColors.error : AppColors.textSecondary,
                                     fontSize: 13,
@@ -1701,7 +1803,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                               child: Center(
                                 child: Text(
-                                  'Pemasukan',
+                                  s.income,
                                   style: AppTypography.bodyBold.copyWith(
                                     color: activeType == 'INCOME' ? AppColors.secondary : AppColors.textSecondary,
                                     fontSize: 13,
@@ -1772,9 +1874,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// Summary line for the settings row: how many categories are budgeted.
   String _budgetSubtitle(FinanceProvider provider) {
+    final s = AppStrings.of(context);
     final expenseCats = provider.categories.where((c) => c.type == 'EXPENSE');
     final set = expenseCats.where((c) => provider.budgetFor(c.id) != null).length;
-    if (set == 0) return 'Belum ada limit • Atur per kategori';
+    if (set == 0) return s.noLimitYet;
     final now = DateTime.now();
     final totalLimit = expenseCats
         .map((c) => provider.budgetFor(c.id))
@@ -1783,7 +1886,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final totalSpent = expenseCats
         .where((c) => provider.budgetFor(c.id) != null)
         .fold(0.0, (sum, c) => sum + provider.getCategorySpending(c.id, now.month, now.year));
-    return '$set kategori • ${CurrencyFormatter.format(totalSpent)} / ${CurrencyFormatter.format(totalLimit)}';
+    return s.budgetSummary(
+      set,
+      CurrencyFormatter.format(totalSpent),
+      CurrencyFormatter.format(totalLimit),
+    );
   }
 
   void _showBudgetSheet(BuildContext context, FinanceProvider provider) {
@@ -1800,6 +1907,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             final now = DateTime.now();
             final expenseCats =
                 provider.categories.where((c) => c.type == 'EXPENSE').toList();
+            final s = AppStrings.of(context);
 
             return SafeArea(
               child: Container(
@@ -1821,7 +1929,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Budget Bulanan', style: AppTypography.titleMedium),
+                        Text(s.monthlyBudget, style: AppTypography.titleMedium),
                         Text(
                           // No 'id_ID' locale: intl needs
                           // initializeDateFormatting() for that and the app
@@ -1837,7 +1945,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'Ketuk kategori untuk atur atau ubah limit bulanan',
+                        s.budgetHint,
                         style: AppTypography.caption,
                       ),
                     ),
@@ -1845,7 +1953,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Expanded(
                       child: expenseCats.isEmpty
                           ? Center(
-                              child: Text('Belum ada kategori pengeluaran',
+                              child: Text(s.noExpenseCategories,
                                   style: AppTypography.caption),
                             )
                           : ListView.builder(
@@ -1865,7 +1973,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     setSheetState(() {});
                                   },
                                   child: budget == null
-                                      ? _buildUnbudgetedRow(cat, spent)
+                                      ? _buildUnbudgetedRow(context, cat, spent)
                                       : BudgetProgressBar(
                                           categoryName: cat.name,
                                           spentAmount: spent,
@@ -1887,7 +1995,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// Category with no limit yet — a progress bar would be meaningless, so show
   /// the spending so far plus a "set limit" affordance instead.
-  Widget _buildUnbudgetedRow(CategoryModel cat, double spent) {
+  Widget _buildUnbudgetedRow(BuildContext context, CategoryModel cat, double spent) {
+    final s = AppStrings.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -1907,7 +2016,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         .copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 Text(
-                  'Terpakai: ${CurrencyFormatter.format(spent)}',
+                  s.spentLabel(CurrencyFormatter.format(spent)),
                   style: AppTypography.labelSmall
                       .copyWith(color: AppColors.textSecondary, fontSize: 11),
                 ),
@@ -1921,7 +2030,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              'Atur Limit',
+              s.setLimit,
               style: AppTypography.caption.copyWith(
                 color: AppColors.primaryLight,
                 fontWeight: FontWeight.w700,
@@ -1945,18 +2054,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : existing.monthlyLimit.toInt().toString().replaceAllMapped(
               RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.'),
     );
+    final s = AppStrings.of(context);
 
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Limit ${category.name}', style: AppTypography.titleMedium),
+        title: Text(s.limitTitle(category.name), style: AppTypography.titleMedium),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Limit Bulanan (Rp)', style: AppTypography.caption),
+            Text(s.monthlyLimitField, style: AppTypography.caption),
             const SizedBox(height: 4),
             TextField(
               controller: controller,
@@ -1964,11 +2074,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               keyboardType: TextInputType.number,
               inputFormatters: [ThousandsSeparatorInputFormatter()],
               style: AppTypography.bodyBold,
-              decoration: const InputDecoration(
-                hintText: 'Contoh: 1.500.000',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: s.limitHint,
+                border: const OutlineInputBorder(),
                 contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
             ),
           ],
@@ -1990,19 +2100,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       backgroundColor: AppColors.bgSurfaceElevated,
-                      content: Text('Limit ${category.name} dihapus',
+                      content: Text(s.limitDeleted(category.name),
                           style: const TextStyle(color: Colors.white)),
                     ),
                   );
                 }
               },
-              child: const Text('Hapus',
-                  style: TextStyle(color: AppColors.error)),
+              child: Text(s.hapus,
+                  style: const TextStyle(color: AppColors.error)),
             ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal',
-                style: TextStyle(color: AppColors.textSecondary)),
+            child: Text(s.cancel,
+                style: const TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -2030,13 +2140,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SnackBar(
                     backgroundColor: AppColors.bgSurfaceElevated,
                     content: Text(
-                        'Limit ${category.name}: ${CurrencyFormatter.format(limit)}',
+                        s.limitSaved(category.name, CurrencyFormatter.format(limit)),
                         style: const TextStyle(color: Colors.white)),
                   ),
                 );
               }
             },
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+            child: Text(s.save, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -2047,6 +2157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showAddCategoryDialog(BuildContext context, FinanceProvider provider, String defaultType) {
     final nameController = TextEditingController();
     String categoryType = defaultType;
+    final s = AppStrings.of(context);
 
     showDialog(
       context: context,
@@ -2054,29 +2165,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: AppColors.bgSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Buat Kategori Baru', style: AppTypography.titleMedium),
+          title: Text(s.createCategoryTitle, style: AppTypography.titleMedium),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Nama Kategori', style: AppTypography.caption),
+              Text(s.categoryName, style: AppTypography.caption),
               const SizedBox(height: 4),
               TextField(
                 controller: nameController,
                 style: AppTypography.bodyBold,
-                decoration: const InputDecoration(
-                  hintText: 'Contoh: Streaming, Hobi, Donasi',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: InputDecoration(
+                  hintText: s.categoryNameHint,
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
               const SizedBox(height: 14),
-              Text('Tipe Transaksi', style: AppTypography.caption),
+              Text(s.transactionType, style: AppTypography.caption),
               const SizedBox(height: 6),
               Row(
                 children: [
                   ChoiceChip(
-                    label: const Text('Pengeluaran', style: TextStyle(fontSize: 12)),
+                    label: Text(s.expense, style: const TextStyle(fontSize: 12)),
                     selected: categoryType == 'EXPENSE',
                     selectedColor: AppColors.error,
                     backgroundColor: AppColors.bgSurfaceElevated,
@@ -2084,7 +2195,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(width: 8),
                   ChoiceChip(
-                    label: const Text('Pemasukan', style: TextStyle(fontSize: 12)),
+                    label: Text(s.income, style: const TextStyle(fontSize: 12)),
                     selected: categoryType == 'INCOME',
                     selectedColor: AppColors.secondary,
                     backgroundColor: AppColors.bgSurfaceElevated,
@@ -2097,7 +2208,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+              child: Text(s.cancel, style: const TextStyle(color: AppColors.textSecondary)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -2122,12 +2233,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       backgroundColor: AppColors.bgSurfaceElevated,
-                      content: Text('Kategori "$name" berhasil ditambahkan!', style: const TextStyle(color: Colors.white)),
+                      content: Text(s.categoryAdded(name), style: const TextStyle(color: Colors.white)),
                     ),
                   );
                 }
               },
-              child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+              child: Text(s.save, style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),

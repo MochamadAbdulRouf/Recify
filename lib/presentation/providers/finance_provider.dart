@@ -241,6 +241,17 @@ class FinanceProvider with ChangeNotifier {
     await loadInitialData();
   }
 
+  /// Edit transaksi yang sudah ada: saldo dikoreksi atomik
+  /// (balikkan dampak lama + terapkan dampak baru, termasuk pindah dompet).
+  Future<void> updateTransaction(
+    TransactionModel oldTransaction,
+    TransactionModel newTransaction,
+    List<TransactionItemModel> items,
+  ) async {
+    await _repository.updateTransaction(oldTransaction, newTransaction, items);
+    await loadInitialData();
+  }
+
   // --- Wallets Management ---
   Future<void> addWallet(WalletModel wallet) async {
     await _repository.addWallet(wallet);
