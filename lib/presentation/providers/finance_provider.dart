@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/budget_model.dart';
 import '../../data/models/category_model.dart';
 import '../../data/models/transaction_item_model.dart';
@@ -9,9 +10,14 @@ import '../../data/repositories/finance_repository.dart';
 import '../../core/utils/trend_calculator.dart';
 import '../../domain/backup/backup_manager.dart';
 import '../../domain/export/report_exporter.dart';
+import '../../domain/notifications/notification_builder.dart';
 
 class FinanceProvider with ChangeNotifier {
   final FinanceRepository _repository = FinanceRepository();
+
+  static const _kReadNotifs = 'read_notification_ids';
+  static const _kRecentSearches = 'recent_searches';
+  static const int _maxRecentSearches = 5;
 
   List<WalletModel> _wallets = [];
   List<CategoryModel> _categories = [];
@@ -23,6 +29,9 @@ class FinanceProvider with ChangeNotifier {
   String _searchQuery = '';
   bool _isLoading = false;
 
+  Set<String> _readNotifIds = {};
+  List<String> _recentSearches = [];
+
   List<WalletModel> get wallets => _wallets;
   List<CategoryModel> get categories => _categories;
   List<TransactionModel> get transactions => _transactions;
@@ -33,8 +42,26 @@ class FinanceProvider with ChangeNotifier {
   String get searchQuery => _searchQuery;
   bool get isLoading => _isLoading;
 
-  WalletModel? get activeWallet =>
-      _selectedWalletId != null ? _wallets.firstWhere((w) => w.id == _selectedWalletId, orElse: () => _wallets.first) : null;
+  // --- Notifications (derived in-memory feed, no push, no server) ---
+
+  List<AppNotification> get notifications => NotificationBuilder.build(
+        transactions: _transactions,
+        budgets: _budgets,
+        categories: _categories,
+        now: DateTime.now(),
+      );
+
+  int get unreadNotificationCount =>
+      notifications.where((n) => !_readNotifIds.contains(n.id)).length;
+
+  bool isNotificationRead(String id) => _readNotifIds.contains(id);
+
+  List<String> get recentSearches => List.unmodifiable(_recentSearches);
+
+  WalletModel? get activeWallet => _selectedWalletId != null
+      ? _wallets.firstWhere((w) => w.id == _selectedWalletId,
+          orElse: () => _wallets.first)
+      : null;
 
   double get totalBalance {
     if (activeWallet != null) return activeWallet!.currentBalance;
@@ -43,22 +70,18 @@ class FinanceProvider with ChangeNotifier {
 
   double get totalIncomeThisMonth {
     final now = DateTime.now();
-    return _transactions
-        .where((t) {
-          final d = DateTime.fromMillisecondsSinceEpoch(t.transactionDate);
-          return t.type == 'INCOME' && d.month == now.month && d.year == now.year;
-        })
-        .fold(0.0, (sum, t) => sum + t.amount);
+    return _transactions.where((t) {
+      final d = DateTime.fromMillisecondsSinceEpoch(t.transactionDate);
+      return t.type == 'INCOME' && d.month == now.month && d.year == now.year;
+    }).fold(0.0, (sum, t) => sum + t.amount);
   }
 
   double get totalExpenseThisMonth {
     final now = DateTime.now();
-    return _transactions
-        .where((t) {
-          final d = DateTime.fromMillisecondsSinceEpoch(t.transactionDate);
-          return t.type == 'EXPENSE' && d.month == now.month && d.year == now.year;
-        })
-        .fold(0.0, (sum, t) => sum + t.amount);
+    return _transactions.where((t) {
+      final d = DateTime.fromMillisecondsSinceEpoch(t.transactionDate);
+      return t.type == 'EXPENSE' && d.month == now.month && d.year == now.year;
+    }).fold(0.0, (sum, t) => sum + t.amount);
   }
 
   double get monthlyIncome => totalIncomeThisMonth;
@@ -77,7 +100,9 @@ class FinanceProvider with ChangeNotifier {
   /// Timestamp of the newest record (creation time) — for "Updated X ago".
   int? get lastDataTimestamp {
     if (_transactions.isEmpty) return null;
-    return _transactions.map((t) => t.createdAt).reduce((a, b) => a > b ? a : b);
+    return _transactions
+        .map((t) => t.createdAt)
+        .reduce((a, b) => a > b ? a : b);
   }
 
   /// Records captured today — drives the hero card's second status pill.
@@ -116,6 +141,10 @@ class FinanceProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    final prefs = await SharedPreferences.getInstance();
+    _readNotifIds = (prefs.getStringList(_kReadNotifs) ?? const []).toSet();
+    _recentSearches = prefs.getStringList(_kRecentSearches) ?? [];
+
     _wallets = await _repository.getWallets();
     _categories = await _repository.getCategories();
     final now = DateTime.now();
@@ -149,6 +178,45 @@ class FinanceProvider with ChangeNotifier {
   void setSearchQuery(String query) {
     _searchQuery = query;
     refreshTransactions();
+  }
+
+  // --- Notification read state (persisted, no DB table) ---
+
+  Future<void> markNotificationRead(String id) async {
+    if (!_readNotifIds.add(id)) return;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kReadNotifs, _readNotifIds.toList());
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    _readNotifIds = notifications.map((n) => n.id).toSet();
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kReadNotifs, _readNotifIds.toList());
+  }
+
+  // --- Recent searches ---
+
+  Future<void> addRecentSearch(String query) async {
+    final q = query.trim();
+    if (q.length < 2) return;
+    _recentSearches
+      ..removeWhere((e) => e.toLowerCase() == q.toLowerCase())
+      ..insert(0, q);
+    if (_recentSearches.length > _maxRecentSearches) {
+      _recentSearches = _recentSearches.sublist(0, _maxRecentSearches);
+    }
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kRecentSearches, _recentSearches);
+  }
+
+  Future<void> clearRecentSearches() async {
+    _recentSearches = [];
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kRecentSearches);
   }
 
   // --- Transactions ---
@@ -209,18 +277,32 @@ class FinanceProvider with ChangeNotifier {
   }
 
   double getCategorySpending(String categoryId, int month, int year) {
-    return _transactions
-        .where((t) {
-          final d = DateTime.fromMillisecondsSinceEpoch(t.transactionDate);
-          return t.categoryId == categoryId && t.type == 'EXPENSE' && d.month == month && d.year == year;
-        })
-        .fold(0.0, (sum, t) => sum + t.amount);
+    return _transactions.where((t) {
+      final d = DateTime.fromMillisecondsSinceEpoch(t.transactionDate);
+      return t.categoryId == categoryId &&
+          t.type == 'EXPENSE' &&
+          d.month == month &&
+          d.year == year;
+    }).fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  /// This month's budget for a category, or null when unset.
+  ///
+  /// Clearing a budget stores limit 0 rather than deleting the row — every
+  /// consumer (this getter, the notification builder, the settings sheet)
+  /// already treats 0 as "no budget", so no delete path is needed.
+  BudgetModel? budgetFor(String categoryId) {
+    for (final b in _budgets) {
+      if (b.categoryId == categoryId && b.monthlyLimit > 0) return b;
+    }
+    return null;
   }
 
   // --- Export Reports (Excel or CSV to Downloads) ---
   Future<String> exportTransactionsReport({required String format}) async {
     if (format == 'excel') {
-      final file = await ReportExporter.exportTransactionsToExcel(_transactions);
+      final file =
+          await ReportExporter.exportTransactionsToExcel(_transactions);
       return file.path;
     } else {
       final file = await ReportExporter.exportTransactionsToCsv(_transactions);

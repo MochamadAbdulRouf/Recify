@@ -15,7 +15,9 @@ import '../components/scan_progress_dialog.dart';
 import '../components/transaction_list_item.dart';
 import '../providers/finance_provider.dart';
 import '../providers/scanner_provider.dart';
+import 'global_search_screen.dart';
 import 'manual_transaction_screen.dart';
+import 'notification_center_screen.dart';
 import 'quick_verification_screen.dart';
 import 'transaction_detail_screen.dart';
 
@@ -156,23 +158,28 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                               ),
                             ),
 
-                            // Quick Settings / Profile Trigger
-                            GestureDetector(
-                              onTap: () => widget.onNavigateTab?.call(3),
-                              child: Container(
-                                width: 38,
-                                height: 38,
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceContainer
-                                      .withValues(alpha: 0.8),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      Border.all(color: AppColors.borderSubtle),
+                            // Search + notification bell (v2 header).
+                            // Settings lives in the nav island (Account tab),
+                            // so the old tune button was redundant.
+                            _HeaderIconButton(
+                              icon: Icons.search_rounded,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const GlobalSearchScreen(),
                                 ),
-                                child: const Icon(
-                                  Icons.tune_rounded,
-                                  color: AppColors.textSecondary,
-                                  size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            _HeaderIconButton(
+                              icon: Icons.notifications_none_rounded,
+                              badgeCount:
+                                  financeProvider.unreadNotificationCount,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const NotificationCenterScreen(),
                                 ),
                               ),
                             ),
@@ -456,5 +463,67 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         );
       }
     }
+  }
+}
+
+/// Frosted square icon button for the home header. Shows a count badge for the
+/// notification bell; badge is hidden at zero so an empty feed looks calm.
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
+    required this.icon,
+    required this.onTap,
+    this.badgeCount = 0,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final int badgeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainer.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.borderSubtle),
+            ),
+            child: Icon(icon, color: AppColors.textSecondary, size: 18),
+          ),
+          if (badgeCount > 0)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 17),
+                height: 17,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.statusNegative,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: AppColors.bgCanvas, width: 1.5),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  badgeCount > 9 ? '9+' : '$badgeCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

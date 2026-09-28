@@ -259,6 +259,53 @@ class AppStrings {
         ]
       : ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
+  // ── Search (extends the History strings above) ──
+  String get searchTitle => isEn ? 'Search' : 'Pencarian';
+  String get searchEmptyTitle =>
+      isEn ? 'No matching transaction' : 'Tidak ada transaksi cocok';
+  String get searchEmptyHint => isEn
+      ? 'Try another keyword, or a nominal like 50000'
+      : 'Coba kata kunci lain, atau nominal seperti 50000';
+  String get searchRecent => isEn ? 'Recent searches' : 'Pencarian terakhir';
+  String get searchClearRecent => isEn ? 'Clear' : 'Hapus';
+  String resultCount(int n) =>
+      isEn ? '$n result${n == 1 ? '' : 's'}' : '$n hasil';
+
+  // ── Notifications ──
+  String get notificationsTitle => isEn ? 'Notifications' : 'Notifikasi';
+  String get notificationsEmpty =>
+      isEn ? 'Nothing needs your attention' : 'Tidak ada yang perlu ditindak';
+  String get notificationsEmptyHint => isEn
+      ? 'Budget alerts and unusual spending show up here'
+      : 'Peringatan budget & pengeluaran tak wajar muncul di sini';
+  String get markAllRead => isEn ? 'Mark all read' : 'Tandai semua dibaca';
+  String get notifSectionAlert => isEn ? 'Needs attention' : 'Perlu tindakan';
+  String get notifSectionInfo => isEn ? 'Insights' : 'Wawasan';
+  String notifBudgetOver(String category, int percent) => isEn
+      ? '$category is $percent% of budget'
+      : '$category $percent% dari budget';
+  String notifBudgetOverBody(String spent, String limit) => isEn
+      ? 'Spent $spent of $limit this month'
+      : 'Terpakai $spent dari $limit bulan ini';
+  String notifBudgetNear(String category, int percent) => isEn
+      ? '$category at $percent% of budget'
+      : '$category sudah $percent% dari budget';
+  String notifBudgetNearBody(String remaining) => isEn
+      ? '$remaining left before the limit'
+      : 'Sisa $remaining sebelum limit';
+  String notifSpike(String category, int percent) => isEn
+      ? '$category spending is up $percent%'
+      : 'Pengeluaran $category naik $percent%';
+  String notifSpikeBody(String avg) => isEn
+      ? 'Above your 3-month average of $avg'
+      : 'Di atas rata-rata 3 bulan Anda $avg';
+  String notifUncategorized(int count) => isEn
+      ? '$count transactions have no category'
+      : '$count transaksi belum berkategori';
+  String get notifUncategorizedBody => isEn
+      ? 'Tap to categorize so reports stay accurate'
+      : 'Ketuk untuk memberi kategori agar laporan akurat';
+
   // ── General ──
   String get umum => isEn ? 'General' : 'Umum';
   String get transactionWord => isEn ? 'Transaction' : 'Transaksi';

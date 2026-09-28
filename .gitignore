@@ -56,3 +56,6 @@ app.*.map.json
 .widget_preview/
 OCR_IDEA.md
 implementation_plan_ocr-v1
+
+# Agent workspace (plans, scratch notes)
+.hermes/

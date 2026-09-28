@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/transaction_filter.dart';
 import '../../data/models/transaction_model.dart';
 import '../components/sticky_frosted_app_bar.dart';
 import '../components/transaction_list_item.dart';
@@ -14,7 +14,8 @@ class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
 
   @override
-  State<TransactionHistoryScreen> createState() => _TransactionHistoryScreenState();
+  State<TransactionHistoryScreen> createState() =>
+      _TransactionHistoryScreenState();
 }
 
 class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
@@ -42,38 +43,16 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     final financeProvider = context.watch<FinanceProvider>();
     final s = AppStrings.of(context);
 
-    // Filter transactions
-    final filtered = financeProvider.transactions.where((t) {
-      final matchesSearch = _searchQuery.isEmpty ||
-          (t.merchantName ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (t.category?.name ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (t.notes ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
-
-      if (!matchesSearch) return false;
-
-      if (_selectedFilter == 'EXPENSE') return t.type == 'EXPENSE';
-      if (_selectedFilter == 'INCOME') return t.type == 'INCOME';
-      return true;
-    }).toList();
+    // Filter transactions (shared matcher with the global search screen)
+    final filtered = TransactionFilter.apply(
+      financeProvider.transactions,
+      query: _searchQuery,
+      type: _selectedFilter,
+    );
 
     // Group transactions by date string
-    final Map<String, List<TransactionModel>> grouped = {};
-    for (final tx in filtered) {
-      final date = DateTime.fromMillisecondsSinceEpoch(tx.transactionDate);
-      final now = DateTime.now();
-      String header;
-      if (date.year == now.year && date.month == now.month && date.day == now.day) {
-        header = s.isEn ? 'TODAY' : 'HARI INI';
-      } else if (date.year == now.year &&
-          date.month == now.month &&
-          date.day == now.subtract(const Duration(days: 1)).day) {
-        header = s.isEn ? 'YESTERDAY' : 'KEMARIN';
-      } else {
-        header = DateFormat('d MMM yyyy').format(date).toUpperCase();
-      }
-
-      grouped.putIfAbsent(header, () => []).add(tx);
-    }
+    final Map<String, List<TransactionModel>> grouped =
+        TransactionFilter.groupByDay(filtered, s);
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
@@ -85,11 +64,13 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(s.historyTitle, style: AppTypography.headlineMd.copyWith(fontSize: 20)),
+            Text(s.historyTitle,
+                style: AppTypography.headlineMd.copyWith(fontSize: 20)),
             const SizedBox(height: 2),
             Text(
               s.historyCount(filtered.length),
-              style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+              style: AppTypography.caption
+                  .copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -103,7 +84,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: AppColors.borderSubtle),
               ),
-              child: const Icon(Icons.file_download_outlined, color: AppColors.primaryLight, size: 18),
+              child: const Icon(Icons.file_download_outlined,
+                  color: AppColors.primaryLight, size: 18),
             ),
             onPressed: () async {
               try {
@@ -112,7 +94,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       backgroundColor: AppColors.bgSurfaceElevated,
-                      content: Text('Laporan berhasil diekspor ke: $path', style: const TextStyle(color: Colors.white)),
+                      content: Text('Laporan berhasil diekspor ke: $path',
+                          style: const TextStyle(color: Colors.white)),
                     ),
                   );
                 }
@@ -142,7 +125,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
                   children: [
-                    const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 18),
+                    const Icon(Icons.search_rounded,
+                        color: AppColors.textSecondary, size: 18),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
@@ -166,7 +150,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
                         },
-                        child: const Icon(Icons.close_rounded, color: AppColors.textSecondary, size: 16),
+                        child: const Icon(Icons.close_rounded,
+                            color: AppColors.textSecondary, size: 16),
                       ),
                   ],
                 ),
@@ -188,19 +173,27 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                     return GestureDetector(
                       onTap: () => setState(() => _selectedFilter = f),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
-                          color: isSelected ? AppColors.primary : AppColors.bgSurface,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.bgSurface,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isSelected ? AppColors.primary : AppColors.borderSubtle,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.borderSubtle,
                           ),
                         ),
                         child: Text(
                           _filterLabel(s, f),
                           style: AppTypography.caption.copyWith(
-                            color: isSelected ? Colors.white : AppColors.textSecondary,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textSecondary,
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
                             fontSize: 12,
                           ),
                         ),
@@ -218,7 +211,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.search_off_rounded, size: 48, color: AppColors.textSecondary),
+                  const Icon(Icons.search_off_rounded,
+                      size: 48, color: AppColors.textSecondary),
                   const SizedBox(height: 12),
                   Text(s.emptyHistoryTitle, style: AppTypography.bodyBold),
                   const SizedBox(height: 4),
@@ -232,7 +226,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               itemCount: grouped.length + 1,
               itemBuilder: (ctx, index) {
                 if (index == grouped.length) {
-                  return const SizedBox(height: 132); // Space for Floating Island + FAB
+                  return const SizedBox(
+                      height: 132); // Space for Floating Island + FAB
                 }
 
                 final header = grouped.keys.elementAt(index);
@@ -242,7 +237,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(top: 14, bottom: 8, left: 4),
+                      padding:
+                          const EdgeInsets.only(top: 14, bottom: 8, left: 4),
                       child: Text(
                         header,
                         style: AppTypography.caption.copyWith(
@@ -260,7 +256,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => TransactionDetailScreen(transaction: tx),
+                              builder: (_) =>
+                                  TransactionDetailScreen(transaction: tx),
                             ),
                           );
                         },

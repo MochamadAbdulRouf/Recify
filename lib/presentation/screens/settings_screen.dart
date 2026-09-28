@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -10,8 +11,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/currency_input_formatter.dart';
+import '../../data/models/budget_model.dart';
 import '../../data/models/category_model.dart';
 import '../../data/models/wallet_model.dart';
+import '../components/budget_progress_bar.dart';
 import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
 import '../providers/locale_provider.dart';
@@ -404,9 +407,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.category_rounded,
                 iconColor: AppColors.meshIndigo,
                 title: 'Kategori Pembukuan',
-                subtitle: '${financeProvider.categories.length} Kategori • Tambah & Kelola',
-                trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
-                onTap: () => _showManageCategoriesSheet(context, financeProvider),
+                subtitle:
+                    '${financeProvider.categories.length} Kategori • Tambah & Kelola',
+                trailing: const Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textSecondary, size: 18),
+                onTap: () =>
+                    _showManageCategoriesSheet(context, financeProvider),
+              ),
+              _buildDivider(),
+              _buildSettingItem(
+                icon: Icons.savings_rounded,
+                iconColor: AppColors.statusWarning,
+                title: 'Budget Bulanan',
+                subtitle: _budgetSubtitle(financeProvider),
+                trailing: const Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textSecondary, size: 18),
+                onTap: () => _showBudgetSheet(context, financeProvider),
               ),
             ]),
 
@@ -1749,6 +1765,281 @@ class _SettingsScreenState extends State<SettingsScreen> {
           },
         );
       },
+    );
+  }
+
+  // ── Budget ──
+
+  /// Summary line for the settings row: how many categories are budgeted.
+  String _budgetSubtitle(FinanceProvider provider) {
+    final expenseCats = provider.categories.where((c) => c.type == 'EXPENSE');
+    final set = expenseCats.where((c) => provider.budgetFor(c.id) != null).length;
+    if (set == 0) return 'Belum ada limit • Atur per kategori';
+    final now = DateTime.now();
+    final totalLimit = expenseCats
+        .map((c) => provider.budgetFor(c.id))
+        .whereType<BudgetModel>()
+        .fold(0.0, (sum, b) => sum + b.monthlyLimit);
+    final totalSpent = expenseCats
+        .where((c) => provider.budgetFor(c.id) != null)
+        .fold(0.0, (sum, c) => sum + provider.getCategorySpending(c.id, now.month, now.year));
+    return '$set kategori • ${CurrencyFormatter.format(totalSpent)} / ${CurrencyFormatter.format(totalLimit)}';
+  }
+
+  void _showBudgetSheet(BuildContext context, FinanceProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final now = DateTime.now();
+            final expenseCats =
+                provider.categories.where((c) => c.type == 'EXPENSE').toList();
+
+            return SafeArea(
+              child: Container(
+                constraints:
+                    BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.8),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Budget Bulanan', style: AppTypography.titleMedium),
+                        Text(
+                          // No 'id_ID' locale: intl needs
+                          // initializeDateFormatting() for that and the app
+                          // never calls it. Default locale keeps this
+                          // consistent with the date formatting used elsewhere.
+                          DateFormat('MMMM yyyy').format(now),
+                          style: AppTypography.caption
+                              .copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Ketuk kategori untuk atur atau ubah limit bulanan',
+                        style: AppTypography.caption,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: expenseCats.isEmpty
+                          ? Center(
+                              child: Text('Belum ada kategori pengeluaran',
+                                  style: AppTypography.caption),
+                            )
+                          : ListView.builder(
+                              physics: const BouncingScrollPhysics(),
+                              itemCount: expenseCats.length,
+                              itemBuilder: (context, index) {
+                                final cat = expenseCats[index];
+                                final budget = provider.budgetFor(cat.id);
+                                final spent = provider.getCategorySpending(
+                                    cat.id, now.month, now.year);
+
+                                return GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () async {
+                                    await _showBudgetLimitDialog(
+                                        context, provider, cat, budget);
+                                    setSheetState(() {});
+                                  },
+                                  child: budget == null
+                                      ? _buildUnbudgetedRow(cat, spent)
+                                      : BudgetProgressBar(
+                                          categoryName: cat.name,
+                                          spentAmount: spent,
+                                          budgetLimit: budget.monthlyLimit,
+                                        ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Category with no limit yet — a progress bar would be meaningless, so show
+  /// the spending so far plus a "set limit" affordance instead.
+  Widget _buildUnbudgetedRow(CategoryModel cat, double spent) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.bgSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(cat.name,
+                    style: AppTypography.labelLarge
+                        .copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Text(
+                  'Terpakai: ${CurrencyFormatter.format(spent)}',
+                  style: AppTypography.labelSmall
+                      .copyWith(color: AppColors.textSecondary, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              'Atur Limit',
+              style: AppTypography.caption.copyWith(
+                color: AppColors.primaryLight,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showBudgetLimitDialog(
+    BuildContext context,
+    FinanceProvider provider,
+    CategoryModel category,
+    BudgetModel? existing,
+  ) async {
+    final controller = TextEditingController(
+      text: existing == null
+          ? ''
+          : existing.monthlyLimit.toInt().toString().replaceAllMapped(
+              RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.'),
+    );
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Limit ${category.name}', style: AppTypography.titleMedium),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Limit Bulanan (Rp)', style: AppTypography.caption),
+            const SizedBox(height: 4),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorInputFormatter()],
+              style: AppTypography.bodyBold,
+              decoration: const InputDecoration(
+                hintText: 'Contoh: 1.500.000',
+                border: OutlineInputBorder(),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          if (existing != null)
+            TextButton(
+              onPressed: () async {
+                final now = DateTime.now();
+                await provider.setBudget(BudgetModel(
+                  id: existing.id,
+                  categoryId: category.id,
+                  monthlyLimit: 0,
+                  month: now.month,
+                  year: now.year,
+                ));
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: AppColors.bgSurfaceElevated,
+                      content: Text('Limit ${category.name} dihapus',
+                          style: const TextStyle(color: Colors.white)),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Hapus',
+                  style: TextStyle(color: AppColors.error)),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal',
+                style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape:
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              final raw = controller.text.replaceAll(RegExp(r'[^0-9]'), '');
+              final limit = double.tryParse(raw) ?? 0;
+              if (limit <= 0) return;
+
+              final now = DateTime.now();
+              await provider.setBudget(BudgetModel(
+                // Reuse the row id so repeated edits do not pile up duplicates.
+                id: existing?.id ?? const Uuid().v4(),
+                categoryId: category.id,
+                monthlyLimit: limit,
+                month: now.month,
+                year: now.year,
+              ));
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: AppColors.bgSurfaceElevated,
+                    content: Text(
+                        'Limit ${category.name}: ${CurrencyFormatter.format(limit)}',
+                        style: const TextStyle(color: Colors.white)),
+                  ),
+                );
+              }
+            },
+            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 

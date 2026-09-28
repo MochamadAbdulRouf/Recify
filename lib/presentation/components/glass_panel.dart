@@ -102,81 +102,76 @@ class GlassPanel extends StatelessWidget {
     return RepaintBoundary(
       child: ClipRRect(
         borderRadius: r,
-        child: Stack(
-          children: [
-            // Solid base fill — prevents Mali GPUs from sampling uninitialized
-            // tile memory (which renders as a solid red band artifact).
-            // By painting an opaque surface *before* the blur, the
-            // BackdropFilter always has valid pixel data to read.
-            Positioned.fill(
-              child: ColoredBox(color: AppColors.bgCanvas),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: fill ??
+                  const LinearGradient(
+                      colors: [AppColors.glassFill, AppColors.glassFill]),
+              borderRadius: r,
+              border: Border.all(color: borderColor),
             ),
-            // Backdrop blur layer
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: fill ??
-                      const LinearGradient(
-                          colors: [AppColors.glassFill, AppColors.glassFill]),
-                  border: Border.all(color: borderColor),
+            child: Stack(
+              children: [
+                if (glowBlobs) ...[
+                  Positioned(
+                    top: -48,
+                    right: -48,
+                    child: _Blob(
+                      size: 192,
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -56,
+                    left: -56,
+                    child: _Blob(
+                      size: 176,
+                      color: AppColors.meshCyan.withValues(alpha: 0.15),
+                    ),
+                  ),
+                ],
+                // Sheen: from-white/[0.04] to-transparent.
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: r,
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            AppColors.glassSheen,
+                            AppColors.bgCanvas.withValues(alpha: 0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                child: Stack(
-                  children: [
-                    if (glowBlobs) ...[
-                      Positioned(
-                        top: -48,
-                        right: -48,
-                        child: _Blob(
-                          size: 192,
-                          color: AppColors.primary.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: -56,
-                        left: -56,
-                        child: _Blob(
-                          size: 176,
-                          color: AppColors.meshCyan.withValues(alpha: 0.15),
-                        ),
-                      ),
-                    ],
-                    // Sheen: from-white/[0.04] to-transparent.
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                AppColors.glassSheen,
-                                AppColors.bgCanvas.withValues(alpha: 0),
-                              ],
-                            ),
-                          ),
-                        ),
+                // 1px top highlight standing in for the CSS inset shadow.
+                Positioned(
+                  top: 0,
+                  left: radius,
+                  right: radius,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 1,
+                      decoration: BoxDecoration(
+                        color: AppColors.glassHighlight,
+                        borderRadius: BorderRadius.circular(1),
                       ),
                     ),
-                    // 1px top highlight standing in for the CSS inset shadow.
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: IgnorePointer(
-                        child:
-                            Container(height: 1, color: AppColors.glassHighlight),
-                      ),
-                    ),
-                    Padding(
-                      padding: padding ?? EdgeInsets.zero,
-                      child: child,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+                Padding(
+                  padding: padding ?? EdgeInsets.zero,
+                  child: child,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
