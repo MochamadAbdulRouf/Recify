@@ -65,8 +65,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       now: now,
     );
 
-    // Basis tinggi bar = bucket terbesar dalam jendela (relatif antar
-    // periode), bukan saldo — supaya perbandingan antar tab bermakna.
+    // Tinggi bar = persen bucket terhadap total saldo, sama dengan angka
+    // di tooltip/inspector — jadi tinggi dan persen tidak pernah beda cerita.
     var maxBucketAmount = 0.0;
     var highestBucketIndex = buckets.length - 1; // default: periode berjalan
     for (var i = 0; i < buckets.length; i++) {
@@ -76,12 +76,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       }
     }
 
+    final totalBalance = financeProvider.totalBalance;
+    final hasBalance = totalBalance > 0;
+
     final activeIndex =
         (_selectedBarIndex ?? highestBucketIndex).clamp(0, buckets.length - 1);
     final activeBucket = buckets[activeIndex];
     final activeAmount = activeBucket.total;
-    final activePercent = maxBucketAmount > 0
-        ? ((activeAmount / maxBucketAmount) * 100).clamp(0.0, 100.0)
+    final activePercent = hasBalance
+        ? ((activeAmount / totalBalance) * 100).clamp(0.0, 100.0)
         : 0.0;
 
     // ── 3. Insight ──
@@ -98,11 +101,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     // ── Active bar gradient & glow based on type ──
     final activeBarGradient =
-        _isExpense ? AppColors.barActiveGradient : AppColors.barIncomeGradient;
+        _isExpense ? AppColors.barExpenseGradient : AppColors.barIncomeGradient;
     final activeBarGlow =
-        _isExpense ? AppColors.primary : AppColors.statusPositive;
+        _isExpense ? AppColors.error : AppColors.statusPositive;
     final tooltipDotColor =
-        _isExpense ? const Color(0xFF3B82F6) : const Color(0xFF4EDEA3);
+        _isExpense ? AppColors.error : AppColors.statusPositive;
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
@@ -154,6 +157,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 GlassSegmentedTabs(
                   labels: _periodTabs(s),
                   index: _selectedPeriodIndex,
+                  activeColor:
+                      _isExpense ? AppColors.error : AppColors.statusPositive,
+                  activeGlow:
+                      _isExpense ? AppColors.error : AppColors.statusPositive,
+                  activeTextColor: _isExpense
+                      ? Colors.white
+                      : const Color(0xFF003824),
                   onChanged: (i) => setState(() {
                     _selectedPeriodIndex = i;
                     _selectedBarIndex = null; // rentang bar berubah
@@ -246,8 +256,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             // Tinggi = total bucket / bucket terbesar.
                             // Floor supaya bar nol tetap terlihat seulas;
                             // cap 0.90 supaya tooltip tidak kepotong.
-                            final factor = maxBucketAmount > 0
-                                ? (bucketTotal / maxBucketAmount).clamp(
+                            final factor = hasBalance
+                                ? (bucketTotal / totalBalance).clamp(
                                     bucketTotal > 0 ? 0.05 : 0.03, 0.90)
                                 : 0.10;
                             // Periode berjalan belum penuh → redupkan supaya
@@ -255,13 +265,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             final dimCurrent =
                                 buckets[i].isCurrent && !isActive;
 
+                            // Kap lebar bar: Daily (3 bucket) ramping & center,
+                            // Weekly/Monthly (6) slot < konstanta → tampil penuh.
+                            const maxBarWidth = 60.0;
                             return Expanded(
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTap: () => setState(() => _selectedBarIndex = i),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                                  child: LayoutBuilder(
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: maxBarWidth),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      child: LayoutBuilder(
                                     builder: (ctx, c) {
                                       final barHeight = c.maxHeight * factor;
                                       return Stack(
@@ -313,7 +329,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                               child: _ChartTooltip(
                                                 label: CurrencyFormatter
                                                     .formatRupiah(activeAmount),
-                                                percent: maxBucketAmount > 0
+                                                percent: hasBalance
                                                     ? '${activePercent.toStringAsFixed(1)}%'
                                                     : null,
                                                 dotColor: tooltipDotColor,
@@ -343,8 +359,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                   ),
                                 ),
                               ),
-                            );
-                          }),
+                            ),
+                          ),
+                        );
+                      }),
                         ),
                       ),
 
@@ -654,6 +672,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
+  /// Label rentang Senin–Minggu, mis. "14–20 Sep" atau "31 Agu–6 Sep"
+  /// kalau lintas bulan.
+  String _weekRangeLabel(PeriodBucket bucket, AppStrings s) {
+    final end = bucket.end.subtract(const Duration(days: 1));
+    final startMonth = s.monthsShort[bucket.start.month - 1];
+    if (bucket.start.month == end.month) {
+      return '${bucket.start.day}–${end.day} $startMonth';
+    }
+    return '${bucket.start.day} $startMonth–${end.day} ${s.monthsShort[end.month - 1]}';
+  }
+
   /// Label sumbu-X untuk bar ke-[index], tergantung tab periode aktif.
   /// Daftar bucket diteruskan eksplisit karena helper ini dipanggil dari
   /// dalam `build` sesudah `buckets` dihitung.
@@ -663,9 +692,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       // Daily: tanggal singkat; bar terakhir = hari ini.
       0 => DateFormatter.formatDayMonth(buckets[index].start),
       // Weekly: rentang Senin–Minggu; bar terakhir = minggu berjalan.
+      // Kalau rentang lintas bulan (mis. 31 Agu–6 Sep), tulis kedua bulan
+      // supaya tidak terbaca "31-6 Agu".
       1 => buckets[index].isCurrent
           ? s.thisWeekNow
-          : '${buckets[index].start.day}–${buckets[index].end.subtract(const Duration(days: 1)).day} ${s.monthsShort[buckets[index].start.month - 1]}',
+          : _weekRangeLabel(buckets[index], s),
       // Monthly: nama bulan singkat.
       _ => s.monthsShort[buckets[index].start.month - 1],
     };
@@ -718,6 +749,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 /// Matches the Stitch v2 HTML:
 /// `p-1 bg-[#151926]/70 backdrop-blur-xl border border-white/10 rounded-full`
 /// with an active pill: `bg-primary-container text-white shadow-[0_4px_16px...]`
+// Overlay pill toggle tipe: merah = expense, hijau = income
+// (ikuti selera AppColors: green = money in, red = out).
+Color _typeOverlay(int typeIndex) =>
+    typeIndex == 0 ? AppColors.error : AppColors.statusPositive;
+Color _typeOnOverlay(int typeIndex) =>
+    typeIndex == 0 ? Colors.white : const Color(0xFF003824);
+
 class _GlassTypeToggle extends StatelessWidget {
   const _GlassTypeToggle({
     required this.labels,
@@ -758,12 +796,13 @@ class _GlassTypeToggle extends StatelessWidget {
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: i == index ? AppColors.primaryContainer : null,
+                    color: i == index ? _typeOverlay(i) : null,
                     borderRadius: BorderRadius.circular(999),
                     boxShadow: i == index
                         ? [
                             BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.40),
+                              color:
+                                  _typeOverlay(i).withValues(alpha: 0.40),
                               blurRadius: 16,
                               offset: const Offset(0, 4),
                             ),
@@ -777,7 +816,7 @@ class _GlassTypeToggle extends StatelessWidget {
                         icons[i],
                         size: 18,
                         color: i == index
-                            ? Colors.white
+                            ? _typeOnOverlay(i)
                             : AppColors.onSurfaceVariant,
                       ),
                       const SizedBox(width: 6),
@@ -788,7 +827,7 @@ class _GlassTypeToggle extends StatelessWidget {
                           fontWeight:
                               i == index ? FontWeight.w600 : FontWeight.w500,
                           color: i == index
-                              ? Colors.white
+                              ? _typeOnOverlay(i)
                               : AppColors.onSurfaceVariant,
                         ),
                       ),

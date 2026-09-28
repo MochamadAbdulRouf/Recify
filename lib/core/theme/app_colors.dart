@@ -103,6 +103,16 @@ class AppColors {
     ],
   );
 
+  /// Expense bar: rose gradient matching error/statusNegative
+  static const LinearGradient barExpenseGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFFDF2F51),
+      Color(0xFF9F1239),
+    ],
+  );
+
   static const LinearGradient primaryCtaGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,

@@ -186,11 +186,20 @@ class GlassSegmentedTabs extends StatelessWidget {
     required this.labels,
     required this.index,
     required this.onChanged,
+    this.activeColor = AppColors.primaryContainer,
+    this.activeGlow = AppColors.primary,
+    this.activeTextColor = Colors.white,
   });
 
   final List<String> labels;
   final int index;
   final ValueChanged<int> onChanged;
+
+  /// Warna pill terpilih — default biru; layar mode (expense/income)
+  /// mengirim merah/hijau supaya tab mengikuti konteks.
+  final Color activeColor;
+  final Color activeGlow;
+  final Color activeTextColor;
 
   @override
   Widget build(BuildContext context) {
@@ -216,13 +225,13 @@ class GlassSegmentedTabs extends StatelessWidget {
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
-                        color: i == index ? AppColors.primaryContainer : null,
+                        color: i == index ? activeColor : null,
                         borderRadius: BorderRadius.circular(999),
                         boxShadow: i == index
                             ? [
                                 BoxShadow(
                                   color:
-                                      AppColors.primary.withValues(alpha: 0.40),
+                                      activeGlow.withValues(alpha: 0.40),
                                   blurRadius: 16,
                                   offset: const Offset(0, 4),
                                 ),
@@ -237,7 +246,7 @@ class GlassSegmentedTabs extends StatelessWidget {
                           fontWeight:
                               i == index ? FontWeight.w600 : FontWeight.w500,
                           color: i == index
-                              ? Colors.white
+                              ? activeTextColor
                               : AppColors.onSurfaceVariant,
                         ),
                       ),
