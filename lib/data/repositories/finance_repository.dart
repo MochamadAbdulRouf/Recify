@@ -41,6 +41,13 @@ class FinanceRepository {
   Future<void> deleteTransaction(TransactionModel transaction) =>
       _dbHelper.deleteTransaction(transaction);
 
+  Future<void> updateTransaction(
+    TransactionModel oldTransaction,
+    TransactionModel newTransaction,
+    List<TransactionItemModel> items,
+  ) =>
+      _dbHelper.updateTransaction(oldTransaction, newTransaction, items);
+
   // Budgets
   Future<List<BudgetModel>> getBudgets(int month, int year) =>
       _dbHelper.getBudgets(month, year);

@@ -1,5 +1,6 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import '../../core/utils/wallet_delta.dart';
 import '../models/budget_model.dart';
 import '../models/category_model.dart';
 import '../models/transaction_item_model.dart';
@@ -27,6 +28,9 @@ class DatabaseHelper {
       path,
       version: 1,
       onCreate: _createDB,
+      // SQLite default OFF; tanpa ini ON DELETE RESTRICT/CASCADE di schema
+      // cuma hiasan — dompet berisi transaksi bisa kehapus.
+      onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
     );
   }
 
@@ -198,11 +202,53 @@ class DatabaseHelper {
         await txn.insert('transaction_items', item.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
 
-      final delta = tx.type == 'EXPENSE' ? -tx.amount : (tx.type == 'INCOME' ? tx.amount : 0.0);
+      final delta = WalletDelta.deltaFor(tx.type, tx.amount);
       await txn.rawUpdate(
         'UPDATE wallets SET current_balance = current_balance + ? WHERE id = ?',
         [delta, tx.walletId],
       );
+    });
+  }
+
+  /// Edit transaksi: balikkan dampak lama, terapkan dampak baru, atomik.
+  /// Kalau pindah dompet, reverse di dompet lama + apply di dompet baru.
+  Future<void> updateTransaction(
+    TransactionModel oldTx,
+    TransactionModel newTx,
+    List<TransactionItemModel> items,
+  ) async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      await txn.delete('transaction_items',
+          where: 'transaction_id = ?', whereArgs: [newTx.id]);
+      await txn.insert('transactions', newTx.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace);
+      for (final item in items) {
+        await txn.insert('transaction_items', item.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+
+      if (oldTx.walletId == newTx.walletId) {
+        final net = WalletDelta.netForUpdate(
+          oldType: oldTx.type,
+          oldAmount: oldTx.amount,
+          newType: newTx.type,
+          newAmount: newTx.amount,
+        );
+        await txn.rawUpdate(
+          'UPDATE wallets SET current_balance = current_balance + ? WHERE id = ?',
+          [net, newTx.walletId],
+        );
+      } else {
+        await txn.rawUpdate(
+          'UPDATE wallets SET current_balance = current_balance + ? WHERE id = ?',
+          [-WalletDelta.deltaFor(oldTx.type, oldTx.amount), oldTx.walletId],
+        );
+        await txn.rawUpdate(
+          'UPDATE wallets SET current_balance = current_balance + ? WHERE id = ?',
+          [WalletDelta.deltaFor(newTx.type, newTx.amount), newTx.walletId],
+        );
+      }
     });
   }
 
@@ -212,7 +258,7 @@ class DatabaseHelper {
       await txn.delete('transaction_items', where: 'transaction_id = ?', whereArgs: [tx.id]);
       await txn.delete('transactions', where: 'id = ?', whereArgs: [tx.id]);
 
-      final reverseDelta = tx.type == 'EXPENSE' ? tx.amount : (tx.type == 'INCOME' ? -tx.amount : 0.0);
+      final reverseDelta = -WalletDelta.deltaFor(tx.type, tx.amount);
       await txn.rawUpdate(
         'UPDATE wallets SET current_balance = current_balance + ? WHERE id = ?',
         [reverseDelta, tx.walletId],
