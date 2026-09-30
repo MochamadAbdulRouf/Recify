@@ -31,7 +31,7 @@ class StickyFrostedAppBar extends StatelessWidget implements PreferredSizeWidget
         child: Container(
           decoration: BoxDecoration(
             color: AppColors.bgCanvas.withValues(alpha: 0.85),
-            border: const Border(
+            border: Border(
               bottom: BorderSide(
                 color: AppColors.borderSubtle,
                 width: 1.0,

@@ -5,7 +5,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/transaction_filter.dart';
 import '../../data/models/transaction_model.dart';
+import '../components/app_toast.dart';
 import '../components/sticky_frosted_app_bar.dart';
+import '../components/export_format_dialog.dart';
 import '../components/transaction_list_item.dart';
 import '../providers/finance_provider.dart';
 import 'transaction_detail_screen.dart';
@@ -84,26 +86,23 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: AppColors.borderSubtle),
               ),
-              child: const Icon(Icons.file_download_outlined,
+              child: Icon(Icons.file_download_outlined,
                   color: AppColors.primaryLight, size: 18),
             ),
             onPressed: () async {
+              final format = await ExportFormatDialog.show(context);
+              if (format == null || !context.mounted) return; // batal
               try {
-                final path = await financeProvider.exportCsvFile();
+                final path = await financeProvider.exportTransactionsReport(
+                  format: format == ExportFormat.excel ? 'excel' : 'csv',
+                );
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: AppColors.bgSurfaceElevated,
-                      content: Text('Laporan berhasil diekspor ke: $path',
-                          style: const TextStyle(color: Colors.white)),
-                    ),
-                  );
+                  AppToast.success(AppStrings.of(context).exportDone(path));
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal ekspor: $e')),
-                  );
+                  AppToast.error(
+                      AppStrings.of(context).exportTransactionsFailed(e.toString()));
                 }
               }
             },
@@ -125,7 +124,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
                   children: [
-                    const Icon(Icons.search_rounded,
+                    Icon(Icons.search_rounded,
                         color: AppColors.textSecondary, size: 18),
                     const SizedBox(width: 8),
                     Expanded(
@@ -150,7 +149,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
                         },
-                        child: const Icon(Icons.close_rounded,
+                        child: Icon(Icons.close_rounded,
                             color: AppColors.textSecondary, size: 16),
                       ),
                   ],
@@ -211,7 +210,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.search_off_rounded,
+                  Icon(Icons.search_off_rounded,
                       size: 48, color: AppColors.textSecondary),
                   const SizedBox(height: 12),
                   Text(s.emptyHistoryTitle, style: AppTypography.bodyBold),

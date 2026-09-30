@@ -12,7 +12,9 @@ import '../../core/utils/currency_input_formatter.dart';
 import '../../data/models/category_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/wallet_model.dart';
+import '../components/app_toast.dart';
 import '../components/glass_panel.dart';
+import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
 
 class ManualTransactionScreen extends StatefulWidget {
@@ -70,10 +72,11 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+      // Poin 6: header blur — StickyFrostedAppBar (backdrop blur +
+      // background semi-transparan + border bawah), token tema penuh
+      // sehingga tampil baik di light dan dark mode.
+      appBar: StickyFrostedAppBar(
+        height: 64,
         leading: Padding(
           padding: const EdgeInsets.only(left: 8),
           child: ClipOval(
@@ -87,7 +90,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                 ),
                 child: IconButton(
                   iconSize: 18,
-                  icon: const Icon(Icons.arrow_back_rounded,
+                  icon: Icon(Icons.arrow_back_rounded,
                       color: AppColors.textPrimary),
                   onPressed: () => Navigator.pop(context),
                 ),
@@ -95,18 +98,20 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
             ),
           ),
         ),
-        title: Text(
-          s.manualEntryTitle,
-          style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600),
+        title: Center(
+          child: Text(
+            s.manualEntryTitle,
+            style:
+                AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600),
+          ),
         ),
-        centerTitle: true,
       ),
       body: Stack(
         children: [
           const Positioned.fill(child: MeshBackdrop()),
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(24, 96, 24, 40),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -163,7 +168,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Icon(Icons.expand_more_rounded,
+                                  Icon(Icons.expand_more_rounded,
                                       size: 16, color: AppColors.textSecondary),
                                 ],
                               ),
@@ -527,7 +532,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
             Container(
               width: 38,
               height: 38,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.surfaceContainerHighest,
                 shape: BoxShape.circle,
               ),
@@ -579,17 +584,8 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 30)),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.primary,
-              surface: AppColors.surfaceContainerLow,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      // Tanpa wrapper ThemeData.dark() hardcode — ikut tema aktif
+      // (light/dark), permukaan & teks dialog selalu konsisten.
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
@@ -615,7 +611,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                 const SizedBox(height: 14),
                 ...provider.wallets.map((w) {
                   return ListTile(
-                    leading: const Icon(Icons.account_balance_wallet_rounded,
+                    leading: Icon(Icons.account_balance_wallet_rounded,
                         color: AppColors.primaryLight),
                     title: Text(w.name, style: AppTypography.bodyBold),
                     subtitle: Text(
@@ -623,7 +619,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                       style: AppTypography.caption,
                     ),
                     trailing: _selectedWallet?.id == w.id
-                        ? const Icon(Icons.check_circle_rounded,
+                        ? Icon(Icons.check_circle_rounded,
                             color: AppColors.secondary)
                         : null,
                     onTap: () {
@@ -645,13 +641,12 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
     final cleanDigits = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
     final amount = double.tryParse(cleanDigits) ?? 0.0;
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.errAmount)));
+      AppToast.error(s.errAmount);
       return;
     }
 
     if (_selectedCategory == null || _selectedWallet == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(s.errCategoryWallet)));
+      AppToast.error(s.errCategoryWallet);
       return;
     }
 
@@ -672,18 +667,16 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
     );
 
     final financeProvider = context.read<FinanceProvider>();
-    await financeProvider.saveTransaction(tx, []);
+    try {
+      await financeProvider.saveTransaction(tx, []);
+    } catch (e) {
+      if (mounted) AppToast.error(s.saveFailed('$e'));
+      return;
+    }
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppColors.surfaceContainerHigh,
-          content: Text(
-            s.savedTransaction(merchantName, CurrencyFormatter.formatRupiah(amount)),
-            style: const TextStyle(color: Colors.white),
-          ),
-        ),
-      );
+      AppToast.success(
+          s.savedTransaction(merchantName, CurrencyFormatter.formatRupiah(amount)));
       Navigator.pop(context);
     }
   }

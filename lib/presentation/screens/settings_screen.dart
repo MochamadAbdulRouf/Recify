@@ -14,11 +14,14 @@ import '../../core/utils/currency_input_formatter.dart';
 import '../../data/models/budget_model.dart';
 import '../../data/models/category_model.dart';
 import '../../data/models/wallet_model.dart';
+import '../components/app_toast.dart';
 import '../components/budget_progress_bar.dart';
+import '../components/glass_panel.dart';
 import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/scanner_provider.dart';
+import '../providers/theme_provider.dart';
 import '../../domain/backup/backup_manager.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -92,18 +95,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
       await _calculateCacheSize();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.bgSurfaceElevated,
-            content: Text(s.cacheCleared, style: const TextStyle(color: Colors.white)),
-          ),
-        );
+        AppToast.success(s.cacheCleared);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(s.cacheFailed(e.toString()))),
-        );
+        AppToast.error(s.cacheFailed(e.toString()));
       }
     }
   }
@@ -179,7 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               height: 84,
                               fit: BoxFit.cover,
                             )
-                          : const Center(
+                          : Center(
                               child: Icon(Icons.person_rounded, size: 44, color: AppColors.primaryLight),
                             ),
                     ),
@@ -200,7 +196,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           BoxShadow(color: Color(0x66000000), blurRadius: 6, offset: Offset(0, 2)),
                         ],
                       ),
-                      child: const Icon(Icons.edit_rounded, size: 14, color: AppColors.primaryLight),
+                      child: Icon(Icons.edit_rounded, size: 14, color: AppColors.primaryLight),
                     ),
                   ),
                 ],
@@ -222,7 +218,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: AppTypography.headlineMd.copyWith(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(width: 6),
-                  const Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary),
+                  Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary),
                 ],
               ),
             ),
@@ -261,7 +257,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+                    Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
                   ],
                 ),
                 onTap: () => _showManageWalletsSheet(context, financeProvider),
@@ -322,7 +318,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: AppColors.meshCyan,
                 title: s.localBackupRestore,
                 subtitle: s.localBackupSubtitle,
-                trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+                trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
                 onTap: () => _showBackupRestoreSheet(context, financeProvider),
               ),
               _buildDivider(),
@@ -373,7 +369,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+                    Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
                   ],
                 ),
                 onTap: _clearCache,
@@ -385,26 +381,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // 4. Section: Preferences (Stitch Match)
             _buildSectionHeader(s.sectionPrefsDisplay),
             _buildCardGroup([
-              _buildSettingItem(
-                icon: Icons.dark_mode_rounded,
-                iconColor: AppColors.textPrimary,
-                title: s.deepObsidianTheme,
-                subtitle: s.deepObsidianSubtitle,
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    s.activeStatus,
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
+              Builder(
+                builder: (context) {
+                  final theme = context.watch<ThemeProvider>();
+                  final labels = [
+                    s.themeSystem,
+                    s.themeLight,
+                    s.themeDark,
+                  ];
+                  final index = theme.mode == 'light'
+                      ? 1
+                      : theme.mode == 'dark'
+                          ? 2
+                          : 0;
+                  final subtitle = theme.mode == 'light'
+                      ? s.themeLightSubtitle
+                      : theme.mode == 'dark'
+                          ? s.themeDarkSubtitle
+                          : s.themeSystemSubtitle;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSettingItem(
+                        icon: Icons.brightness_6_rounded,
+                        iconColor: AppColors.textPrimary,
+                        title: s.themeSettings,
+                        subtitle: subtitle,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                        child: GlassSegmentedTabs(
+                          labels: labels,
+                          index: index,
+                          onChanged: (i) => theme.setMode(
+                            ['system', 'light', 'dark'][i],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               _buildDivider(),
               _buildSettingItem(
@@ -413,7 +429,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: s.ledgerCategories,
                 subtitle:
                     s.categoryCountSubtitle(financeProvider.categories.length),
-                trailing: const Icon(Icons.chevron_right_rounded,
+                trailing: Icon(Icons.chevron_right_rounded,
                     color: AppColors.textSecondary, size: 18),
                 onTap: () =>
                     _showManageCategoriesSheet(context, financeProvider),
@@ -424,7 +440,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: AppColors.statusWarning,
                 title: s.monthlyBudget,
                 subtitle: _budgetSubtitle(financeProvider),
-                trailing: const Icon(Icons.chevron_right_rounded,
+                trailing: Icon(Icons.chevron_right_rounded,
                     color: AppColors.textSecondary, size: 18),
                 onTap: () => _showBudgetSheet(context, financeProvider),
               ),
@@ -509,7 +525,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                         const SizedBox(width: 6),
-                        const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+                        Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
                       ],
                     ),
                     onTap: () => _showApiKeyDialog(context),
@@ -528,7 +544,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: AppColors.textSecondary,
                 title: s.helpCenter,
                 subtitle: s.helpCenterSubtitle,
-                trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+                trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
                 onTap: () {
                   showDialog(
                     context: context,
@@ -543,7 +559,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
-                          child: Text(s.understood, style: const TextStyle(color: AppColors.primaryLight)),
+                          child: Text(s.understood, style: TextStyle(color: AppColors.primaryLight)),
                         ),
                       ],
                     ),
@@ -556,7 +572,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: AppColors.textSecondary,
                 title: s.privacyPolicy,
                 subtitle: s.privacySubtitle,
-                trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+                trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
                 onTap: () {
                   showDialog(
                     context: context,
@@ -571,7 +587,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
-                          child: Text(s.closeButton, style: const TextStyle(color: AppColors.primaryLight)),
+                          child: Text(s.closeButton, style: TextStyle(color: AppColors.primaryLight)),
                         ),
                       ],
                     ),
@@ -658,7 +674,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     height: 84,
                                     fit: BoxFit.cover,
                                   )
-                                : const Icon(Icons.person_rounded, size: 44, color: AppColors.primaryLight),
+                                : Icon(Icons.person_rounded, size: 44, color: AppColors.primaryLight),
                           ),
                         ),
                       ],
@@ -675,7 +691,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             backgroundColor: AppColors.bgSurfaceElevated,
                             foregroundColor: AppColors.primaryLight,
                             elevation: 0,
-                            side: const BorderSide(color: AppColors.borderSubtle),
+                            side: BorderSide(color: AppColors.borderSubtle),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           ),
@@ -695,7 +711,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             backgroundColor: AppColors.bgSurfaceElevated,
                             foregroundColor: AppColors.secondary,
                             elevation: 0,
-                            side: const BorderSide(color: AppColors.borderSubtle),
+                            side: BorderSide(color: AppColors.borderSubtle),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           ),
@@ -712,7 +728,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         if (tempAvatarPath != null) ...[
                           const SizedBox(width: 8),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 22),
+                            icon: Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 22),
                             onPressed: () => setSheetState(() => tempAvatarPath = null),
                           ),
                         ],
@@ -763,7 +779,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             : () async {
                                 final newName = nameController.text.trim();
                                 if (newName.isEmpty) return;
-                                final messenger = ScaffoldMessenger.of(context);
 
                                 setSheetState(() => isSaving = true);
                                 FocusScope.of(ctx).unfocus();
@@ -797,12 +812,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   if (ctx.mounted) {
                                     Navigator.of(ctx).pop();
                                   }
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      backgroundColor: AppColors.bgSurfaceElevated,
-                                      content: Text(s.profileSaved, style: const TextStyle(color: Colors.white)),
-                                    ),
-                                  );
+                                  AppToast.success(s.profileSaved);
                                 }
                               },
                         borderRadius: BorderRadius.circular(24),
@@ -891,7 +901,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.add_rounded, size: 16, color: AppColors.primaryLight),
+                                Icon(Icons.add_rounded, size: 16, color: AppColors.primaryLight),
                                 const SizedBox(width: 4),
                                 Text(
                                   s.add,
@@ -931,7 +941,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     color: AppColors.primary.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primaryLight, size: 18),
+                                  child: Icon(Icons.account_balance_wallet_rounded, color: AppColors.primaryLight, size: 18),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -968,12 +978,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     GestureDetector(
                                       onTap: () {
                                         if (provider.wallets.length <= 1) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                                content: Text(
-                                                    s.deleteWalletLastGuard)),
-                                          );
+                                          AppToast.error(s.deleteWalletLastGuard);
                                           return;
                                         }
                                         _confirmDeleteWallet(context, provider,
@@ -1024,11 +1029,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(s.cancel, style: const TextStyle(color: AppColors.textSecondary)),
+            child: Text(s.cancel, style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(s.hapus, style: const TextStyle(color: AppColors.error)),
+            child: Text(s.hapus, style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -1042,24 +1047,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
       setSheetState(() {});
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.bgSurfaceElevated,
-            content: Text(s.deleteWalletSuccess(wallet.name),
-                style: const TextStyle(color: Colors.white)),
-          ),
-        );
+        AppToast.success(s.deleteWalletSuccess(wallet.name));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e.toString().toLowerCase().contains('foreign key')
-                  ? s.deleteWalletInUse
-                  : s.deleteWalletFailed(e.toString()),
-            ),
-          ),
+        AppToast.error(
+          e.toString().toLowerCase().contains('foreign key')
+              ? s.deleteWalletInUse
+              : s.deleteWalletFailed(e.toString()),
         );
       }
     }
@@ -1109,7 +1104,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(s.cancel, style: const TextStyle(color: AppColors.textSecondary)),
+            child: Text(s.cancel, style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1133,12 +1128,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await provider.updateWallet(updated);
               if (ctx.mounted) {
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AppColors.bgSurfaceElevated,
-                    content: Text(s.walletUpdated(updated.name), style: const TextStyle(color: Colors.white)),
-                  ),
-                );
+                AppToast.success(s.walletUpdated(updated.name));
               }
             },
             child: Text(s.save, style: const TextStyle(color: Colors.white)),
@@ -1185,7 +1175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(s.cancel, style: const TextStyle(color: AppColors.textSecondary)),
+            child: Text(s.cancel, style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () async {
@@ -1194,12 +1184,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await scannerProvider.setGeminiApiKey(key);
               if (ctx.mounted) {
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AppColors.bgSurfaceElevated,
-                    content: Text(s.apiKeySavedMsg(key.length), style: const TextStyle(color: Colors.white)),
-                  ),
-                );
+                AppToast.success(s.apiKeySavedMsg(key.length));
               }
             },
             child: Text(s.save, style: const TextStyle(color: Colors.white)),
@@ -1281,7 +1266,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(s.cancel, style: const TextStyle(color: AppColors.textSecondary)),
+              child: Text(s.cancel, style: TextStyle(color: AppColors.textSecondary)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -1307,12 +1292,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 await provider.addWallet(newWallet);
                 if (ctx.mounted) {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: AppColors.bgSurfaceElevated,
-                      content: Text(s.walletAdded(name), style: const TextStyle(color: Colors.white)),
-                    ),
-                  );
+                  AppToast.success(s.walletAdded(name));
                 }
               },
               child: Text(s.add, style: const TextStyle(color: Colors.white)),
@@ -1370,26 +1350,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: AppColors.meshCyan.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.cloud_upload_rounded, color: AppColors.meshCyan, size: 22),
+                      child: Icon(Icons.cloud_upload_rounded, color: AppColors.meshCyan, size: 22),
                     ),
                     title: Text(s.createBackup, style: AppTypography.bodyBold),
                     subtitle: Text(s.createBackupSubtitle, style: AppTypography.caption),
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
+                    trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
                     onTap: () async {
                       Navigator.pop(ctx);
                       try {
                         final path = await provider.createBackup();
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: AppColors.bgSurfaceElevated,
-                              content: Text(s.backupSaved(path), style: const TextStyle(color: Colors.white)),
-                            ),
-                          );
+                          AppToast.success(s.backupSaved(path));
                         }
                       } catch (e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.backupFailed(e.toString()))));
+                          AppToast.error(s.backupFailed(e.toString()));
                         }
                       }
                     },
@@ -1412,11 +1387,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: AppColors.secondary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.restore_page_rounded, color: AppColors.secondary, size: 22),
+                      child: Icon(Icons.restore_page_rounded, color: AppColors.secondary, size: 22),
                     ),
                     title: Text(s.restoreBackup, style: AppTypography.bodyBold),
                     subtitle: Text(s.restoreBackupSubtitle, style: AppTypography.caption),
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
+                    trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
                     onTap: () {
                       Navigator.pop(ctx);
                       _showRestoreFileListSheet(context, provider);
@@ -1433,7 +1408,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // File List Restore Sheet
   void _showRestoreFileListSheet(BuildContext context, FinanceProvider provider) async {
-    final messenger = ScaffoldMessenger.of(context);
     final backups = await BackupManager.listAvailableBackups();
 
     if (!context.mounted) return;
@@ -1474,7 +1448,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 24),
                     child: Column(
                       children: [
-                        const Icon(Icons.folder_off_rounded, color: AppColors.textSecondary, size: 36),
+                        Icon(Icons.folder_off_rounded, color: AppColors.textSecondary, size: 36),
                         const SizedBox(height: 10),
                         Text(s.noBackupYet, style: AppTypography.bodyBold),
                         const SizedBox(height: 4),
@@ -1498,22 +1472,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         border: Border.all(color: AppColors.borderSubtle),
                       ),
                       child: ListTile(
-                        leading: const Icon(Icons.description_rounded, color: AppColors.primaryLight, size: 22),
+                        leading: Icon(Icons.description_rounded, color: AppColors.primaryLight, size: 22),
                         title: Text(fileName, style: AppTypography.bodyBold.copyWith(fontSize: 13)),
                         subtitle: Text('$sizeKb KB', style: AppTypography.caption),
-                        trailing: const Icon(Icons.restore_rounded, color: AppColors.secondary, size: 20),
+                        trailing: Icon(Icons.restore_rounded, color: AppColors.secondary, size: 20),
                         onTap: () async {
                           Navigator.pop(ctx);
                           try {
                             await provider.restoreBackup(file);
-                            messenger.showSnackBar(
-                              SnackBar(
-                                backgroundColor: AppColors.bgSurfaceElevated,
-                                content: Text(s.restoreDone, style: const TextStyle(color: Colors.white)),
-                              ),
-                            );
+                            AppToast.success(s.restoreDone);
                           } catch (e) {
-                            messenger.showSnackBar(SnackBar(content: Text(s.restoreFailed(e.toString()))));
+                            AppToast.error(s.restoreFailed(e.toString()));
                           }
                         },
                       ),
@@ -1586,7 +1555,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 color: AppColors.secondary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Icon(Icons.table_chart_rounded, color: AppColors.secondary, size: 22),
+                              child: Icon(Icons.table_chart_rounded, color: AppColors.secondary, size: 22),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -1599,7 +1568,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                             ),
                             if (selectedFormat == 'excel')
-                              const Icon(Icons.check_circle_rounded, color: AppColors.primaryLight, size: 20),
+                              Icon(Icons.check_circle_rounded, color: AppColors.primaryLight, size: 20),
                           ],
                         ),
                       ),
@@ -1628,7 +1597,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 color: AppColors.meshCyan.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Icon(Icons.receipt_long_rounded, color: AppColors.meshCyan, size: 22),
+                              child: Icon(Icons.receipt_long_rounded, color: AppColors.meshCyan, size: 22),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -1641,7 +1610,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                             ),
                             if (selectedFormat == 'csv')
-                              const Icon(Icons.check_circle_rounded, color: AppColors.primaryLight, size: 20),
+                              Icon(Icons.check_circle_rounded, color: AppColors.primaryLight, size: 20),
                           ],
                         ),
                       ),
@@ -1656,16 +1625,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         try {
                           final path = await provider.exportTransactionsReport(format: selectedFormat);
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                backgroundColor: AppColors.bgSurfaceElevated,
-                                content: Text(s.exportDone(path), style: const TextStyle(color: Colors.white)),
-                              ),
-                            );
+                            AppToast.success(s.exportDone(path));
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.exportTransactionsFailed(e.toString()))));
+                            AppToast.error(s.exportTransactionsFailed(e.toString()));
                           }
                         }
                       },
@@ -1744,7 +1708,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.add_rounded, size: 16, color: AppColors.primaryLight),
+                                Icon(Icons.add_rounded, size: 16, color: AppColors.primaryLight),
                                 const SizedBox(width: 4),
                                 Text(
                                   s.createCategory,
@@ -1841,14 +1805,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     color: AppColors.primary.withValues(alpha: 0.15),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.category_rounded, size: 18, color: AppColors.primaryLight),
+                                  child: Icon(Icons.category_rounded, size: 18, color: AppColors.primaryLight),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(cat.name, style: AppTypography.bodyBold.copyWith(fontSize: 14)),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline_rounded, color: AppColors.textSecondary, size: 18),
+                                  icon: Icon(Icons.delete_outline_rounded, color: AppColors.textSecondary, size: 18),
                                   onPressed: () async {
                                     await provider.deleteCategory(cat.id);
                                     setSheetState(() {});
@@ -2097,22 +2061,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ));
                 if (ctx.mounted) {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: AppColors.bgSurfaceElevated,
-                      content: Text(s.limitDeleted(category.name),
-                          style: const TextStyle(color: Colors.white)),
-                    ),
-                  );
+                  AppToast.success(s.limitDeleted(category.name));
                 }
               },
               child: Text(s.hapus,
-                  style: const TextStyle(color: AppColors.error)),
+                  style: TextStyle(color: AppColors.error)),
             ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(s.cancel,
-                style: const TextStyle(color: AppColors.textSecondary)),
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -2136,14 +2094,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ));
               if (ctx.mounted) {
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AppColors.bgSurfaceElevated,
-                    content: Text(
-                        s.limitSaved(category.name, CurrencyFormatter.format(limit)),
-                        style: const TextStyle(color: Colors.white)),
-                  ),
-                );
+                AppToast.success(
+                    s.limitSaved(category.name, CurrencyFormatter.format(limit)));
               }
             },
             child: Text(s.save, style: const TextStyle(color: Colors.white)),
@@ -2208,7 +2160,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(s.cancel, style: const TextStyle(color: AppColors.textSecondary)),
+              child: Text(s.cancel, style: TextStyle(color: AppColors.textSecondary)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -2230,12 +2182,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 await provider.addCategory(newCat);
                 if (ctx.mounted) {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: AppColors.bgSurfaceElevated,
-                      content: Text(s.categoryAdded(name), style: const TextStyle(color: Colors.white)),
-                    ),
-                  );
+                  AppToast.success(s.categoryAdded(name));
                 }
               },
               child: Text(s.save, style: const TextStyle(color: Colors.white)),
@@ -2278,7 +2225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildDivider() {
-    return const Divider(height: 1, color: AppColors.borderSubtle, indent: 56, endIndent: 16);
+    return Divider(height: 1, color: AppColors.borderSubtle, indent: 56, endIndent: 16);
   }
 
   Widget _buildSettingItem({

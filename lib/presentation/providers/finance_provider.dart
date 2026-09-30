@@ -325,6 +325,28 @@ class FinanceProvider with ChangeNotifier {
     return await exportTransactionsReport(format: 'csv');
   }
 
+  /// Export transaksi satu bulan saja. Lempar [StateError] kalau bulan
+  /// kosong — pemanggil tampilkan pesan, jangan buat file kosong.
+  Future<String> exportMonthlyReport({
+    required int month,
+    required int year,
+    required String format,
+  }) async {
+    final monthly = _transactions.where((t) {
+      final d = DateTime.fromMillisecondsSinceEpoch(t.transactionDate);
+      return d.month == month && d.year == year;
+    }).toList();
+    if (monthly.isEmpty) throw StateError('empty-month:$month:$year');
+    if (format == 'excel') {
+      final file =
+          await ReportExporter.exportTransactionsToExcel(monthly);
+      return file.path;
+    } else {
+      final file = await ReportExporter.exportTransactionsToCsv(monthly);
+      return file.path;
+    }
+  }
+
   // --- Backup & Restore ---
   Future<String> createBackup() async {
     final file = await BackupManager.createBackupFile();

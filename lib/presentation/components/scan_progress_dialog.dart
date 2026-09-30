@@ -164,11 +164,11 @@ class _StepRow extends StatelessWidget {
     switch (status) {
       case _StepStatus.done:
         textColor = AppColors.secondary;
-        leading = const Icon(Icons.check_circle_rounded, size: 20, color: AppColors.secondary);
+        leading = Icon(Icons.check_circle_rounded, size: 20, color: AppColors.secondary);
         break;
       case _StepStatus.active:
         textColor = AppColors.textPrimary;
-        leading = const SizedBox(
+        leading = SizedBox(
           width: 20,
           height: 20,
           child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primaryLight),
@@ -176,7 +176,7 @@ class _StepRow extends StatelessWidget {
         break;
       case _StepStatus.pending:
         textColor = AppColors.textSecondary;
-        leading = const Icon(Icons.radio_button_unchecked, size: 20, color: AppColors.outlineVariant);
+        leading = Icon(Icons.radio_button_unchecked, size: 20, color: AppColors.outlineVariant);
         break;
     }
 

@@ -85,7 +85,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                     children: [
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back_rounded,
+                        icon: Icon(Icons.arrow_back_rounded,
                             color: AppColors.textSecondary),
                       ),
                       Expanded(
@@ -95,7 +95,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                               horizontal: 14, vertical: 2),
                           child: Row(
                             children: [
-                              const Icon(Icons.search_rounded,
+                              Icon(Icons.search_rounded,
                                   color: AppColors.textSecondary, size: 18),
                               const SizedBox(width: 8),
                               Expanded(
@@ -122,8 +122,8 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                                     _controller.clear();
                                     setState(() => _query = '');
                                   },
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(4),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4),
                                     child: Icon(Icons.close_rounded,
                                         size: 16,
                                         color: AppColors.textSecondary),
@@ -350,7 +350,7 @@ class _NoResult extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.search_off_rounded,
+            Icon(Icons.search_off_rounded,
                 color: AppColors.textSecondary, size: 30),
             const SizedBox(height: 14),
             Text(s.searchEmptyTitle,

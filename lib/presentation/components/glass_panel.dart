@@ -78,7 +78,7 @@ class GlassPanel extends StatelessWidget {
     this.radius = 28,
     this.padding,
     this.fill,
-    this.borderColor = AppColors.glassBorder,
+    this.borderColor,
     this.blur = 24,
     this.glowBlobs = false,
   });
@@ -89,7 +89,9 @@ class GlassPanel extends StatelessWidget {
 
   /// Defaults to a flat [AppColors.glassFill]; pass a gradient for the hero.
   final Gradient? fill;
-  final Color borderColor;
+
+  /// Null = ikut tema ([AppColors.glassBorder]).
+  final Color? borderColor;
   final double blur;
 
   /// Two soft accent blobs behind the panel (hero / stat card only).
@@ -107,10 +109,9 @@ class GlassPanel extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: fill ??
-                  const LinearGradient(
-                      colors: [AppColors.glassFill, AppColors.glassFill]),
+                  LinearGradient(colors: [AppColors.glassFill, AppColors.glassFill]),
               borderRadius: r,
-              border: Border.all(color: borderColor),
+              border: Border.all(color: borderColor ?? AppColors.glassBorder),
             ),
             child: Stack(
               children: [
@@ -186,8 +187,8 @@ class GlassSegmentedTabs extends StatelessWidget {
     required this.labels,
     required this.index,
     required this.onChanged,
-    this.activeColor = AppColors.primaryContainer,
-    this.activeGlow = AppColors.primary,
+    this.activeColor,
+    this.activeGlow,
     this.activeTextColor = Colors.white,
   });
 
@@ -195,10 +196,10 @@ class GlassSegmentedTabs extends StatelessWidget {
   final int index;
   final ValueChanged<int> onChanged;
 
-  /// Warna pill terpilih — default biru; layar mode (expense/income)
-  /// mengirim merah/hijau supaya tab mengikuti konteks.
-  final Color activeColor;
-  final Color activeGlow;
+  /// Warna pill terpilih — default biru ([AppColors.primaryContainer]);
+  /// layar mode (expense/income) mengirim merah/hijau.
+  final Color? activeColor;
+  final Color? activeGlow;
   final Color activeTextColor;
 
   @override
@@ -225,13 +226,15 @@ class GlassSegmentedTabs extends StatelessWidget {
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
-                        color: i == index ? activeColor : null,
+                        color: i == index
+                            ? (activeColor ?? AppColors.primaryContainer)
+                            : null,
                         borderRadius: BorderRadius.circular(999),
                         boxShadow: i == index
                             ? [
                                 BoxShadow(
-                                  color:
-                                      activeGlow.withValues(alpha: 0.40),
+                                  color: (activeGlow ?? AppColors.primary)
+                                      .withValues(alpha: 0.40),
                                   blurRadius: 16,
                                   offset: const Offset(0, 4),
                                 ),

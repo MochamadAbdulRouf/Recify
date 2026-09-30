@@ -27,7 +27,7 @@ class TransactionDetailScreen extends StatelessWidget {
         title: Text('Detail Transaksi', style: AppTypography.headlineMd),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+            icon: Icon(Icons.delete_outline_rounded, color: AppColors.error),
             onPressed: () => _confirmDelete(context, financeProvider),
           ),
         ],
@@ -54,7 +54,7 @@ class TransactionDetailScreen extends StatelessWidget {
                   child: Image.file(
                     File(transaction.receiptImagePath!),
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Center(
+                    errorBuilder: (_, __, ___) => Center(
                       child: Icon(Icons.broken_image, color: AppColors.textSecondary, size: 40),
                     ),
                   ),
@@ -106,12 +106,12 @@ class TransactionDetailScreen extends StatelessWidget {
               child: Column(
                 children: [
                   _buildMetaRow('Kategori', transaction.category?.name ?? 'Umum', Icons.category_outlined),
-                  const Divider(height: 20, color: AppColors.borderSubtle),
+                  Divider(height: 20, color: AppColors.borderSubtle),
                   _buildMetaRow('Dompet / Akun', transaction.wallet?.name ?? 'Utama', Icons.account_balance_wallet_outlined),
-                  const Divider(height: 20, color: AppColors.borderSubtle),
+                  Divider(height: 20, color: AppColors.borderSubtle),
                   _buildMetaRow('Tipe', isExpense ? 'Pengeluaran' : 'Pemasukan', isExpense ? Icons.arrow_upward : Icons.arrow_downward),
                   if (transaction.notes != null && transaction.notes!.isNotEmpty) ...[
-                    const Divider(height: 20, color: AppColors.borderSubtle),
+                    Divider(height: 20, color: AppColors.borderSubtle),
                     _buildMetaRow('Catatan', transaction.notes!, Icons.note_outlined),
                   ],
                 ],

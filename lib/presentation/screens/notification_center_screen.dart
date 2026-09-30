@@ -105,7 +105,7 @@ class _Header extends StatelessWidget {
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_rounded,
+            icon: Icon(Icons.arrow_back_rounded,
                 color: AppColors.textSecondary),
           ),
           Expanded(child: Text(title, style: AppTypography.titleSm)),
@@ -196,7 +196,7 @@ class _NotificationTile extends StatelessWidget {
                   margin: const EdgeInsets.only(top: 6, left: 8),
                   width: 7,
                   height: 7,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.primaryContainer,
                     shape: BoxShape.circle,
                   ),
@@ -273,7 +273,7 @@ class _Empty extends StatelessWidget {
                 color: AppColors.statusPositiveBg,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(Icons.check_circle_outline_rounded,
+              child: Icon(Icons.check_circle_outline_rounded,
                   color: AppColors.statusPositive, size: 30),
             ),
             const SizedBox(height: 18),

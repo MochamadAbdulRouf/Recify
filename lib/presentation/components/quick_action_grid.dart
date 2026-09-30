@@ -107,7 +107,7 @@ class QuickActionGrid extends StatelessWidget {
                           color: AppColors.surfaceContainerHigh,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.edit_note_rounded,
                           size: 18,
                           color: AppColors.primaryLight,
@@ -142,7 +142,7 @@ class QuickActionGrid extends StatelessWidget {
                           color: AppColors.surfaceContainerHigh,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.file_download_outlined,
                           size: 18,
                           color: AppColors.secondary,

@@ -130,7 +130,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
                 ),
                 const SizedBox(height: 20),
                 ListTile(
-                  leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primaryLight),
+                  leading: Icon(Icons.camera_alt_rounded, color: AppColors.primaryLight),
                   title: Text('Ambil Foto Kamera', style: AppTypography.bodyBold),
                   subtitle: Text('Arahkan kamera ke struk belanja', style: AppTypography.caption),
                   onTap: () async {
@@ -149,9 +149,9 @@ class _MainShellScreenState extends State<MainShellScreen> {
                     }
                   },
                 ),
-                const Divider(height: 1, color: AppColors.borderSubtle),
+                Divider(height: 1, color: AppColors.borderSubtle),
                 ListTile(
-                  leading: const Icon(Icons.photo_library_rounded, color: AppColors.meshCyan),
+                  leading: Icon(Icons.photo_library_rounded, color: AppColors.meshCyan),
                   title: Text('Pilih dari Galeri', style: AppTypography.bodyBold),
                   subtitle: Text('Pilih gambar nota dari galeri', style: AppTypography.caption),
                   onTap: () async {

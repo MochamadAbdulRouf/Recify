@@ -256,6 +256,18 @@ class AppStrings {
   String get receiptImageSaved =>
       isEn ? 'Receipt image saved' : 'Import gambar struk belanja tersimpan';
 
+  // ── Export format dialog (reusable: Home, History, Stats) ──
+  String get exportFormatTitle =>
+      isEn ? 'Choose export format' : 'Pilih format ekspor';
+  String get exportFormatExcel => isEn ? 'Excel (.xlsx)' : 'Excel (.xlsx)';
+  String get exportFormatCsv => isEn ? 'CSV (.csv)' : 'CSV (.csv)';
+  String get downloadAction => isEn ? 'Download' : 'Unduh';
+  String get exportMonthLabel => isEn ? 'Month' : 'Bulan';
+  String get exportYearLabel => isEn ? 'Year' : 'Tahun';
+  String exportEmptyMonth(String monthYear) => isEn
+      ? 'No data for $monthYear — pick another month.'
+      : 'Tidak ada data untuk $monthYear — pilih bulan lain.';
+
   // ── Dates ──
   List<String> get daysShort => isEn
       ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -557,6 +569,23 @@ class AppStrings {
       isEn ? 'Failed to clear cache: $e' : 'Gagal membersihkan cache: $e';
   String get profileSaved => isEn ? 'Profile saved!' : 'Profil berhasil disimpan!';
   String get userNameDefault => isEn ? 'Recify User' : 'Pengguna Recify';
+
+  // ── Toast ──
+  String get toastSuccessTitle => isEn ? 'Success' : 'Berhasil';
+  String get toastErrorTitle => isEn ? 'Failed' : 'Gagal';
+
+  // ── Theme toggle ──
+  String get themeSettings => isEn ? 'App Theme' : 'Tema Aplikasi';
+  String get themeSystem => isEn ? 'System' : 'Sistem';
+  String get themeLight => isEn ? 'Light' : 'Terang';
+  String get themeDark => isEn ? 'Dark' : 'Gelap';
+  String get themeSystemSubtitle => isEn
+      ? 'Follows device setting'
+      : 'Ikut pengaturan perangkat';
+  String get themeLightSubtitle =>
+      isEn ? 'Light theme' : 'Tema terang';
+  String get themeDarkSubtitle =>
+      isEn ? 'Dark theme' : 'Tema gelap';
   String walletUpdated(String name) => isEn
       ? 'Wallet "$name" updated!'
       : 'Dompet "$name" berhasil diperbarui!';

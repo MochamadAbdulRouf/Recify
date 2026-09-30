@@ -14,6 +14,7 @@ import '../../data/models/parsed_receipt_data.dart';
 import '../../data/models/transaction_item_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/wallet_model.dart';
+import '../components/app_toast.dart';
 import '../components/glass_panel.dart';
 import '../providers/finance_provider.dart';
 import '../providers/scanner_provider.dart';
@@ -247,7 +248,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                       const SizedBox(height: 6),
                                       Row(
                                         children: [
-                                          const Icon(
+                                          Icon(
                                               Icons.calendar_today_rounded,
                                               size: 16,
                                               color: AppColors.primary),
@@ -346,7 +347,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                   value: _selectedCategory,
                                   isExpanded: true,
                                   dropdownColor: AppColors.surfaceContainerHigh,
-                                  icon: const Icon(Icons.expand_more_rounded,
+                                  icon: Icon(Icons.expand_more_rounded,
                                       color: AppColors.textSecondary),
                                   items: financeProvider.categories.map((c) {
                                     return DropdownMenuItem(
@@ -362,7 +363,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                               borderRadius:
                                                   BorderRadius.circular(8),
                                             ),
-                                            child: const Icon(
+                                            child: Icon(
                                               Icons.label_rounded,
                                               size: 16,
                                               color: AppColors.meshViolet,
@@ -412,14 +413,14 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                   value: _selectedWallet,
                                   isExpanded: true,
                                   dropdownColor: AppColors.surfaceContainerHigh,
-                                  icon: const Icon(Icons.expand_more_rounded,
+                                  icon: Icon(Icons.expand_more_rounded,
                                       color: AppColors.textSecondary),
                                   items: financeProvider.wallets.map((w) {
                                     return DropdownMenuItem(
                                       value: w,
                                       child: Row(
                                         children: [
-                                          const Icon(
+                                          Icon(
                                               Icons
                                                   .account_balance_wallet_rounded,
                                               size: 18,
@@ -506,7 +507,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                   decoration: BoxDecoration(
                     color:
                         AppColors.surfaceContainerLow.withValues(alpha: 0.82),
-                    border: const Border(
+                    border: Border(
                         top: BorderSide(color: AppColors.borderSubtle)),
                     boxShadow: const [
                       BoxShadow(
@@ -531,7 +532,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                             border: Border.all(color: AppColors.borderSubtle),
                           ),
                           child: IconButton(
-                            icon: const Icon(Icons.close_rounded,
+                            icon: Icon(Icons.close_rounded,
                                 color: AppColors.onSurfaceVariant),
                             onPressed: () => Navigator.pop(context),
                           ),
@@ -544,13 +545,13 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                           child: OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
                               backgroundColor: AppColors.surfaceContainerHigh,
-                              side: const BorderSide(
+                              side: BorderSide(
                                   color: AppColors.borderSubtle),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(24)),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
-                            icon: const Icon(Icons.photo_camera_rounded,
+                            icon: Icon(Icons.photo_camera_rounded,
                                 size: 18, color: AppColors.onSurface),
                             label:
                                 Text(s.retake, style: AppTypography.bodyBold),
@@ -699,9 +700,9 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
     return Container(
       height: 280,
       width: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surfaceDim,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
       ),
       child: Stack(
         fit: StackFit.expand,
@@ -742,9 +743,9 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                 right: 0,
                 child: Container(
                   height: 3,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.primaryLight,
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
                         color: Color(0xCC2F6BFF),
                         blurRadius: 16,
@@ -775,7 +776,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                   Container(
                     width: 6,
                     height: 6,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.secondaryFixed,
                       shape: BoxShape.circle,
                       boxShadow: [
@@ -881,17 +882,8 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 30)),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.primary,
-              surface: AppColors.bgSurface,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      // Tanpa wrapper ThemeData.dark() hardcode — ikut tema aktif
+      // (light/dark), permukaan & teks dialog selalu konsisten.
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
@@ -920,21 +912,15 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
             _amountController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
         0.0;
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(s.errAmountZero)),
-      );
+      AppToast.error(s.errAmountZero);
       return;
     }
     if (_selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(s.errPickCategory)),
-      );
+      AppToast.error(s.errPickCategory);
       return;
     }
     if (_selectedWallet == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(s.errPickWallet)),
-      );
+      AppToast.error(s.errPickWallet);
       return;
     }
 
@@ -971,31 +957,17 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
       await financeProvider.saveTransaction(tx, items);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.surfaceContainerHigh,
-            content: Text(
-              s.savedScan(
-                _merchantController.text,
-                CurrencyFormatter.formatRupiah(amount),
-              ),
-              style: const TextStyle(color: Colors.white),
-            ),
+        AppToast.success(
+          s.savedScan(
+            _merchantController.text,
+            CurrencyFormatter.formatRupiah(amount),
           ),
         );
         Navigator.pop(context, true); // Return true to signal successful save
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.red.shade800,
-            content: Text(
-              s.saveFailed('$e'),
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-        );
+        AppToast.error(s.saveFailed('$e'));
       }
     }
   }

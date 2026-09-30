@@ -8,7 +8,9 @@ import '../../core/i18n/app_strings.dart';
 import '../../core/services/profile_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../components/app_toast.dart';
 import '../components/glass_panel.dart';
+import '../components/export_format_dialog.dart';
 import '../components/obsidian_hero_card.dart';
 import '../components/quick_action_grid.dart';
 import '../components/scan_progress_dialog.dart';
@@ -81,7 +83,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: AppColors.bgCanvas.withValues(alpha: 0.60),
-                          border: const Border(
+                          border: Border(
                             bottom: BorderSide(
                                 color: AppColors.borderSubtle, width: 1.0),
                           ),
@@ -287,11 +289,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(14),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.bgSurfaceElevated,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.receipt_long_outlined,
+            child: Icon(Icons.receipt_long_outlined,
                 size: 32, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 14),
@@ -309,11 +311,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
           const SizedBox(height: 16),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.borderSubtle),
+              side: BorderSide(color: AppColors.borderSubtle),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-            icon: const Icon(Icons.camera_alt_outlined,
+            icon: Icon(Icons.camera_alt_outlined,
                 size: 16, color: AppColors.primaryLight),
             label: Text(s.startScan,
                 style: AppTypography.caption
@@ -359,7 +361,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       color: AppColors.primary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.camera_alt_rounded,
+                    child: Icon(Icons.camera_alt_rounded,
                         color: AppColors.primaryLight),
                   ),
                   title: Text(AppStrings.of(ctx).cameraOption,
@@ -372,7 +374,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         context, scannerProvider, ImageSource.camera);
                   },
                 ),
-                const Divider(height: 1, color: AppColors.borderSubtle),
+                Divider(height: 1, color: AppColors.borderSubtle),
                 ListTile(
                   leading: Container(
                     padding: const EdgeInsets.all(10),
@@ -380,7 +382,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       color: AppColors.secondary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.photo_library_rounded,
+                    child: Icon(Icons.photo_library_rounded,
                         color: AppColors.secondary),
                   ),
                   title: Text(AppStrings.of(ctx).galleryOption,
@@ -444,23 +446,19 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
   void _handleExportCsv(BuildContext context) async {
+    final format = await ExportFormatDialog.show(context);
+    if (format == null || !context.mounted) return; // batal
     final financeProvider = context.read<FinanceProvider>();
     try {
-      final path = await financeProvider.exportCsvFile();
+      final path = await financeProvider.exportTransactionsReport(
+        format: format == ExportFormat.excel ? 'excel' : 'csv',
+      );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.bgSurfaceElevated,
-            content: Text('${AppStrings.of(context).reportSaved}$path',
-                style: const TextStyle(color: Colors.white)),
-          ),
-        );
+        AppToast.success('${AppStrings.of(context).reportSaved}$path');
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppStrings.of(context).exportFailed}$e')),
-        );
+        AppToast.error('${AppStrings.of(context).exportFailed}$e');
       }
     }
   }

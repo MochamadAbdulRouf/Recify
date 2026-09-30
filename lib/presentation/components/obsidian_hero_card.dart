@@ -130,7 +130,7 @@ class _ObsidianHeroCardState extends State<ObsidianHeroCard> {
                   Container(
                     width: 7,
                     height: 7,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.secondary,
                       shape: BoxShape.circle,
                     ),

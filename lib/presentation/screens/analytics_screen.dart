@@ -7,6 +7,9 @@ import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/utils/period_aggregator.dart';
 import '../components/glass_panel.dart';
+import '../components/category_transactions_sheet.dart';
+import '../components/export_format_dialog.dart';
+import '../components/monthly_export_dialog.dart';
 import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
 
@@ -163,7 +166,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       _isExpense ? AppColors.error : AppColors.statusPositive,
                   activeTextColor: _isExpense
                       ? Colors.white
-                      : const Color(0xFF003824),
+                      : (AppColors.isLight
+                          ? Colors.white // pill hijau pekat di light → putih
+                          : const Color(0xFF003824)), // mint gelap di dark
                   onChanged: (i) => setState(() {
                     _selectedPeriodIndex = i;
                     _selectedBarIndex = null; // rentang bar berubah
@@ -298,18 +303,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                                     : null,
                                                 color: isActive
                                                     ? null
-                                                    : Colors.white.withValues(
-                                                        alpha: dimCurrent
-                                                            ? 0.04
-                                                            : 0.08),
+                                                    : (dimCurrent
+                                                        ? AppColors.subtleFillDim
+                                                        : AppColors.subtleFill),
                                                 borderRadius:
                                                     BorderRadius.circular(999),
                                                 border: Border.all(
                                                   color: isActive
                                                       ? Colors.white
                                                           .withValues(alpha: 0.40)
-                                                      : Colors.white
-                                                          .withValues(alpha: 0.08),
+                                                      : AppColors.subtleFill,
                                                 ),
                                                 boxShadow: isActive
                                                     ? [
@@ -371,7 +374,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       // Tap hint
                       Container(
                         padding: const EdgeInsets.only(top: 14),
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           border: Border(
                             top: BorderSide(color: AppColors.borderSubtle),
                           ),
@@ -521,7 +524,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: Container(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _showCategoryDetail(
+                            context, entry.key, financeProvider, now, s),
+                        child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: AppColors.surfaceContainer,
@@ -595,15 +602,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           ],
                         ),
                       ),
+                      ),
                     );
                   }),
 
                 const SizedBox(height: 14),
 
                 // ═══════════════════════════════════════════
-                // EXPORT CARD
+                // EXPORT CARD → dialog bulan + format (Poin 4)
                 // ═══════════════════════════════════════════
-                GlassPanel(
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _handleMonthlyExport(context),
+                  child: GlassPanel(
                   radius: 20,
                   padding: const EdgeInsets.all(16),
                   child: Row(
@@ -615,7 +626,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           color: AppColors.primary.withValues(alpha: 0.20),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.description_outlined,
+                        child: Icon(Icons.description_outlined,
                             size: 20, color: AppColors.primaryLight),
                       ),
                       const SizedBox(width: 12),
@@ -634,9 +645,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           ],
                         ),
                       ),
-                      const Icon(Icons.chevron_right_rounded,
+                      Icon(Icons.chevron_right_rounded,
                           color: AppColors.onSurfaceVariant),
                     ],
+                  ),
                   ),
                 ),
 
@@ -647,6 +659,69 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         ],
       ),
     );
+  }
+
+  /// Poin 5: drill-down — daftar transaksi kategori tsb (tipe aktif,
+  /// bulan berjalan, mengikuti angka kartu). Klik item → halaman detail.
+  void _showCategoryDetail(
+    BuildContext context,
+    String categoryName,
+    FinanceProvider provider,
+    DateTime now,
+    AppStrings s,
+  ) {
+    final list = provider.transactions.where((t) {
+      if (t.type != _txType) return false;
+      final d = DateTime.fromMillisecondsSinceEpoch(t.transactionDate);
+      if (d.month != now.month || d.year != now.year) return false;
+      return (t.category?.name ?? s.umum) == categoryName;
+    }).toList();
+    if (!context.mounted) return;
+    CategoryTransactionsSheet.show(
+      context,
+      categoryName: categoryName,
+      transactions: list,
+    );
+  }
+
+  /// Poin 4: ekspor bulanan — dialog bulan+tahun+format, lalu export.
+  /// Bulan kosong → pesan di SnackBar (TODO: toast Agent A), tanpa file.
+  Future<void> _handleMonthlyExport(BuildContext context) async {
+    final s = AppStrings.of(context);
+    final sel = await MonthlyExportDialog.show(context);
+    if (sel == null || !context.mounted) return;
+    final provider = context.read<FinanceProvider>();
+    try {
+      final path = await provider.exportMonthlyReport(
+        month: sel.month,
+        year: sel.year,
+        format: sel.format == ExportFormat.excel ? 'excel' : 'csv',
+      );
+      if (context.mounted) {
+        // TODO: pakai toast dari Agent A (ganti SnackBar ini).
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.bgSurfaceElevated,
+            content: Text('${s.reportSaved}$path',
+                style: const TextStyle(color: Colors.white)),
+          ),
+        );
+      }
+    } on StateError catch (_) {
+      if (context.mounted) {
+        final label = '${s.monthsShort[sel.month - 1]} ${sel.year}';
+        // TODO: pakai toast dari Agent A (ganti SnackBar ini).
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(s.exportEmptyMonth(label))),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${s.exportFailed}$e')),
+        );
+      }
+    }
   }
 
   /// Top income category for insight card (mirrors topExpenseCategory logic).
@@ -753,8 +828,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 // (ikuti selera AppColors: green = money in, red = out).
 Color _typeOverlay(int typeIndex) =>
     typeIndex == 0 ? AppColors.error : AppColors.statusPositive;
-Color _typeOnOverlay(int typeIndex) =>
-    typeIndex == 0 ? Colors.white : const Color(0xFF003824);
+// Teks di atas pill: putih untuk expense & untuk income di light
+// (pill hijau pekat #047857, putih ≈5.5:1). Dark mode pill = mint
+// pucat — putih cuma 1.7:1, jadi tetap hijau tua.
+Color _typeOnOverlay(int typeIndex) => typeIndex == 0 || AppColors.isLight
+    ? Colors.white
+    : const Color(0xFF003824);
 
 class _GlassTypeToggle extends StatelessWidget {
   const _GlassTypeToggle({
@@ -774,7 +853,7 @@ class _GlassTypeToggle extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xB3151926), // #151926 at 70%
+        color: AppColors.toggleTrack,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: AppColors.borderSubtle),
         boxShadow: const [
