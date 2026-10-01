@@ -20,13 +20,13 @@ class AppColors {
 
   // ── Deep Navy Canvas & Surfaces (dark) / Soft Gray (light) ──
   static Color get bgCanvas =>
-      _light ? const Color(0xFFF5F6F8) : const Color(0xFF0F131D);
+      _light ? const Color(0xFFF5F6F8) : const Color(0xFF0B0F19);
   static Color get bgSurface =>
       _light ? const Color(0xFFFFFFFF) : const Color(0xFF171B26);
   static Color get bgSurfaceElevated =>
       _light ? const Color(0xFFFFFFFF) : const Color(0xFF1C1F2A);
   static Color get surfaceContainerLowest =>
-      _light ? const Color(0xFFFAFBFC) : const Color(0xFF0A0E18);
+      _light ? const Color(0xFFFAFBFC) : const Color(0xFF060A12);
   static Color get surfaceContainerLow =>
       _light ? const Color(0xFFF7F8FA) : const Color(0xFF171B26);
   static Color get surfaceContainer =>
@@ -39,7 +39,7 @@ class AppColors {
       _light ? const Color(0xFFF0F1F4) : const Color(0xFF353944);
   // Di light dipakai sebagai pulau nav → putih (elevated), bukan "dim".
   static Color get surfaceDim =>
-      _light ? const Color(0xFFFFFFFF) : const Color(0xFF0F131D);
+      _light ? const Color(0xFFFFFFFF) : const Color(0xFF0B0F19);
 
   // ── Whisper Borders & Structural Lines (1px) ──
   static Color get borderSubtle =>
