@@ -106,13 +106,44 @@ class TransactionListItem extends StatelessWidget {
 
                 const SizedBox(width: 10),
 
-                // Amount
-                Text(
-                  amountText,
-                  style: AppTypography.bodyBold.copyWith(
-                    color: isIncome ? AppColors.secondary : AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
+                // Amount + tag pill (referensi: nominal kanan, pill kecil di bawah)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      amountText,
+                      style: AppTypography.bodyBold.copyWith(
+                        color: isIncome
+                            ? AppColors.secondary
+                            : AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isIncome
+                            ? AppColors.statusPositiveBg
+                            : AppColors.glassIconPlate,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        isIncome ? s.income.toUpperCase() : categoryName.toUpperCase(),
+                        style: AppTypography.caption.copyWith(
+                          color: isIncome
+                              ? AppColors.statusPositive
+                              : AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
