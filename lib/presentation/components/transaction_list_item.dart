@@ -20,8 +20,10 @@ class TransactionListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = AppStrings.of(context);
     final isIncome = transaction.type == 'INCOME';
-    final amountText = (isIncome ? '+' : '-') + CurrencyFormatter.formatRupiah(transaction.amount);
-    final dateStr = DateFormatter.formatRelative(transaction.transactionDate, isEn: s.isEn);
+    final amountText = (isIncome ? '+' : '-') +
+        CurrencyFormatter.formatRupiah(transaction.amount);
+    final dateStr =
+        DateFormatter.formatRelative(transaction.transactionDate, isEn: s.isEn);
 
     // Icon & Color styling based on category
     final categoryName = transaction.category?.name ?? s.umum;
@@ -33,15 +35,18 @@ class TransactionListItem extends StatelessWidget {
       categoryIcon = Icons.arrow_downward_rounded;
       iconColor = AppColors.secondary;
       iconBg = AppColors.statusPositiveBg;
-    } else if (categoryName.toLowerCase().contains('makan') || categoryName.toLowerCase().contains('food')) {
+    } else if (categoryName.toLowerCase().contains('makan') ||
+        categoryName.toLowerCase().contains('food')) {
       categoryIcon = Icons.restaurant_rounded;
       iconColor = AppColors.meshViolet;
       iconBg = AppColors.meshViolet.withValues(alpha: 0.15);
-    } else if (categoryName.toLowerCase().contains('belanja') || categoryName.toLowerCase().contains('shop')) {
+    } else if (categoryName.toLowerCase().contains('belanja') ||
+        categoryName.toLowerCase().contains('shop')) {
       categoryIcon = Icons.shopping_bag_rounded;
       iconColor = AppColors.meshCyan;
       iconBg = AppColors.meshCyan.withValues(alpha: 0.15);
-    } else if (categoryName.toLowerCase().contains('tagihan') || categoryName.toLowerCase().contains('listrik')) {
+    } else if (categoryName.toLowerCase().contains('tagihan') ||
+        categoryName.toLowerCase().contains('listrik')) {
       categoryIcon = Icons.bolt_rounded;
       iconColor = AppColors.primaryLight;
       iconBg = AppColors.primary.withValues(alpha: 0.15);
@@ -61,7 +66,7 @@ class TransactionListItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Row(
               children: [
                 // Category Icon
@@ -83,7 +88,9 @@ class TransactionListItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        transaction.merchantName ?? transaction.category?.name ?? s.transactionWord,
+                        transaction.merchantName ??
+                            transaction.category?.name ??
+                            s.transactionWord,
                         style: AppTypography.bodyBold.copyWith(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.w600,
@@ -121,26 +128,31 @@ class TransactionListItem extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isIncome
-                            ? AppColors.statusPositiveBg
-                            : AppColors.glassIconPlate,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        isIncome ? s.income.toUpperCase() : categoryName.toUpperCase(),
-                        style: AppTypography.caption.copyWith(
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 110),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
                           color: isIncome
-                              ? AppColors.statusPositive
-                              : AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
+                              ? AppColors.statusPositiveBg
+                              : AppColors.glassIconPlate,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        child: Text(
+                          isIncome
+                              ? s.income.toUpperCase()
+                              : categoryName.toUpperCase(),
+                          style: AppTypography.caption.copyWith(
+                            color: isIncome
+                                ? AppColors.statusPositive
+                                : AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                   ],

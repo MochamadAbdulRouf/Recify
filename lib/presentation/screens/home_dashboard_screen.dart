@@ -10,6 +10,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../components/app_toast.dart';
 import '../components/glass_panel.dart';
+import '../components/pressable.dart';
 import '../components/export_format_dialog.dart';
 import '../components/obsidian_hero_card.dart';
 import '../components/quick_action_grid.dart';
@@ -479,8 +480,7 @@ class _HeaderIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return PressableScale(
       onTap: onTap,
       child: Stack(
         clipBehavior: Clip.none,

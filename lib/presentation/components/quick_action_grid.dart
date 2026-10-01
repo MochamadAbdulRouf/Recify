@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import 'pressable.dart';
 
 class QuickActionGrid extends StatelessWidget {
   final VoidCallback onScanReceipt;
@@ -21,7 +22,7 @@ class QuickActionGrid extends StatelessWidget {
     return Column(
       children: [
         // Primary Scan CTA Bar (Tactile, High-Agency)
-        GestureDetector(
+        PressableScale(
           onTap: onScanReceipt,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -90,10 +91,11 @@ class QuickActionGrid extends StatelessWidget {
           children: [
             // Manual Entry
             Expanded(
-              child: GestureDetector(
+              child: PressableScale(
                 onTap: onManualExpense,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.bgSurface,
                     borderRadius: BorderRadius.circular(16),
@@ -114,7 +116,8 @@ class QuickActionGrid extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Text(s.manualEntry, style: AppTypography.bodyBold.copyWith(fontSize: 13)),
+                      Text(s.manualEntry,
+                          style: AppTypography.bodyBold.copyWith(fontSize: 13)),
                     ],
                   ),
                 ),
@@ -125,10 +128,11 @@ class QuickActionGrid extends StatelessWidget {
 
             // Export CSV
             Expanded(
-              child: GestureDetector(
+              child: PressableScale(
                 onTap: onExportCsv,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.bgSurface,
                     borderRadius: BorderRadius.circular(16),
@@ -149,7 +153,8 @@ class QuickActionGrid extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Text(s.exportReport, style: AppTypography.bodyBold.copyWith(fontSize: 13)),
+                      Text(s.exportReport,
+                          style: AppTypography.bodyBold.copyWith(fontSize: 13)),
                     ],
                   ),
                 ),

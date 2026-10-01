@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import 'pressable.dart';
 
 class FloatingIslandNavBar extends StatelessWidget {
   final int currentIndex;
@@ -31,7 +32,8 @@ class FloatingIslandNavBar extends StatelessWidget {
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceDim.withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(32),
@@ -86,7 +88,7 @@ class FloatingIslandNavBar extends StatelessWidget {
           // Elevated Center Camera FAB
           Positioned(
             top: -20,
-            child: GestureDetector(
+            child: PressableScale(
               onTap: onScanPressed,
               child: Container(
                 width: 56,
@@ -127,8 +129,7 @@ class FloatingIslandNavBar extends StatelessWidget {
   }) {
     final isSelected = currentIndex == index;
     return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: PressableScale(
         onTap: () => onTabSelected(index),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -136,7 +137,8 @@ class FloatingIslandNavBar extends StatelessWidget {
             Icon(
               isSelected ? activeIcon : icon,
               size: 22,
-              color: isSelected ? AppColors.primaryLight : AppColors.textSecondary,
+              color:
+                  isSelected ? AppColors.primaryLight : AppColors.textSecondary,
             ),
             const SizedBox(height: 3),
             Text(
