@@ -127,9 +127,11 @@ class AppColors {
   /// Di atas surface: 8% putih (dark) / 6% hitam (light).
   static Color get subtleFill =>
       _light ? const Color(0x0F000000) : const Color(0x14FFFFFF);
+
   /// Varian lebih samar (bar inactive periode berjalan).
   static Color get subtleFillDim =>
       _light ? const Color(0x08000000) : const Color(0x0AFFFFFF);
+
   /// Track toggle off.
   static Color get toggleTrack =>
       _light ? const Color(0x1F000000) : const Color(0xB3151926);
