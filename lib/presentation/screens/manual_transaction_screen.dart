@@ -16,6 +16,7 @@ import '../components/app_toast.dart';
 import '../components/glass_panel.dart';
 import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
+import '../components/pressable.dart';
 
 class ManualTransactionScreen extends StatefulWidget {
   const ManualTransactionScreen({super.key});
@@ -124,7 +125,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                   child: Column(
                     children: [
                       // Currency + type switcher
-                      GestureDetector(
+                      PressableScale(child: GestureDetector(
                         onTap: () {
                           setState(() {
                             _transactionType = isExpense ? 'INCOME' : 'EXPENSE';
@@ -175,7 +176,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                             ),
                           ),
                         ),
-                      ),
+                      )),
 
                       const SizedBox(height: 20),
 
@@ -323,7 +324,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       flex: 2,
-                      child: GestureDetector(
+                      child: PressableScale(child: GestureDetector(
                         onTap: _saveTransaction,
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -348,7 +349,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                             ),
                           ),
                         ),
-                      ),
+                      )),
                     ),
                   ],
                 ),
@@ -420,7 +421,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
 
           return Padding(
             padding: const EdgeInsets.only(right: 10),
-            child: GestureDetector(
+            child: PressableScale(child: GestureDetector(
               onTap: () {
                 setState(() {
                   _selectedCategory = cat;
@@ -494,7 +495,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                   ),
                 ),
               ),
-            ),
+            )),
           );
         }).toList(),
       ),
@@ -534,7 +535,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
     required IconData trailingIcon,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
+    return PressableScale(child: GestureDetector(
       onTap: onTap,
       child: GlassPanel(
         radius: 18,
@@ -574,7 +575,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   String _formatDateLabel(DateTime date, AppStrings s) {

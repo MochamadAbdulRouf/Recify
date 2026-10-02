@@ -23,6 +23,7 @@ import '../providers/locale_provider.dart';
 import '../providers/scanner_provider.dart';
 import '../providers/theme_provider.dart';
 import '../../domain/backup/backup_manager.dart';
+import '../components/pressable.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -136,7 +137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 10),
 
             // 1. Hero Profile Section with Ambient Glowing Aura (Stitch Design)
-            GestureDetector(
+            PressableScale(child: GestureDetector(
               onTap: _showEditProfileSheet,
               child: Stack(
                 alignment: Alignment.center,
@@ -201,12 +202,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
-            ),
+            )),
 
             const SizedBox(height: 14),
 
             // Profile Name (Click to edit) & Security Badge
-            GestureDetector(
+            PressableScale(child: GestureDetector(
               onTap: _showEditProfileSheet,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -221,7 +222,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary),
                 ],
               ),
-            ),
+            )),
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
@@ -773,7 +774,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Material(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(24),
-                      child: InkWell(
+                      child: PressableScale(child: InkWell(
                         onTap: isSaving
                             ? null
                             : () async {
@@ -843,7 +844,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ),
                           ),
                         ),
-                      ),
+                      )),
                     ),
                   ],
                 ),
@@ -888,7 +889,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(s.manageWallets, style: AppTypography.titleMedium),
-                        GestureDetector(
+                        PressableScale(child: GestureDetector(
                           onTap: () {
                             Navigator.pop(ctx);
                             _showAddWalletDialog(context, provider);
@@ -913,7 +914,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ],
                             ),
                           ),
-                        ),
+                        )),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -961,7 +962,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       style: AppTypography.bodyBold.copyWith(color: AppColors.textPrimary),
                                     ),
                                     const SizedBox(height: 4),
-                                    GestureDetector(
+                                    PressableScale(child: GestureDetector(
                                       onTap: () {
                                         Navigator.pop(ctx);
                                         _showEditWalletDialog(context, provider, wallet);
@@ -973,9 +974,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                    ),
+                                    )),
                                     const SizedBox(height: 4),
-                                    GestureDetector(
+                                    PressableScale(child: GestureDetector(
                                       onTap: () {
                                         if (provider.wallets.length <= 1) {
                                           AppToast.error(s.deleteWalletLastGuard);
@@ -991,7 +992,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                    ),
+                                    )),
                                   ],
                                 ),
                               ],
@@ -1535,7 +1536,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 20),
 
                     // Option 1: Excel (.xlsx)
-                    GestureDetector(
+                    PressableScale(child: GestureDetector(
                       onTap: () => setSheetState(() => selectedFormat = 'excel'),
                       child: Container(
                         padding: const EdgeInsets.all(14),
@@ -1572,12 +1573,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ],
                         ),
                       ),
-                    ),
+                    )),
 
                     const SizedBox(height: 10),
 
                     // Option 2: CSV (.csv)
-                    GestureDetector(
+                    PressableScale(child: GestureDetector(
                       onTap: () => setSheetState(() => selectedFormat = 'csv'),
                       child: Container(
                         padding: const EdgeInsets.all(14),
@@ -1614,12 +1615,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ],
                         ),
                       ),
-                    ),
+                    )),
 
                     const SizedBox(height: 24),
 
                     // Export Button
-                    GestureDetector(
+                    PressableScale(child: GestureDetector(
                       onTap: () async {
                         Navigator.pop(ctx);
                         try {
@@ -1647,7 +1648,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                       ),
-                    ),
+                    )),
                   ],
                 ),
               ),
@@ -1695,7 +1696,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(s.ledgerCategories, style: AppTypography.titleMedium),
-                        GestureDetector(
+                        PressableScale(child: GestureDetector(
                           onTap: () {
                             Navigator.pop(ctx);
                             _showAddCategoryDialog(context, provider, activeType);
@@ -1720,7 +1721,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ],
                             ),
                           ),
-                        ),
+                        )),
                       ],
                     ),
                     const SizedBox(height: 14),
@@ -1729,7 +1730,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: GestureDetector(
+                          child: PressableScale(child: GestureDetector(
                             onTap: () => setSheetState(() => activeType = 'EXPENSE'),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1750,11 +1751,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               ),
                             ),
-                          ),
+                          )),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: GestureDetector(
+                          child: PressableScale(child: GestureDetector(
                             onTap: () => setSheetState(() => activeType = 'INCOME'),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1775,7 +1776,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               ),
                             ),
-                          ),
+                          )),
                         ),
                       ],
                     ),
@@ -1929,7 +1930,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 final spent = provider.getCategorySpending(
                                     cat.id, now.month, now.year);
 
-                                return GestureDetector(
+                                return PressableScale(child: GestureDetector(
                                   behavior: HitTestBehavior.opaque,
                                   onTap: () async {
                                     await _showBudgetLimitDialog(
@@ -1943,7 +1944,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                           spentAmount: spent,
                                           budgetLimit: budget.monthlyLimit,
                                         ),
-                                );
+                                ));
                               },
                             ),
                     ),
@@ -2236,7 +2237,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget? trailing,
     VoidCallback? onTap,
   }) {
-    return InkWell(
+    return PressableScale(child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Padding(
@@ -2274,6 +2275,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 }

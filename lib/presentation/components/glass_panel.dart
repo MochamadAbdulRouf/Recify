@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import 'pressable.dart';
 
 /// App-level atmospheric backdrop. Without a non-uniform layer behind them,
 /// [BackdropFilter] panels read as flat fills — "the glass did nothing".
@@ -221,7 +222,7 @@ class GlassSegmentedTabs extends StatelessWidget {
             children: [
               for (var i = 0; i < labels.length; i++)
                 Expanded(
-                  child: GestureDetector(
+                  child: PressableScale(child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () => onChanged(i),
                     child: AnimatedContainer(
@@ -257,7 +258,7 @@ class GlassSegmentedTabs extends StatelessWidget {
                         ),
                       ),
                     ),
-                  ),
+                  )),
                 ),
             ],
           ),

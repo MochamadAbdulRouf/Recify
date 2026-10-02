@@ -9,6 +9,7 @@ import '../components/glass_panel.dart';
 import '../components/transaction_list_item.dart';
 import '../providers/finance_provider.dart';
 import 'transaction_detail_screen.dart';
+import '../components/pressable.dart';
 
 /// Full-screen search over the local transaction history: merchant, note,
 /// category name and nominal, plus type / category / wallet chips.
@@ -116,7 +117,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                                 ),
                               ),
                               if (_query.isNotEmpty)
-                                GestureDetector(
+                                PressableScale(child: GestureDetector(
                                   behavior: HitTestBehavior.opaque,
                                   onTap: () {
                                     _controller.clear();
@@ -128,7 +129,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                                         size: 16,
                                         color: AppColors.textSecondary),
                                   ),
-                                ),
+                                )),
                             ],
                           ),
                         ),
@@ -247,7 +248,7 @@ class _Chip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
+      child: PressableScale(child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
@@ -272,7 +273,7 @@ class _Chip extends StatelessWidget {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 }
@@ -310,7 +311,7 @@ class _RecentSearches extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(s.searchRecent, style: AppTypography.bodyBold),
-            GestureDetector(
+            PressableScale(child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: onClear,
               child: Padding(
@@ -321,7 +322,7 @@ class _RecentSearches extends StatelessWidget {
                       .copyWith(color: AppColors.textSecondary),
                 ),
               ),
-            ),
+            )),
           ],
         ),
         const SizedBox(height: 12),

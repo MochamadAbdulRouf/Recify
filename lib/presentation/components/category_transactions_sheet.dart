@@ -6,6 +6,7 @@ import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/transaction_model.dart';
 import '../screens/transaction_detail_screen.dart';
+import 'pressable.dart';
 
 /// Bottom sheet rincian transaksi satu kategori (drill-down Stats).
 /// Daftar difilter pemanggil (tipe + kategori + periode aktif).
@@ -97,7 +98,7 @@ class CategoryTransactionsSheet extends StatelessWidget {
                   final tx = transactions[i];
                   final d = DateTime.fromMillisecondsSinceEpoch(
                       tx.transactionDate);
-                  return GestureDetector(
+                  return PressableScale(child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
                       Navigator.pop(context);
@@ -156,7 +157,7 @@ class CategoryTransactionsSheet extends StatelessWidget {
                         ],
                       ),
                     ),
-                  );
+                  ));
                 },
               ),
             ),

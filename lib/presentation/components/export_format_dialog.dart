@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import 'pressable.dart';
 
 /// Format file yang dipilih user di dialog ekspor.
 enum ExportFormat { excel, csv }
@@ -86,7 +87,7 @@ class ExportFormatOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PressableScale(child: GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -120,6 +121,6 @@ class ExportFormatOption extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }

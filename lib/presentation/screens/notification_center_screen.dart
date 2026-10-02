@@ -7,6 +7,7 @@ import '../../core/utils/currency_formatter.dart';
 import '../../domain/notifications/notification_builder.dart';
 import '../components/glass_panel.dart';
 import '../providers/finance_provider.dart';
+import '../components/pressable.dart';
 
 /// In-app alert feed. No push notifications: every row is derived from local
 /// data at build time by [NotificationBuilder], and the read state lives in
@@ -155,7 +156,7 @@ class _NotificationTile extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: GestureDetector(
+      child: PressableScale(child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: GlassPanel(
@@ -204,7 +205,7 @@ class _NotificationTile extends StatelessWidget {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 

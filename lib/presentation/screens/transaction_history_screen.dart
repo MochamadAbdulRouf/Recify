@@ -11,6 +11,7 @@ import '../components/export_format_dialog.dart';
 import '../components/transaction_list_item.dart';
 import '../providers/finance_provider.dart';
 import 'transaction_detail_screen.dart';
+import '../components/pressable.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -144,14 +145,14 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                       ),
                     ),
                     if (_searchQuery.isNotEmpty)
-                      GestureDetector(
+                      PressableScale(child: GestureDetector(
                         onTap: () {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
                         },
                         child: Icon(Icons.close_rounded,
                             color: AppColors.textSecondary, size: 16),
-                      ),
+                      )),
                   ],
                 ),
               ),
@@ -169,7 +170,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   itemBuilder: (ctx, i) {
                     final f = _filters[i];
                     final isSelected = _selectedFilter == f;
-                    return GestureDetector(
+                    return PressableScale(child: GestureDetector(
                       onTap: () => setState(() => _selectedFilter = f),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -197,7 +198,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                           ),
                         ),
                       ),
-                    );
+                    ));
                   },
                 ),
               ),

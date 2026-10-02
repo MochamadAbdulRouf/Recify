@@ -13,6 +13,7 @@ import '../components/export_format_dialog.dart';
 import '../components/monthly_export_dialog.dart';
 import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
+import '../components/pressable.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -284,7 +285,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             // Weekly/Monthly (6) slot < konstanta → tampil penuh.
                             const maxBarWidth = 60.0;
                             return Expanded(
-                              child: GestureDetector(
+                              child: PressableScale(child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTap: () => setState(() => _selectedBarIndex = i),
                                 child: Center(
@@ -373,7 +374,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                 ),
                               ),
                             ),
-                          ),
+                          )),
                         );
                       }),
                         ),
@@ -534,7 +535,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: GestureDetector(
+                      child: PressableScale(child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () => _showCategoryDetail(
                             context, entry.key, financeProvider,
@@ -613,7 +614,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           ],
                         ),
                       ),
-                      ),
+                      )),
                     );
                   }),
 
@@ -622,7 +623,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 // ═══════════════════════════════════════════
                 // EXPORT CARD → dialog bulan + format (Poin 4)
                 // ═══════════════════════════════════════════
-                GestureDetector(
+                PressableScale(child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => _handleMonthlyExport(context),
                   child: GlassPanel(
@@ -661,7 +662,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     ],
                   ),
                   ),
-                ),
+                )),
 
                 const SizedBox(height: 132), // Space for Floating Island + FAB
               ],
@@ -853,7 +854,7 @@ class _GlassTypeToggle extends StatelessWidget {
         children: [
           for (var i = 0; i < labels.length; i++)
             Expanded(
-              child: GestureDetector(
+              child: PressableScale(child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => onChanged(i),
                 child: AnimatedContainer(
@@ -902,7 +903,7 @@ class _GlassTypeToggle extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
+              )),
             ),
         ],
       ),

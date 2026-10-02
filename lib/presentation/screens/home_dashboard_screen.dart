@@ -227,7 +227,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         children: [
                           Text(s.recentActivity, style: AppTypography.titleSm),
                           if (financeProvider.recentTransactions.isNotEmpty)
-                            GestureDetector(
+                            PressableScale(child: GestureDetector(
                               onTap: () => widget.onNavigateTab
                                   ?.call(2), // Jump to History
                               child: Text(
@@ -237,7 +237,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ),
+                            )),
                         ],
                       ),
 

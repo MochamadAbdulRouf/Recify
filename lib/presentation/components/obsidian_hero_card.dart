@@ -8,6 +8,7 @@ import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../providers/finance_provider.dart';
 import 'glass_panel.dart';
+import 'pressable.dart';
 
 class ObsidianHeroCard extends StatefulWidget {
   final double totalBalance;
@@ -171,7 +172,7 @@ class _ObsidianHeroCardState extends State<ObsidianHeroCard> {
                 ),
               ),
               const SizedBox(width: 8),
-              GestureDetector(
+              PressableScale(child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => setState(() => _masked = !_masked),
                 child: Padding(
@@ -185,7 +186,7 @@ class _ObsidianHeroCardState extends State<ObsidianHeroCard> {
                         _masked ? AppColors.secondary : AppColors.textSecondary,
                   ),
                 ),
-              ),
+              )),
             ],
           ),
 

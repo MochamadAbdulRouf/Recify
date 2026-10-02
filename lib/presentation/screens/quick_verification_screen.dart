@@ -18,6 +18,7 @@ import '../components/app_toast.dart';
 import '../components/glass_panel.dart';
 import '../providers/finance_provider.dart';
 import '../providers/scanner_provider.dart';
+import '../components/pressable.dart';
 
 class QuickVerificationScreen extends StatefulWidget {
   final ParsedReceiptData parsedData;
@@ -551,7 +552,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                           children: [
                             Expanded(
                               flex: 1,
-                              child: GestureDetector(
+                              child: PressableScale(child: GestureDetector(
                                 onTap: _retakeReceipt,
                                 behavior: HitTestBehavior.opaque,
                                 child: Container(
@@ -573,12 +574,12 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                     ],
                                   ),
                                 ),
-                              ),
+                              )),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               flex: 2,
-                              child: GestureDetector(
+                              child: PressableScale(child: GestureDetector(
                                 onTap: _saveTransaction,
                                 behavior: HitTestBehavior.opaque,
                                 child: Container(
@@ -602,7 +603,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                     ],
                                   ),
                                 ),
-                              ),
+                              )),
                             ),
                           ],
                         ),
@@ -726,11 +727,11 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
       ),
     );
     if (onTap == null) return row;
-    return GestureDetector(
+    return PressableScale(child: GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: row,
-    );
+    ));
   }
 
   Widget _buildValidationBadge() {
@@ -1040,7 +1041,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
           Positioned(
             bottom: 12,
             right: 12,
-            child: GestureDetector(
+            child: PressableScale(child: GestureDetector(
               onTap: _retakeReceipt,
               behavior: HitTestBehavior.opaque,
               child: Container(
@@ -1068,7 +1069,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ],
       ),
@@ -1121,7 +1122,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
             ),
           ),
           const SizedBox(width: 8),
-          GestureDetector(
+          PressableScale(child: GestureDetector(
             onTap: () => setState(() => _selectedDate = DateTime.now()),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1138,7 +1139,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                 ),
               ),
             ),
-          ),
+          )),
         ],
       ),
     );
