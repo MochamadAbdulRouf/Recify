@@ -1,3 +1,5 @@
+import 'dart:ui' show Color;
+
 class CategoryModel {
   final String id;
   final String name;
@@ -31,5 +33,14 @@ class CategoryModel {
       icon: map['icon'] as String? ?? 'category',
       color: map['color'] as String? ?? '#2F6BFF',
     );
+  }
+}
+
+extension CategoryColorX on CategoryModel {
+  /// Satu-satunya sumber warna kategori untuk UI (icon-circle terpilih,
+  /// shadow, dsb.) — baca getter ini, jangan salin nilai hex-nya manual.
+  Color get colorAsColor {
+    final v = int.tryParse(color.replaceFirst('#', ''), radix: 16);
+    return v == null ? const Color(0xFF2F6BFF) : Color(v | 0xFF000000);
   }
 }

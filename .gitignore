@@ -59,3 +59,8 @@ implementation_plan_ocr-v1
 
 # Agent workspace (plans, scratch notes)
 .hermes/
+# Pasted reference screenshots (jangan sampai ke-push)
+Pasted image*.png
+
+# MCP config berisi API key — jangan ke-push
+.mcp.json

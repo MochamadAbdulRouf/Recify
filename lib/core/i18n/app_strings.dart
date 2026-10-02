@@ -586,6 +586,31 @@ class AppStrings {
       isEn ? 'Light theme' : 'Tema terang';
   String get themeDarkSubtitle =>
       isEn ? 'Dark theme' : 'Tema gelap';
+
+  // ── Receipt date validation ──
+  String get dateOldTitle =>
+      isEn ? 'Receipt Date Is Old' : 'Tanggal Nota Sudah Lama';
+  String useReceiptDate(String date) => isEn
+      ? 'Use Receipt Date ($date)'
+      : 'Pakai Tanggal Nota ($date)';
+  String get dateUnreadableNotice => isEn
+      ? 'Receipt date unreadable — using today'
+      : 'Tanggal nota tidak terbaca — memakai hari ini';
+  String get dateFutureNotice => isEn
+      ? 'Receipt date is in the future — using today'
+      : 'Tanggal nota di masa depan — memakai hari ini';
+
+  // ── OCR Scanner Verification v2 (Stitch) ──
+  String get scanAndPay => 'Scan & Pay';
+  String get ocrActiveDevice => 'OCR ACTIVE • ON-DEVICE';
+  String get hundredPrivate => '100% PRIVATE';
+  String get taxIncluded => isEn ? 'Tax included' : 'Termasuk pajak';
+  String get change => isEn ? 'Change' : 'Ubah';
+  String get confirmAndSave => isEn ? 'Confirm & Save' : 'Konfirmasi & Simpan';
+  String get autoMapped => isEn ? 'Auto-mapped' : 'Otomatis';
+  String get encryptedBadge => isEn
+      ? 'Data encrypted locally using AES-256-GCM hardware encryption'
+      : 'Data dienkripsi lokal dengan enkripsi perangkat AES-256-GCM';
   String walletUpdated(String name) => isEn
       ? 'Wallet "$name" updated!'
       : 'Dompet "$name" berhasil diperbarui!';

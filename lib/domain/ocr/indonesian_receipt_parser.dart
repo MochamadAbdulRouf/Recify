@@ -279,7 +279,8 @@ class IndonesianReceiptParser {
 
     String merchantName = _extractMerchantName(lines);
     String suggestedCategory = _detectCategoryFromMerchant(merchantName);
-    final transactionDate = _extractDate(rawText);
+    final parsedDate = _extractDate(rawText);
+    final transactionDate = parsedDate ?? DateTime.now();
 
     final subtotal = _extractSubtotal(lines);
     final tax = _extractTax(lines);
@@ -328,6 +329,7 @@ class IndonesianReceiptParser {
       merchantName: merchantName,
       suggestedCategory: suggestedCategory,
       transactionDate: transactionDate,
+      dateFallback: parsedDate == null,
       currency: 'IDR',
       paymentMethodDetected: _detectPaymentMethod(rawText),
       items: items,
@@ -1296,7 +1298,9 @@ class IndonesianReceiptParser {
     }
   }
 
-  DateTime _extractDate(String rawText) {
+  /// Tanggal pertama yang valid dari teks nota, atau null bila tidak ada /
+  /// tidak kenal format / di luar rentang wajar (pemanggil fallback ke now).
+  DateTime? _extractDate(String rawText) {
     final datePatterns = [
       {'format': 'dd/MM/yyyy', 'regex': r'\b(\d{1,2}/\d{1,2}/\d{4})\b'},
       {'format': 'dd-MM-yyyy', 'regex': r'\b(\d{1,2}-\d{1,2}-\d{4})\b'},
@@ -1320,7 +1324,7 @@ class IndonesianReceiptParser {
         } catch (_) {}
       }
     }
-    return DateTime.now();
+    return null;
   }
 
   String _detectPaymentMethod(String rawText) {

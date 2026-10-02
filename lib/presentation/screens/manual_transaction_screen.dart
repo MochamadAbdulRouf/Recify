@@ -443,6 +443,18 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                             ? AppColors.borderMedium
                             : AppColors.borderSubtle,
                       ),
+                      // Shadow senada warna kategori terpilih — baca sumber
+                      // yang sama dengan icon-circle di bawah (colorAsColor).
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: cat.colorAsColor
+                                    .withValues(alpha: 0.35),
+                                blurRadius: 14,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -452,7 +464,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                           height: 44,
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? AppColors.primary
+                                ? cat.colorAsColor
                                 : AppColors.surfaceContainerHighest,
                             shape: BoxShape.circle,
                           ),

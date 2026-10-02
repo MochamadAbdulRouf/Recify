@@ -44,6 +44,10 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
   WalletModel? _selectedWallet;
   late List<ParsedReceiptItem> _editableItems;
 
+  /// Nota lebih tua dari ini → dialog pilih hari ini / tanggal nota.
+  static const _staleDateThresholdDays = 7;
+  bool _staleDateDialogShown = false;
+
   late AnimationController _scannerAnimationController;
   late Animation<double> _scannerAnimation;
 
@@ -75,6 +79,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _validateReceiptDate();
       final financeProvider = context.read<FinanceProvider>();
       if (financeProvider.categories.isNotEmpty) {
         // Match by category ID (suggestedCategory contains ID like 'cat_groceries')
@@ -114,6 +119,9 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
       body: Stack(
         children: [
           const Positioned.fill(child: MeshBackdrop()),
+          // Header mengambang ala Stitch: back + judul (menggantikan
+          // tombol close di bottom bar).
+          Positioned(top: 0, left: 0, right: 0, child: _buildTopHeader()),
           // Scrollable Content
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
@@ -123,31 +131,10 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                 // 1. Top Receipt Preview Area with Animated Scan Beam
                 _buildReceiptPreviewHero(),
 
-                // 2. Verification Form Header
+                // 2. Validation Status Badge & Parser Source
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  child: Column(
-                    children: [
-                      Center(
-                        child: Text(
-                          s.verifyDetails,
-                          style: AppTypography.displayLgMobile,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Center(
-                        child: Text(
-                          s.reviewExtracted,
-                          style: AppTypography.bodyReg
-                              .copyWith(color: AppColors.textSecondary),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Validation Status Badge & Parser Source
-                      _buildValidationBadge(),
-                    ],
-                  ),
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                  child: _buildValidationBadge(),
                 ),
 
                 // 3. Form Input Cards
@@ -159,50 +146,89 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Amount & Date in 2 columns
+                        // Header kartu ala Stitch: ikon + judul + perisai
                         Row(
                           children: [
-                            // Amount Field
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(Icons.document_scanner_outlined,
+                                  size: 20, color: AppColors.primaryLight),
+                            ),
+                            const SizedBox(width: 12),
                             Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceContainerHighest
-                                      .withValues(alpha: 0.35),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border:
-                                      Border.all(color: AppColors.borderSubtle),
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(s.verifyDetails,
+                                      style: AppTypography.titleMedium),
+                                  Text(s.reviewExtracted,
+                                      style: AppTypography.caption.copyWith(
+                                          color: AppColors.textSecondary)),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.surfaceContainerHighest,
+                              ),
+                              child: Icon(Icons.verified_user_outlined,
+                                  size: 18, color: AppColors.statusPositive),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Total pill (posisi Detected Total di desain Stitch)
+                        // — nilai tetap bisa diedit, sumber amount untuk save
+                        // tidak berubah.
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceContainerLowest
+                                .withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.borderSubtle),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       s.fieldAmount,
-                                      style: AppTypography.caption.copyWith(
+                                      style: AppTypography.labelSmall.copyWith(
                                         color: AppColors.textSecondary,
-                                        fontWeight: FontWeight.w600,
                                         letterSpacing: 1.1,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: 2),
                                     Row(
                                       children: [
                                         Text(
                                           'Rp ',
                                           style: AppTypography.titleSm.copyWith(
-                                            color: AppColors.textSecondary,
-                                          ),
+                                              color: AppColors.textSecondary),
                                         ),
                                         Expanded(
                                           child: TextField(
                                             controller: _amountController,
-                                            keyboardType: TextInputType.number,
-                                            style: AppTypography.headlineMd
+                                            keyboardType:
+                                                TextInputType.number,
+                                            style: AppTypography
+                                                .displayLgMobile
                                                 .copyWith(
-                                              color: AppColors.textPrimary,
-                                              fontWeight: FontWeight.w700,
-                                            ),
+                                                    color:
+                                                        AppColors.textPrimary),
                                             decoration: const InputDecoration(
                                               border: InputBorder.none,
                                               isDense: true,
@@ -215,98 +241,67 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                   ],
                                 ),
                               ),
-                            ),
-
-                            const SizedBox(width: 12),
-
-                            // Date Field
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: _pickDate,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surfaceContainerHighest
-                                        .withValues(alpha: 0.35),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                        color: AppColors.borderSubtle),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    s.taxIncluded,
+                                    style: AppTypography.labelSmall.copyWith(
+                                        color: AppColors.textSecondary),
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        s.fieldDate,
-                                        style: AppTypography.caption.copyWith(
-                                          color: AppColors.textSecondary,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 1.1,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                              Icons.calendar_today_rounded,
-                                              size: 16,
-                                              color: AppColors.primary),
-                                          const SizedBox(width: 6),
-                                          Expanded(
-                                            child: Text(
-                                              DateFormat('d MMM yyyy')
-                                                  .format(_selectedDate),
-                                              style: AppTypography.bodyBold
-                                                  .copyWith(fontSize: 13),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    CurrencyFormatter.formatRupiah(
+                                        widget.parsedData.tax),
+                                    style: AppTypography.labelLarge
+                                        .copyWith(color: AppColors.textPrimary),
                                   ),
-                                ),
+                                ],
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
 
-                        // Stale date warning — receipt date differs from today,
-                        // transaction will not appear in current-month recap
-                        if (!_isDateToday) ...[
-                          const SizedBox(height: 10),
-                          _buildStaleDateWarning(),
-                        ],
+                        const SizedBox(height: 16),
 
-                        const SizedBox(height: 12),
-
-                        // Merchant / Toko Input
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerHighest
-                                .withValues(alpha: 0.35),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.borderSubtle),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                s.fieldMerchant,
-                                style: AppTypography.caption.copyWith(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.1,
-                                ),
+                        // Field rows ala Stitch: ikon + label + nilai + aksi
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _fieldRow(
+                              icon: Icons.calendar_today_outlined,
+                              iconColor: AppColors.meshCyan,
+                              label: s.fieldDate,
+                              onTap: _pickDate,
+                              child: Text(
+                                DateFormat('d MMM yyyy')
+                                    .format(_selectedDate),
+                                style: AppTypography.titleSm,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 4),
-                              TextField(
+                              trailing: Icon(Icons.schedule_rounded,
+                                  size: 18,
+                                  color: AppColors.onSurfaceVariant),
+                            ),
+
+                            // Stale date warning — receipt date differs from today,
+                            // transaction will not appear in current-month recap
+                            if (!_isDateToday) ...[
+                              const SizedBox(height: 10),
+                              _buildStaleDateWarning(),
+                            ],
+
+                            const SizedBox(height: 12),
+
+                            // Merchant — tetap TextField (editabel), gaya row
+                            _fieldRow(
+                              icon: Icons.storefront_outlined,
+                              iconColor: AppColors.primaryLight,
+                              label: s.fieldMerchant,
+                              child: TextField(
                                 controller: _merchantController,
-                                style: AppTypography.bodyBold,
+                                style: AppTypography.titleSm,
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
                                   isDense: true,
@@ -314,42 +309,77 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                   hintText: s.merchantHint,
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
+                              trailing: Icon(Icons.verified_rounded,
+                                  size: 18, color: AppColors.statusPositive),
+                            ),
 
-                        const SizedBox(height: 12),
+                            const SizedBox(height: 12),
 
-                        // Category Dropdown Card
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerHighest
-                                .withValues(alpha: 0.35),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.borderSubtle),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                s.fieldCategory,
-                                style: AppTypography.caption.copyWith(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.1,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              DropdownButtonHideUnderline(
+                            // Expense Category — dropdown sebagai baris,
+                            // tertutup: nama + tag + "Change ⌄" (al Stitch)
+                            _fieldRow(
+                              icon: Icons.restaurant_rounded,
+                              iconColor: AppColors.textSecondary,
+                              label: s.fieldCategory,
+                              child: DropdownButtonHideUnderline(
                                 child: DropdownButton<CategoryModel>(
                                   value: _selectedCategory,
                                   isExpanded: true,
-                                  dropdownColor: AppColors.surfaceContainerHigh,
-                                  icon: Icon(Icons.expand_more_rounded,
-                                      color: AppColors.textSecondary),
-                                  items: financeProvider.categories.map((c) {
+                                  isDense: true,
+                                  dropdownColor:
+                                      AppColors.surfaceContainerHigh,
+                                  icon: const SizedBox.shrink(),
+                                  selectedItemBuilder: (ctx) =>
+                                      financeProvider.categories.map((c) {
+                                    final auto = c.id ==
+                                        widget.parsedData.suggestedCategory;
+                                    return Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            c.name,
+                                            style: AppTypography.titleSm,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (auto) ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets
+                                                .symmetric(
+                                                horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: AppColors
+                                                  .statusPositiveBg,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              s.autoMapped,
+                                              style: AppTypography.labelSmall
+                                                  .copyWith(
+                                                color: AppColors.statusPositive,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          s.change,
+                                          style: AppTypography.labelLarge
+                                              .copyWith(
+                                                  color:
+                                                      AppColors.primaryLight),
+                                        ),
+                                        Icon(Icons.expand_more_rounded,
+                                            size: 18,
+                                            color: AppColors.primaryLight),
+                                      ],
+                                    );
+                                  }).toList(),
+                                  items:
+                                      financeProvider.categories.map((c) {
                                     return DropdownMenuItem(
                                       value: c,
                                       child: Row(
@@ -380,41 +410,50 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                       setState(() => _selectedCategory = cat),
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
 
-                        const SizedBox(height: 12),
+                            const SizedBox(height: 12),
 
-                        // Wallet Selector Card
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerHighest
-                                .withValues(alpha: 0.35),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.borderSubtle),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                s.fieldWallet,
-                                style: AppTypography.caption.copyWith(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.1,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              DropdownButtonHideUnderline(
+                            // Payment Wallet — dropdown sebagai baris (swap)
+                            _fieldRow(
+                              icon: Icons.account_balance_wallet_rounded,
+                              iconColor: AppColors.meshCyan,
+                              label: s.fieldWallet,
+                              child: DropdownButtonHideUnderline(
                                 child: DropdownButton<WalletModel>(
                                   value: _selectedWallet,
                                   isExpanded: true,
-                                  dropdownColor: AppColors.surfaceContainerHigh,
-                                  icon: Icon(Icons.expand_more_rounded,
-                                      color: AppColors.textSecondary),
+                                  isDense: true,
+                                  dropdownColor:
+                                      AppColors.surfaceContainerHigh,
+                                  icon: const SizedBox.shrink(),
+                                  selectedItemBuilder: (ctx) =>
+                                      financeProvider.wallets.map((w) {
+                                    return Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            w.name,
+                                            style: AppTypography.titleSm,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          CurrencyFormatter.formatRupiah(
+                                              w.currentBalance),
+                                          style: AppTypography.caption
+                                              .copyWith(
+                                                  color: AppColors
+                                                      .textSecondary),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Icon(Icons.swap_horiz_rounded,
+                                            size: 18,
+                                            color: AppColors.primaryLight),
+                                      ],
+                                    );
+                                  }).toList(),
                                   items: financeProvider.wallets.map((w) {
                                     return DropdownMenuItem(
                                       value: w,
@@ -437,160 +476,260 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                       setState(() => _selectedWallet = w),
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
 
-                        // Itemized Breakdown Section
+                        // Itemized breakdown box (al Stitch)
                         if (_editableItems.isNotEmpty) ...[
-                          const SizedBox(height: 18),
-                          Text(s.receiptItems(_editableItems.length),
-                              style: AppTypography.titleSm),
-                          const SizedBox(height: 8),
-                          ..._editableItems.map((item) {
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 6),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceContainerHighest
-                                    .withValues(alpha: 0.35),
-                                borderRadius: BorderRadius.circular(10),
-                                border:
-                                    Border.all(color: AppColors.borderSubtle),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      '${item.itemName} (${item.quantity}x)',
-                                      style: AppTypography.bodyReg
-                                          .copyWith(fontSize: 13),
-                                      overflow: TextOverflow.ellipsis,
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      s.receiptItems(_editableItems.length),
+                                      style: AppTypography.labelSmall.copyWith(
+                                        color: AppColors.textSecondary,
+                                        letterSpacing: 1.1,
+                                      ),
                                     ),
-                                  ),
-                                  Text(
-                                    CurrencyFormatter.formatRupiah(
-                                        item.totalPrice),
-                                    style: AppTypography.bodyBold
-                                        .copyWith(fontSize: 13),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }),
+                                    Text(
+                                      widget.parsedData.parserSource == 'gemini'
+                                          ? s.parserGemini
+                                          : s.parserOffline,
+                                      style: AppTypography.labelSmall.copyWith(
+                                          color: AppColors.primaryLight),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                ..._editableItems.map((item) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            '${item.itemName} (${item.quantity}x)',
+                                            style: AppTypography.caption,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          CurrencyFormatter.formatRupiah(
+                                              item.totalPrice),
+                                          style: AppTypography.bodyBold
+                                              .copyWith(fontSize: 13),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
                         ],
+
+                        const SizedBox(height: 16),
+
+                        // Tombol aksi di dalam kartu (al Stitch)
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: GestureDetector(
+                                onTap: _retakeReceipt,
+                                behavior: HitTestBehavior.opaque,
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceContainerHigh,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.refresh_rounded,
+                                          size: 18,
+                                          color: AppColors.textPrimary),
+                                      const SizedBox(width: 6),
+                                      Text(s.retake,
+                                          style: AppTypography.titleSm),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 2,
+                              child: GestureDetector(
+                                onTap: _saveTransaction,
+                                behavior: HitTestBehavior.opaque,
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryContainer,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.check_rounded,
+                                          size: 18, color: Colors.white),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        s.confirmAndSave,
+                                        style: AppTypography.titleSm
+                                            .copyWith(color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
                 ),
 
-                const SizedBox(
-                    height: 120), // Bottom padding for sticky action bar
+                // Badge enkripsi lokal (al Stitch)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.verified_rounded,
+                          size: 14, color: AppColors.statusPositive),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          s.encryptedBadge,
+                          textAlign: TextAlign.center,
+                          style: AppTypography.labelSmall
+                              .copyWith(color: AppColors.textSecondary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 32),
               ],
             ),
           ),
 
-          // 4. Fixed Bottom Action Bar matching Stitch
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  decoration: BoxDecoration(
-                    color:
-                        AppColors.surfaceContainerLow.withValues(alpha: 0.82),
-                    border: Border(
-                        top: BorderSide(color: AppColors.borderSubtle)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x66000000),
-                        blurRadius: 20,
-                        offset: Offset(0, -4),
-                      ),
-                    ],
+        ],
+      ),
+    );
+  }
+
+  /// Header mengambang (al Stitch): back + judul, blur tipis di atas konten.
+  Widget _buildTopHeader() {
+    final s = AppStrings.of(context);
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          color: AppColors.bgCanvas.withValues(alpha: 0.80),
+          child: SafeArea(
+            bottom: false,
+            child: SizedBox(
+              height: 56,
+              child: Row(
+                children: [
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: Icon(Icons.arrow_back_ios_new_rounded,
+                        size: 20, color: AppColors.onSurface),
+                    onPressed: () => Navigator.pop(context),
                   ),
-                  child: SafeArea(
-                    top: false,
-                    child: Row(
-                      children: [
-                        // Close / Cancel Button
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerHighest
-                                .withValues(alpha: 0.35),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.borderSubtle),
-                          ),
-                          child: IconButton(
-                            icon: Icon(Icons.close_rounded,
-                                color: AppColors.onSurfaceVariant),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ),
-
-                        const SizedBox(width: 12),
-
-                        // Retake Button
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              backgroundColor: AppColors.surfaceContainerHigh,
-                              side: BorderSide(
-                                  color: AppColors.borderSubtle),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24)),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            icon: Icon(Icons.photo_camera_rounded,
-                                size: 18, color: AppColors.onSurface),
-                            label:
-                                Text(s.retake, style: AppTypography.bodyBold),
-                            onPressed: _retakeReceipt,
-                          ),
-                        ),
-
-                        const SizedBox(width: 12),
-
-                        // Confirm Save Button
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              elevation: 6,
-                              shadowColor: const Color(0x662F6BFF),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24)),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            icon: const Icon(Icons.check_rounded,
-                                size: 18, color: Colors.white),
-                            label: Text(
-                              s.confirm,
-                              style: AppTypography.bodyBold
-                                  .copyWith(color: Colors.white),
-                            ),
-                            onPressed: _saveTransaction,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                  const SizedBox(width: 4),
+                  Text(s.scanAndPay, style: AppTypography.titleMedium),
+                ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Baris field seragam (al Stitch): chip ikon 40 + label uppercase + nilai
+  /// + trailing; opsional onTap untuk seluruh baris.
+  Widget _fieldRow({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required Widget child,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
+    final row = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerHigh.withValues(alpha: 0.60),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 20, color: iconColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.textSecondary,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                child,
+              ],
+            ),
+          ),
+          if (trailing != null) ...[
+            const SizedBox(width: 8),
+            trailing,
+          ],
         ],
       ),
+    );
+    if (onTap == null) return row;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: row,
     );
   }
 
@@ -733,7 +872,33 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
               ),
             ),
 
-          // Animated Laser Scanner Beam
+          // Grid scanner geometris (al Stitch) — warna dari token primary
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _ScannerGridPainter(
+                AppColors.primary.withValues(alpha: 0.06),
+              ),
+            ),
+          ),
+
+          // Vignette atas-bawah
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.surfaceContainerLowest.withValues(alpha: 0.70),
+                    Colors.transparent,
+                    AppColors.surfaceContainerLowest,
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Animated Laser Scanner Beam (cyan al Stitch)
           AnimatedBuilder(
             animation: _scannerAnimation,
             builder: (context, child) {
@@ -742,12 +907,12 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                 left: 0,
                 right: 0,
                 child: Container(
-                  height: 3,
+                  height: 2,
                   decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    boxShadow: const [
+                    color: AppColors.meshCyan,
+                    boxShadow: [
                       BoxShadow(
-                        color: Color(0xCC2F6BFF),
+                        color: AppColors.meshCyan.withValues(alpha: 0.8),
                         blurRadius: 16,
                         spreadRadius: 3,
                       ),
@@ -758,47 +923,150 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
             },
           ),
 
-          // Live OCR Status Badge at bottom right
+          // Target reticle corners (al Stitch)
           Positioned(
-            bottom: 16,
-            right: 16,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color:
-                    AppColors.surfaceContainerHighest.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.borderSubtle),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: AppColors.secondaryFixed,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.secondaryFixed,
-                          blurRadius: 6,
-                          spreadRadius: 1,
+            top: 20,
+            left: 20,
+            right: 20,
+            bottom: 20,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Icon(Icons.crop_free_rounded,
+                        size: 26,
+                        color: AppColors.meshCyan.withValues(alpha: 0.7)),
+                    Transform.flip(
+                      flipX: true,
+                      child: Icon(Icons.crop_free_rounded,
+                          size: 26,
+                          color: AppColors.meshCyan.withValues(alpha: 0.7)),
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Transform.flip(
+                      flipY: true,
+                      child: Icon(Icons.crop_free_rounded,
+                          size: 26,
+                          color: AppColors.meshCyan.withValues(alpha: 0.7)),
+                    ),
+                    Transform.flip(
+                      flipX: true,
+                      flipY: true,
+                      child: Icon(Icons.crop_free_rounded,
+                          size: 26,
+                          color: AppColors.meshCyan.withValues(alpha: 0.7)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Top meta pills: OCR ACTIVE • ON-DEVICE + 100% PRIVATE
+          Positioned(
+            top: 12,
+            left: 12,
+            right: 12,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLowest
+                        .withValues(alpha: 0.80),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: AppColors.statusPositive,
+                          shape: BoxShape.circle,
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        s.ocrActiveDevice,
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.statusPositive,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    s.ocrActive,
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.secondaryFixed,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.1,
-                      fontSize: 10,
-                    ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLowest
+                        .withValues(alpha: 0.80),
+                    borderRadius: BorderRadius.circular(999),
                   ),
-                ],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lock_rounded,
+                          size: 12, color: AppColors.secondaryFixed),
+                      const SizedBox(width: 4),
+                      Text(
+                        s.hundredPrivate,
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Retake pill di pojok kanan bawah (al Stitch: slot Adjust Box,
+          // dipetakan ke logika retake yang sudah ada)
+          Positioned(
+            bottom: 12,
+            right: 12,
+            child: GestureDetector(
+              onTap: _retakeReceipt,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerHigh
+                      .withValues(alpha: 0.90),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: AppColors.borderSubtle),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.refresh_rounded,
+                        size: 14, color: AppColors.textPrimary),
+                    const SizedBox(width: 4),
+                    Text(
+                      s.retake,
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -874,6 +1142,71 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
         ],
       ),
     );
+  }
+
+  /// Validasi tanggal nota setelah scan:
+  /// - tak terbaca/tidak valid (dateFallback) → paksa hari ini + toast;
+  /// - masa depan → paksa hari ini + toast;
+  /// - lebih dari 7 hari → dialog: pakai tanggal hari ini / tanggal nota.
+  void _validateReceiptDate() {
+    if (!mounted) return;
+    final s = AppStrings.of(context);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (widget.parsedData.dateFallback) {
+      setState(() => _selectedDate = today);
+      AppToast.error(s.dateUnreadableNotice);
+      return;
+    }
+
+    final d = _selectedDate;
+    final dateOnly = DateTime(d.year, d.month, d.day);
+    if (dateOnly.isAfter(today)) {
+      setState(() => _selectedDate = today);
+      AppToast.error(s.dateFutureNotice);
+      return;
+    }
+
+    if (today.difference(dateOnly).inDays > _staleDateThresholdDays) {
+      _showStaleDateDialog();
+    }
+  }
+
+  Future<void> _showStaleDateDialog() async {
+    if (_staleDateDialogShown || !mounted) return;
+    _staleDateDialogShown = true;
+    final s = AppStrings.of(context);
+    final receiptDate = DateFormat('d MMM yyyy').format(_selectedDate);
+
+    final useToday = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(s.dateOldTitle, style: AppTypography.titleMedium),
+        content: Text(
+          s.staleDateWarning(receiptDate, _daysAgoLabel(_selectedDate)),
+          style: AppTypography.bodyReg,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(s.useReceiptDate(receiptDate),
+                style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(s.useToday,
+                style: TextStyle(color: AppColors.primaryLight)),
+          ),
+        ],
+      ),
+    );
+
+    if (useToday == true && mounted) {
+      setState(() => _selectedDate = DateTime.now());
+    }
   }
 
   void _pickDate() async {
@@ -971,4 +1304,29 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
       }
     }
   }
+}
+
+/// Grid scanner geometris untuk preview nota (al Stitch) — 24px, warna token.
+class _ScannerGridPainter extends CustomPainter {
+  _ScannerGridPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1;
+    const step = 24.0;
+    for (double x = 0; x <= size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (double y = 0; y <= size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScannerGridPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

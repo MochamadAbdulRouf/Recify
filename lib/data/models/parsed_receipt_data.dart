@@ -50,6 +50,10 @@ class ParsedReceiptData {
   /// Which parser produced this data: 'gemini', 'regex', or 'manual'
   final String? parserSource;
 
+  /// True bila tidak ada tanggal valid yang terbaca (hilang/tak kenal format/
+  /// di luar rentang) sehingga [transactionDate] jatuh ke now().
+  final bool dateFallback;
+
   ParsedReceiptData({
     this.merchantName = '',
     this.suggestedCategory = 'cat_groceries',
@@ -65,6 +69,7 @@ class ParsedReceiptData {
     this.localImageTempPath,
     this.validationStatus,
     this.parserSource,
+    this.dateFallback = false,
   });
 
   ParsedReceiptData copyWith({
@@ -82,6 +87,7 @@ class ParsedReceiptData {
     String? localImageTempPath,
     String? validationStatus,
     String? parserSource,
+    bool? dateFallback,
   }) {
     return ParsedReceiptData(
       merchantName: merchantName ?? this.merchantName,
@@ -98,6 +104,7 @@ class ParsedReceiptData {
       localImageTempPath: localImageTempPath ?? this.localImageTempPath,
       validationStatus: validationStatus ?? this.validationStatus,
       parserSource: parserSource ?? this.parserSource,
+      dateFallback: dateFallback ?? this.dateFallback,
     );
   }
 
@@ -122,8 +129,9 @@ class ParsedReceiptData {
     String? rawText,
     String? imagePath,
   }) {
-    // Parse date from "YYYY-MM-DD" string
+    // Parse date from "YYYY-MM-DD" string — gagal/tak ada → hari ini + flag.
     DateTime transactionDate = DateTime.now();
+    var dateFallback = false;
     final dateStr = json['date'] as String?;
     if (dateStr != null && dateStr.isNotEmpty) {
       try {
@@ -132,10 +140,14 @@ class ParsedReceiptData {
         if (transactionDate.isBefore(DateTime(2020)) ||
             transactionDate.isAfter(DateTime.now().add(const Duration(days: 30)))) {
           transactionDate = DateTime.now();
+          dateFallback = true;
         }
       } catch (_) {
         transactionDate = DateTime.now();
+        dateFallback = true;
       }
+    } else {
+      dateFallback = true;
     }
 
     // Parse items
@@ -179,6 +191,7 @@ class ParsedReceiptData {
       rawText: rawText ?? '',
       localImageTempPath: imagePath,
       parserSource: 'gemini',
+      dateFallback: dateFallback,
     );
   }
 }
