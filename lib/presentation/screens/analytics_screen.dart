@@ -4,6 +4,7 @@ import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/utils/category_insight.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/utils/period_aggregator.dart';
 import '../components/glass_panel.dart';
@@ -36,24 +37,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final s = AppStrings.of(context);
     final now = DateTime.now();
 
-    // ── 1. Category breakdown (scoped to current month) ──
-    final Map<String, double> categoryTotals = {};
-    final Map<String, int> categoryCounts = {};
-    var monthTotal = 0.0;
-    for (final tx in financeProvider.transactions) {
-      if (tx.type != _txType) continue;
-      final d = DateTime.fromMillisecondsSinceEpoch(tx.transactionDate);
-      if (d.month != now.month || d.year != now.year) continue;
-      final catName = tx.category?.name ?? s.umum;
-      categoryTotals[catName] = (categoryTotals[catName] ?? 0) + tx.amount;
-      categoryCounts[catName] = (categoryCounts[catName] ?? 0) + 1;
-      monthTotal += tx.amount;
-    }
-
-    final sortedCategories = categoryTotals.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    // ── 2. Period buckets: Daily (3 hari) / Weekly (6 minggu) /
+    // ── 1. Period buckets: Daily (3 hari) / Weekly (6 minggu) /
     // Monthly (6 bulan), difilter per tipe transaksi terpilih. ──
     final granularity = switch (_selectedPeriodIndex) {
       0 => PeriodGranularity.daily,
@@ -67,6 +51,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       granularity: granularity,
       now: now,
     );
+
+    // ── 2. Category breakdown & insight: share JENDELA TAB yang sama
+    // dengan chart (buckets.first.start → buckets.last.end) — realtime
+    // ikut tab Daily/Weekly/Monthly dan tidak hilang saat ganti bulan. ──
+    final summary = windowCategorySummary(
+      transactions: financeProvider.transactions,
+      type: _txType,
+      start: buckets.first.start,
+      end: buckets.last.end,
+      fallbackName: s.umum,
+    );
+    final sortedCategories = summary.totals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final windowTotal = summary.total;
 
     // Tinggi bar = persen bucket terhadap total saldo, sama dengan angka
     // di tooltip/inspector — jadi tinggi dan persen tidak pernah beda cerita.
@@ -90,10 +88,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         ? ((activeAmount / totalBalance) * 100).clamp(0.0, 100.0)
         : 0.0;
 
-    // ── 3. Insight ──
-    final insight = _isExpense
-        ? financeProvider.topExpenseCategory
-        : _topIncomeCategory(financeProvider, now);
+    // ── 3. Insight: share kategori teratas dalam jendela tab ──
+    final topCategory =
+        sortedCategories.isEmpty ? null : sortedCategories.first;
+    final insight = topCategory == null || windowTotal <= 0
+        ? null
+        : (
+            name: topCategory.key,
+            amount: topCategory.value,
+            percent: ((topCategory.value / windowTotal) * 100).round(),
+          );
+    final insightPeriod = switch (granularity) {
+      PeriodGranularity.daily => s.insightPeriodDaily,
+      PeriodGranularity.weekly => s.insightPeriodWeekly,
+      PeriodGranularity.monthly => s.insightPeriodMonthly,
+    };
 
     final heroTotal = buckets.fold<double>(0, (m, b) => m + b.total);
     final heroTotalOrFallback = heroTotal > 0
@@ -164,11 +173,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       _isExpense ? AppColors.error : AppColors.statusPositive,
                   activeGlow:
                       _isExpense ? AppColors.error : AppColors.statusPositive,
-                  activeTextColor: _isExpense
-                      ? Colors.white
-                      : (AppColors.isLight
-                          ? Colors.white // pill hijau pekat di light → putih
-                          : const Color(0xFF003824)), // mint gelap di dark
+                  activeTextColor: (!_isExpense && AppColors.isLight)
+                      ? Colors.white // pill hijau pekat di light → putih
+                      : AppColors.textPrimary, // token teks putih di dark
+                  inactiveTextColorBuilder: !AppColors.isLight
+                      ? (i) => i == 0 ? AppColors.textPrimary : null
+                      : null,
                   onChanged: (i) => setState(() {
                     _selectedPeriodIndex = i;
                     _selectedBarIndex = null; // rentang bar berubah
@@ -433,10 +443,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             Text(
                               insight != null
                                   ? (_isExpense
-                                      ? s.insightTopCategory(
-                                          insight.name, insight.percent)
-                                      : s.insightTopIncomeCategory(
-                                          insight.name, insight.percent))
+                                      ? s.insightTopCategory(insight.name,
+                                          insight.percent, insightPeriod)
+                                      : s.insightTopIncomeCategory(insight.name,
+                                          insight.percent, insightPeriod))
                                   : s.insightEmpty,
                               style: AppTypography.caption
                                   .copyWith(color: AppColors.onSurfaceVariant),
@@ -518,8 +528,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 else
                   ...sortedCategories.map((entry) {
                     final percentage =
-                        monthTotal > 0 ? (entry.value / monthTotal) : 0.0;
-                    final count = categoryCounts[entry.key] ?? 0;
+                        windowTotal > 0 ? (entry.value / windowTotal) : 0.0;
+                    final count = summary.counts[entry.key] ?? 0;
                     final meta = _getCategoryMeta(entry.key);
 
                     return Padding(
@@ -527,7 +537,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () => _showCategoryDetail(
-                            context, entry.key, financeProvider, now, s),
+                            context, entry.key, financeProvider,
+                            buckets.first.start, buckets.last.end, s),
                         child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -661,19 +672,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  /// Poin 5: drill-down — daftar transaksi kategori tsb (tipe aktif,
-  /// bulan berjalan, mengikuti angka kartu). Klik item → halaman detail.
+  /// Drill-down — daftar transaksi kategori tsb (tipe aktif, jendela tab
+  /// yang sama dengan kartu & chart). Klik item → halaman detail.
   void _showCategoryDetail(
     BuildContext context,
     String categoryName,
     FinanceProvider provider,
-    DateTime now,
+    DateTime windowStart,
+    DateTime windowEnd,
     AppStrings s,
   ) {
     final list = provider.transactions.where((t) {
       if (t.type != _txType) return false;
       final d = DateTime.fromMillisecondsSinceEpoch(t.transactionDate);
-      if (d.month != now.month || d.year != now.year) return false;
+      if (d.isBefore(windowStart) || !d.isBefore(windowEnd)) return false;
       return (t.category?.name ?? s.umum) == categoryName;
     }).toList();
     if (!context.mounted) return;
@@ -722,29 +734,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         );
       }
     }
-  }
-
-  /// Top income category for insight card (mirrors topExpenseCategory logic).
-  ({String name, double amount, int percent})? _topIncomeCategory(
-      FinanceProvider provider, DateTime now) {
-    final byCategory = <String, double>{};
-    var total = 0.0;
-    for (final t in provider.transactions) {
-      final d = DateTime.fromMillisecondsSinceEpoch(t.transactionDate);
-      if (t.type != 'INCOME' || d.month != now.month || d.year != now.year) {
-        continue;
-      }
-      final name = t.category?.name ?? 'Umum';
-      byCategory[name] = (byCategory[name] ?? 0) + t.amount;
-      total += t.amount;
-    }
-    if (byCategory.isEmpty || total <= 0) return null;
-    final top = byCategory.entries.reduce((a, b) => a.value >= b.value ? a : b);
-    return (
-      name: top.key,
-      amount: top.value,
-      percent: ((top.value / total) * 100).round(),
-    );
   }
 
   /// Label rentang Senin–Minggu, mis. "14–20 Sep" atau "31 Agu–6 Sep"
@@ -828,12 +817,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 // (ikuti selera AppColors: green = money in, red = out).
 Color _typeOverlay(int typeIndex) =>
     typeIndex == 0 ? AppColors.error : AppColors.statusPositive;
-// Teks di atas pill: putih untuk expense & untuk income di light
-// (pill hijau pekat #047857, putih ≈5.5:1). Dark mode pill = mint
-// pucat — putih cuma 1.7:1, jadi tetap hijau tua.
-Color _typeOnOverlay(int typeIndex) => typeIndex == 0 || AppColors.isLight
-    ? Colors.white
-    : const Color(0xFF003824);
+// Teks Income selalu putih (aktif & nonaktif, dark & light).
+Color _typeOnOverlay(int typeIndex) => typeIndex == 1 ? AppColors.textPrimary : Colors.white;
 
 class _GlassTypeToggle extends StatelessWidget {
   const _GlassTypeToggle({
@@ -896,7 +881,9 @@ class _GlassTypeToggle extends StatelessWidget {
                         size: 18,
                         color: i == index
                             ? _typeOnOverlay(i)
-                            : AppColors.onSurfaceVariant,
+                            : (i == 1
+                                ? AppColors.textPrimary
+                                : AppColors.onSurfaceVariant),
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -907,7 +894,9 @@ class _GlassTypeToggle extends StatelessWidget {
                               i == index ? FontWeight.w600 : FontWeight.w500,
                           color: i == index
                               ? _typeOnOverlay(i)
-                              : AppColors.onSurfaceVariant,
+                              : (i == 1
+                                  ? AppColors.textPrimary
+                                  : AppColors.onSurfaceVariant),
                         ),
                       ),
                     ],

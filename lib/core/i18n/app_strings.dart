@@ -63,9 +63,13 @@ class AppStrings {
   String get insightEmpty => isEn
       ? 'Record spending to unlock insights'
       : 'Catat pengeluaran untuk melihat analisis';
-  String insightTopCategory(String category, int percent) => isEn
-      ? '$category takes $percent% of this month\'s spending'
-      : '$category menyerap $percent% pengeluaran bulan ini';
+  String insightTopCategory(String category, int percent, String period) =>
+      isEn
+          ? '$category takes $percent% of $period spending'
+          : '$category menyerap $percent% pengeluaran $period';
+  String get insightPeriodDaily => isEn ? 'the last 3 days’' : '3 hari terakhir';
+  String get insightPeriodWeekly => isEn ? 'this week’s' : 'pekan ini';
+  String get insightPeriodMonthly => isEn ? 'this month’s' : 'bulan ini';
   String get insightOnTrack => isEn
       ? 'Spending is within your usual pattern'
       : 'Pengeluaran masih dalam pola biasanya';
@@ -207,9 +211,10 @@ class AppStrings {
   String get noIncomeDataHint => isEn
       ? 'Record an income transaction to see visual stats.'
       : 'Catat transaksi pemasukan untuk melihat statistik visual.';
-  String insightTopIncomeCategory(String category, int percent) => isEn
-      ? '$category is $percent% of this month\'s income'
-      : '$category menyumbang $percent% pemasukan bulan ini';
+  String insightTopIncomeCategory(String category, int percent, String period) =>
+      isEn
+          ? '$category is $percent% of $period income'
+          : '$category menyumbang $percent% pemasukan $period';
 
   List<String> get monthsShort => isEn
       ? const [

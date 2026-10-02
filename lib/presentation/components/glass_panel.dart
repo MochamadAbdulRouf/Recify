@@ -190,6 +190,7 @@ class GlassSegmentedTabs extends StatelessWidget {
     this.activeColor,
     this.activeGlow,
     this.activeTextColor = Colors.white,
+    this.inactiveTextColorBuilder,
   });
 
   final List<String> labels;
@@ -201,6 +202,7 @@ class GlassSegmentedTabs extends StatelessWidget {
   final Color? activeColor;
   final Color? activeGlow;
   final Color activeTextColor;
+  final Color? Function(int index)? inactiveTextColorBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +252,8 @@ class GlassSegmentedTabs extends StatelessWidget {
                               i == index ? FontWeight.w600 : FontWeight.w500,
                           color: i == index
                               ? activeTextColor
-                              : AppColors.onSurfaceVariant,
+                              : (inactiveTextColorBuilder?.call(i) ??
+                                  AppColors.onSurfaceVariant),
                         ),
                       ),
                     ),
