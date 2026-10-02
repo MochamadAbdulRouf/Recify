@@ -58,11 +58,17 @@ class _MainShellScreenState extends State<MainShellScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Non-const disengaja: setiap rebuild shell (termasuk saat ganti tema)
+    // menghasilkan instance baru → tiap tab ikut Element.update & baca ulang
+    // AppColors. Instance const tidak akan pernah dapat update warna baru.
     final List<Widget> screens = [
       HomeDashboardScreen(onNavigateTab: _onTabSelected),
-      const AnalyticsScreen(),
-      const TransactionHistoryScreen(),
-      const SettingsScreen(),
+      // ignore: prefer_const_constructors — non-const disengaja (lihat komentar di atas)
+      AnalyticsScreen(),
+      // ignore: prefer_const_constructors
+      TransactionHistoryScreen(),
+      // ignore: prefer_const_constructors
+      SettingsScreen(),
     ];
 
     return Scaffold(

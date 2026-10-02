@@ -87,7 +87,15 @@ class _RecifyAppState extends State<RecifyApp> with WidgetsBindingObserver {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: theme.flutterMode,
-            home: const MainShellScreen(),
+            // Consumer DI DALAM route (home dibangun Navigator sekali di
+            // awal): saat tema berubah, notify → instance MainShellScreen
+            // BARU (non-const) → Element.update cascade ke seluruh layar
+            // tanpa remount — state tab & scroll aman. Tanpa ini, ganti
+            // tema hanya memperbarui widget yang watch ThemeProvider.
+            home: Consumer<ThemeProvider>(
+              // ignore: prefer_const_constructors — non-const disengaja, lihat komentar di atas
+              builder: (context, theme, _) => MainShellScreen(),
+            ),
           );
         },
       ),
