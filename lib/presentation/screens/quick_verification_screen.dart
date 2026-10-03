@@ -41,6 +41,12 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
   late TextEditingController _amountController;
   late TextEditingController _notesController;
   late DateTime _selectedDate;
+  bool _amountFocused = false;
+  bool _merchantFocused = false;
+
+  /// True setelah save/retake dinavigasi — PopScope & back header
+  /// tidak perlu konfirmasi lagi.
+  bool _savedOrReplaced = false;
   CategoryModel? _selectedCategory;
   WalletModel? _selectedWallet;
   late List<ParsedReceiptItem> _editableItems;
@@ -117,7 +123,19 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
 
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
-      body: Stack(
+      // Satu PopScope mencakup tombol back Android, gesture swipe-back
+      // (predictive back), dan pemicu sistem lain — semua lewat validasi
+      // yang sama. Navigator.pop programatik (save/retake) tidak lewat sini.
+      body: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) async {
+          if (didPop || _savedOrReplaced) return;
+          final navigator = Navigator.of(context);
+          if (await _confirmDiscardScan()) {
+            navigator.pop();
+          }
+        },
+        child: Stack(
         children: [
           const Positioned.fill(child: MeshBackdrop()),
           // Header mengambang ala Stitch: back + judul (menggantikan
@@ -191,13 +209,39 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                         // Total pill (posisi Detected Total di desain Stitch)
                         // — nilai tetap bisa diedit, sumber amount untuk save
                         // tidak berubah.
+                        // Tanpa border outlined (permintaan borderless);
+                        // bg naik saat fokus supaya input tetap terbaca.
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerLowest
-                                .withValues(alpha: 0.8),
+                            // Light: aksen fokal electric blue (Stitch OCR
+                            // SCAN V2 Light) — bg blue-600 + border blue-400
+                            // + shadow; fokus = putih tipis di atas.
+                            // Dark: perilaku lama, tanpa perubahan.
+                            color: AppColors.isLight
+                                ? (_amountFocused
+                                    ? AppColors.primaryContainer
+                                        .withValues(alpha: 0.85)
+                                    : AppColors.primaryContainer)
+                                : (_amountFocused
+                                    ? AppColors.surfaceContainerHighest
+                                    : AppColors.surfaceContainerLowest
+                                        .withValues(alpha: 0.8)),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.borderSubtle),
+                            border: AppColors.isLight
+                                ? Border.all(
+                                    color: AppColors.detectedTotalBorder)
+                                : null,
+                            boxShadow: AppColors.isLight
+                                ? [
+                                    BoxShadow(
+                                      color: AppColors.primaryContainer
+                                          .withValues(alpha: 0.35),
+                                      blurRadius: 18,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ]
+                                : null,
                           ),
                           child: Row(
                             children: [
@@ -208,7 +252,10 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                     Text(
                                       s.fieldAmount,
                                       style: AppTypography.labelSmall.copyWith(
-                                        color: AppColors.textSecondary,
+                                        // Light: blue-100 di atas blue-600.
+                                        color: AppColors.isLight
+                                            ? AppColors.detectedTotalLabel
+                                            : AppColors.textSecondary,
                                         letterSpacing: 1.1,
                                       ),
                                     ),
@@ -218,22 +265,39 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                         Text(
                                           'Rp ',
                                           style: AppTypography.titleSm.copyWith(
-                                              color: AppColors.textSecondary),
+                                              color: AppColors.isLight
+                                                  ? Colors.white
+                                                  : AppColors.textSecondary),
                                         ),
                                         Expanded(
-                                          child: TextField(
-                                            controller: _amountController,
-                                            keyboardType:
-                                                TextInputType.number,
-                                            style: AppTypography
-                                                .displayLgMobile
-                                                .copyWith(
-                                                    color:
-                                                        AppColors.textPrimary),
-                                            decoration: const InputDecoration(
-                                              border: InputBorder.none,
-                                              isDense: true,
-                                              contentPadding: EdgeInsets.zero,
+                                          child: Focus(
+                                            onFocusChange: (f) => setState(
+                                                () => _amountFocused = f),
+                                            child: TextField(
+                                              controller: _amountController,
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              style: AppTypography
+                                                  .displayLgMobile
+                                                  .copyWith(
+                                                      color: AppColors.isLight
+                                                          ? Colors.white
+                                                          : AppColors
+                                                              .textPrimary),
+                                              decoration:
+                                                  const InputDecoration(
+                                                border: InputBorder.none,
+                                                // Theme set OutlineInputBorder
+                                                // (enabled+focused) — harus
+                                                // dioverride agar benar2
+                                                // borderless di layar OCR.
+                                                enabledBorder:
+                                                    InputBorder.none,
+                                                focusedBorder:
+                                                    InputBorder.none,
+                                                isDense: true,
+                                                contentPadding: EdgeInsets.zero,
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -248,14 +312,18 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                   Text(
                                     s.taxIncluded,
                                     style: AppTypography.labelSmall.copyWith(
-                                        color: AppColors.textSecondary),
+                                        color: AppColors.isLight
+                                            ? Colors.white
+                                            : AppColors.textSecondary),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     CurrencyFormatter.formatRupiah(
                                         widget.parsedData.tax),
-                                    style: AppTypography.labelLarge
-                                        .copyWith(color: AppColors.textPrimary),
+                                    style: AppTypography.labelLarge.copyWith(
+                                        color: AppColors.isLight
+                                            ? Colors.white
+                                            : AppColors.textPrimary),
                                   ),
                                 ],
                               ),
@@ -300,14 +368,22 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                               icon: Icons.storefront_outlined,
                               iconColor: AppColors.primaryLight,
                               label: s.fieldMerchant,
-                              child: TextField(
-                                controller: _merchantController,
-                                style: AppTypography.titleSm,
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                  hintText: s.merchantHint,
+                              focused: _merchantFocused,
+                              child: Focus(
+                                onFocusChange: (f) =>
+                                    setState(() => _merchantFocused = f),
+                                child: TextField(
+                                  controller: _merchantController,
+                                  style: AppTypography.titleSm,
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    // Override slot theme (lihat amount input).
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    hintText: s.merchantHint,
+                                  ),
                                 ),
                               ),
                               trailing: Icon(Icons.verified_rounded,
@@ -637,10 +713,38 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
               ],
             ),
           ),
+        ],
+        ),
+      ),
+    );
+  }
 
+  /// Konfirmasi pembatalan hasil scan — satu sumber untuk tombol back
+  /// header, back Android, dan gesture swipe-back. true = boleh keluar.
+  Future<bool> _confirmDiscardScan() async {
+    final s = AppStrings.of(context);
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(s.discardScanTitle, style: AppTypography.titleMedium),
+        content: Text(s.discardScanBody, style: AppTypography.bodyReg),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(s.keepEditing,
+                style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(s.discardScan,
+                style: TextStyle(color: AppColors.error)),
+          ),
         ],
       ),
     );
+    return discard == true;
   }
 
   /// Header mengambang (al Stitch): back + judul, blur tipis di atas konten.
@@ -661,7 +765,16 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                   IconButton(
                     icon: Icon(Icons.arrow_back_ios_new_rounded,
                         size: 20, color: AppColors.onSurface),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () async {
+                      final navigator = Navigator.of(context);
+                      if (_savedOrReplaced) {
+                        navigator.pop();
+                        return;
+                      }
+                      if (await _confirmDiscardScan()) {
+                        navigator.pop();
+                      }
+                    },
                   ),
                   const SizedBox(width: 4),
                   Text(s.scanAndPay, style: AppTypography.titleMedium),
@@ -683,13 +796,16 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
     required Widget child,
     Widget? trailing,
     VoidCallback? onTap,
+    bool focused = false,
   }) {
     final row = Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerHigh.withValues(alpha: 0.60),
+        // Borderless (permintaan T5); fokus text-input → bg naik token.
+        color: focused
+            ? AppColors.surfaceContainerHighest
+            : AppColors.surfaceContainerHigh.withValues(alpha: 0.60),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderSubtle),
       ),
       child: Row(
         children: [
@@ -856,6 +972,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
               child: Image.file(
                 File(widget.receiptImagePath!),
                 fit: BoxFit.cover,
+                cacheWidth: 1080,
                 color: const Color(0x99000000),
                 colorBlendMode: BlendMode.darken,
               ),
@@ -900,28 +1017,32 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
           ),
 
           // Animated Laser Scanner Beam (cyan al Stitch)
-          AnimatedBuilder(
-            animation: _scannerAnimation,
-            builder: (context, child) {
-              return Positioned(
-                top: 280 * _scannerAnimation.value,
-                left: 0,
-                right: 0,
-                child: Container(
-                  height: 2,
-                  decoration: BoxDecoration(
-                    color: AppColors.meshCyan,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.meshCyan.withValues(alpha: 0.8),
-                        blurRadius: 16,
-                        spreadRadius: 3,
-                      ),
-                    ],
+          // TickerMode: berhenti saat layar tidak current (hemat GPU).
+          TickerMode(
+            enabled: ModalRoute.of(context)?.isCurrent ?? true,
+            child: AnimatedBuilder(
+              animation: _scannerAnimation,
+              builder: (context, child) {
+                return Positioned(
+                  top: 280 * _scannerAnimation.value,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: 2,
+                    decoration: BoxDecoration(
+                      color: AppColors.meshCyan,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.meshCyan.withValues(alpha: 0.8),
+                          blurRadius: 16,
+                          spreadRadius: 3,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
 
           // Target reticle corners (al Stitch)
@@ -1180,34 +1301,81 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
     final s = AppStrings.of(context);
     final receiptDate = DateFormat('d MMM yyyy').format(_selectedDate);
 
-    final useToday = await showDialog<bool>(
+    // Pilih → KONFIRMASI dulu sebelum diterapkan. "Kembali" mengembalikan
+    // ke dialog pilihan tanpa mengubah apa pun; barrier = batal total.
+    while (mounted) {
+      final choice = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.bgSurface,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(s.dateOldTitle, style: AppTypography.titleMedium),
+          content: Text(
+            s.staleDateWarning(receiptDate, _daysAgoLabel(_selectedDate)),
+            style: AppTypography.bodyReg,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(s.useReceiptDate(receiptDate),
+                  style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(s.useToday,
+                  style: TextStyle(color: AppColors.primaryLight)),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || choice == null) return; // barrier: tanpa perubahan
+
+      final useToday = choice;
+      // Pertanyaan konfirmasi menyebut tanggal yang AKAN dipakai:
+      // hari ini untuk "Use today", tanggal nota untuk pilihan satunya.
+      final question = useToday
+          ? s.dateConfirmToday(
+              DateFormat('d MMM yyyy').format(DateTime.now()))
+          : s.dateConfirmReceipt(receiptDate);
+      final confirmed = await _showDateConfirmDialog(question);
+      if (!mounted || confirmed == null) return;
+
+      if (confirmed) {
+        if (useToday && mounted) {
+          setState(() => _selectedDate = DateTime.now());
+        }
+        return; // diterapkan → lanjut alur verifikasi
+      }
+      // "Kembali" → loop: dialog pilihan tampil lagi, belum ada perubahan.
+    }
+  }
+
+  /// Dialog konfirmasi kedua — satu komponen untuk kedua pilihan tanggal,
+  /// hanya [question] yang berbeda. true =Ya gunakan, false =Kembali,
+  /// null =barrier (batal).
+  Future<bool?> _showDateConfirmDialog(String question) {
+    final s = AppStrings.of(context);
+    return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(s.dateOldTitle, style: AppTypography.titleMedium),
-        content: Text(
-          s.staleDateWarning(receiptDate, _daysAgoLabel(_selectedDate)),
-          style: AppTypography.bodyReg,
-        ),
+        title: Text(question, style: AppTypography.titleMedium),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(s.useReceiptDate(receiptDate),
+            child: Text(s.kembali,
                 style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(s.useToday,
+            child: Text(s.confirmUse,
                 style: TextStyle(color: AppColors.primaryLight)),
           ),
         ],
       ),
     );
-
-    if (useToday == true && mounted) {
-      setState(() => _selectedDate = DateTime.now());
-    }
   }
 
   void _pickDate() async {
@@ -1228,6 +1396,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
     final scannerProvider = context.read<ScannerProvider>();
     await scannerProvider.pickAndScanReceipt(ImageSource.camera);
     if (mounted && scannerProvider.lastScanResult != null) {
+      _savedOrReplaced = true;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -1297,6 +1466,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
             CurrencyFormatter.formatRupiah(amount),
           ),
         );
+        _savedOrReplaced = true;
         Navigator.pop(context, true); // Return true to signal successful save
       }
     } catch (e) {

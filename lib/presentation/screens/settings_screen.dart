@@ -14,6 +14,9 @@ import '../../core/utils/currency_input_formatter.dart';
 import '../../data/models/budget_model.dart';
 import '../../data/models/category_model.dart';
 import '../../data/models/wallet_model.dart';
+import 'dart:async';
+
+import '../../domain/ocr/gemini_models.dart';
 import '../components/app_toast.dart';
 import '../components/budget_progress_bar.dart';
 import '../components/glass_panel.dart';
@@ -174,6 +177,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               File(_avatarPath!),
                               width: 84,
                               height: 84,
+                              cacheWidth: 168,
                               fit: BoxFit.cover,
                             )
                           : Center(
@@ -449,23 +453,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 22),
 
-            // Section: Preferences (Language)
+            // Section: Preferences (Language) — pilihan ID/EN, bukan toggle
             _buildSectionHeader(s.sectionPrefs),
             _buildCardGroup([
               Builder(
                 builder: (context) {
                   final locale = context.watch<LocaleProvider>();
                   final s = AppStrings.of(context);
-                  return _buildSettingItem(
-                    icon: Icons.language_rounded,
-                    iconColor: AppColors.meshCyan,
-                    title: s.language,
-                    subtitle: locale.isEn ? s.english : s.indonesian,
-                    trailing: Switch.adaptive(
-                      value: locale.isEn,
-                      onChanged: (val) => locale.setLocale(val ? 'en' : 'id'),
-                      activeTrackColor: AppColors.primary,
-                    ),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSettingItem(
+                        icon: Icons.language_rounded,
+                        iconColor: AppColors.meshCyan,
+                        title: s.language,
+                        subtitle: locale.isEn ? s.english : s.indonesian,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                        child: GlassSegmentedTabs(
+                          labels: [s.indonesian, s.english],
+                          index: locale.isEn ? 1 : 0,
+                          onChanged: (i) =>
+                              locale.setLocale(i == 1 ? 'en' : 'id'),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -498,12 +511,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Builder(
                 builder: (context) {
                   final scannerProvider = context.watch<ScannerProvider>();
+                  final model = scannerProvider.activeModel;
+                  final blockedLeft = scannerProvider.quotaCountdownText(
+                      scannerProvider.modelId,
+                      isEn: s.isEn);
+                  return _buildSettingItem(
+                    icon: Icons.auto_awesome_rounded,
+                    iconColor: AppColors.meshViolet,
+                    title: s.geminiModel,
+                    subtitle: blockedLeft != null
+                        ? '${model?.shortName ?? scannerProvider.modelId} • ${s.quotaAvailableIn(blockedLeft)}'
+                        : (model?.shortName ?? scannerProvider.modelId),
+                    onTap: () => _showModelSheet(context),
+                  );
+                },
+              ),
+              _buildDivider(),
+              Builder(
+                builder: (context) {
+                  final scannerProvider = context.watch<ScannerProvider>();
+                  final keyCount = scannerProvider.apiKeys.length;
                   return _buildSettingItem(
                     icon: Icons.key_rounded,
                     iconColor: AppColors.meshCyan,
                     title: 'Gemini API Key',
                     subtitle: scannerProvider.hasApiKey
-                        ? s.apiKeyStored
+                        ? '${scannerProvider.activeKeyLabel} • ${s.geminiKeysSubtitle(keyCount)}'
                         : s.notConfigured,
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -529,7 +562,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
                       ],
                     ),
-                    onTap: () => _showApiKeyDialog(context),
+                    onTap: () => _showKeysSheet(context),
                   );
                 },
               ),
@@ -673,6 +706,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     File(tempAvatarPath!),
                                     width: 84,
                                     height: 84,
+                                    cacheWidth: 168,
                                     fit: BoxFit.cover,
                                   )
                                 : Icon(Icons.person_rounded, size: 44, color: AppColors.primaryLight),
@@ -1139,56 +1173,321 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // Gemini API Key Dialog
-  void _showApiKeyDialog(BuildContext context) {
-    final scannerProvider = context.read<ScannerProvider>();
-    final keyController = TextEditingController();
+  // ── Model Gemini: bottom sheet daftar 5 model + status kuota realtime ──
+  void _showModelSheet(BuildContext context) {
     final s = AppStrings.of(context);
-
-    showDialog(
+    Timer? ticker;
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Gemini API Key', style: AppTypography.titleMedium),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              s.apiKeyHelp,
-              style: AppTypography.caption.copyWith(color: AppColors.textSecondary, fontSize: 11),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: keyController,
-              autofocus: true,
-              obscureText: true,
-              style: AppTypography.bodyBold,
-              decoration: const InputDecoration(
-                hintText: 'AIza...',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      backgroundColor: AppColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          ticker ??= Timer.periodic(const Duration(seconds: 30), (_) {
+            if (ctx.mounted) setSheetState(() {});
+          });
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(s.geminiModel, style: AppTypography.titleMedium),
+                  const SizedBox(height: 12),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: kGeminiModels.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: 8),
+                      itemBuilder: (c, i) {
+                        final opt = kGeminiModels[i];
+                        final provider =
+                            c.read<ScannerProvider>();
+                        final blockedLeft =
+                            provider.quotaCountdownText(opt.id, isEn: s.isEn);
+                        final active =
+                            provider.modelId == opt.id;
+                        return PressableScale(child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: blockedLeft != null
+                              ? null
+                              : () async {
+                                  await provider.setModel(opt.id);
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                },
+                          child: Opacity(
+                            opacity: blockedLeft != null ? 0.55 : 1.0,
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: active
+                                    ? AppColors.primary
+                                        .withValues(alpha: 0.12)
+                                    : AppColors.bgSurfaceElevated,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: active
+                                      ? AppColors.primary
+                                      : AppColors.borderSubtle,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                opt.shortName,
+                                                style: AppTypography.bodyBold
+                                                    .copyWith(fontSize: 14),
+                                              ),
+                                            ),
+                                            if (active)
+                                              Icon(Icons.check_circle_rounded,
+                                                  size: 18,
+                                                  color: AppColors.primary),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          s.isEn ? opt.blurbEn : opt.blurbId,
+                                          style: AppTypography.caption
+                                              .copyWith(
+                                                  color: AppColors
+                                                      .textSecondary,
+                                                  fontSize: 12),
+                                        ),
+                                        if (blockedLeft != null) ...[
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            children: [
+                                              Icon(Icons.hourglass_bottom_rounded,
+                                                  size: 14,
+                                                  color: AppColors
+                                                      .statusWarning),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                s.quotaAvailableIn(
+                                                    blockedLeft),
+                                                style: AppTypography.caption
+                                                    .copyWith(
+                                                        color: AppColors
+                                                            .statusWarning,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        fontSize: 12),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ));
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          );
+        },
+      ),
+    ).whenComplete(() => ticker?.cancel());
+  }
+
+  // ── API Keys: bottom sheet daftar + tambah + hapus + pilih aktif ──
+  void _showKeysSheet(BuildContext context) {
+    final s = AppStrings.of(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final provider = ctx.watch<ScannerProvider>();
+          final keys = provider.apiKeys;
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 12,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(s.geminiKeysTitle, style: AppTypography.titleMedium),
+                  const SizedBox(height: 4),
+                  Text(
+                    s.geminiKeysSubtitle(keys.length),
+                    style: AppTypography.caption.copyWith(
+                        color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 12),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: keys.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: 8),
+                      itemBuilder: (c, i) {
+                        final k = keys[i];
+                        final label = k.length <= 4
+                            ? '••••'
+                            : '••••${k.substring(k.length - 4)}';
+                        final active = i == provider.activeKeyIndex;
+                        return PressableScale(child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: active
+                              ? null
+                              : () async {
+                                  await provider.setActiveKey(i);
+                                  setSheetState(() {});
+                                },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: active
+                                  ? AppColors.primary
+                                      .withValues(alpha: 0.12)
+                                  : AppColors.bgSurfaceElevated,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: active
+                                    ? AppColors.primary
+                                    : AppColors.borderSubtle,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(label,
+                                      style: AppTypography.bodyBold
+                                          .copyWith(fontSize: 14)),
+                                ),
+                                if (active)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.secondary
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      s.keyActive,
+                                      style:
+                                          AppTypography.caption.copyWith(
+                                        color: AppColors.secondary,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                                IconButton(
+                                  icon: Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: AppColors.error,
+                                      size: 20),
+                                  onPressed: () async {
+                                    final ok =
+                                        await _confirmDeleteApiKey(
+                                            ctx, active);
+                                    if (ok == true) {
+                                      await provider.removeApiKey(i);
+                                      AppToast.success(s.keyRemoved);
+                                      setSheetState(() {});
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ));
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _AddKeyField(
+                    onAdded: () => setSheetState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Konfirmasi hapus key — satu komponen kecil, true = hapus.
+  Future<bool?> _confirmDeleteApiKey(BuildContext ctx, bool wasActive) {
+    final s = AppStrings.of(ctx);
+    return showDialog<bool>(
+      context: ctx,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(s.discardScanTitle, style: AppTypography.titleMedium),
+        content: Text(
+          wasActive
+              ? s.keyDeleteActiveBody
+              : s.keyDeleteBody,
+          style: AppTypography.bodyReg,
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(s.cancel, style: TextStyle(color: AppColors.textSecondary)),
+            onPressed: () => Navigator.pop(dctx, false),
+            child: Text(s.kembali,
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
-            onPressed: () async {
-              final key = keyController.text.trim();
-              if (key.isEmpty) return;
-              await scannerProvider.setGeminiApiKey(key);
-              if (ctx.mounted) {
-                Navigator.pop(ctx);
-                AppToast.success(s.apiKeySavedMsg(key.length));
-              }
-            },
-            child: Text(s.save, style: const TextStyle(color: Colors.white)),
+            onPressed: () => Navigator.pop(dctx, true),
+            child: Text(s.discardScan,
+                style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -2276,5 +2575,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     ));
+  }
+}
+
+/// Field tambah API key inline di sheet daftar key.
+/// Stateful sendiri: controller + status simpan lokal, `onAdded` untuk
+/// refresh daftar di sheet induk.
+class _AddKeyField extends StatefulWidget {
+  const _AddKeyField({required this.onAdded});
+
+  final VoidCallback onAdded;
+
+  @override
+  State<_AddKeyField> createState() => _AddKeyFieldState();
+}
+
+class _AddKeyFieldState extends State<_AddKeyField> {
+  final _controller = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _controller,
+            obscureText: true,
+            style: AppTypography.bodyBold.copyWith(fontSize: 13),
+            decoration: InputDecoration(
+              hintText: s.pasteKeyHint,
+              border: const OutlineInputBorder(),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _controller,
+          builder: (context, value, _) {
+            final canSave = value.text.trim().isNotEmpty && !_saving;
+            return ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: !canSave
+                  ? null
+                  : () async {
+                      setState(() => _saving = true);
+                      await context
+                          .read<ScannerProvider>()
+                          .addApiKey(_controller.text.trim());
+                      if (context.mounted) {
+                        AppToast.success(s.keyAdded);
+                      }
+                      widget.onAdded();
+                    },
+              child: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text(s.addKey,
+                      style: const TextStyle(color: Colors.white)),
+            );
+          },
+        ),
+      ],
+    );
   }
 }

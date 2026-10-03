@@ -80,7 +80,7 @@ class GlassPanel extends StatelessWidget {
     this.padding,
     this.fill,
     this.borderColor,
-    this.blur = 24,
+    this.blur = 16,
     this.glowBlobs = false,
   });
 

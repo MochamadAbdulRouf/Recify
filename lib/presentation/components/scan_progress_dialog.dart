@@ -14,8 +14,8 @@ enum _StepStatus { pending, active, done }
 ///   2. AI menganalisis struk (Gemini) / Parsing offline (regex)
 ///   3. Validasi perhitungan
 ///
-/// The dialog is purely a display: the caller opens it before
-/// `pickAndScanReceipt()` and closes it after the future completes.
+/// The dialog is purely a display: the caller opens it AFTER the image is
+/// acquired (via `onImageAcquired`) and closes it after the future completes.
 class ScanProgressDialog extends StatelessWidget {
   const ScanProgressDialog({super.key});
 

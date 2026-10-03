@@ -30,7 +30,7 @@ class FloatingIslandNavBar extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(32),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 18, vertical: 12),

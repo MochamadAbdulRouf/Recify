@@ -1,8 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:recify/data/models/parsed_receipt_data.dart';
 import 'package:recify/domain/ocr/receipt_validator.dart';
 
 void main() {
+  setUpAll(() async {
+    await initializeDateFormatting('id');
+  });
+
   group('ReceiptValidator', () {
     ParsedReceiptData buildReceipt({
       List<ParsedReceiptItem> items = const [],
@@ -185,17 +190,84 @@ void main() {
       expect(data.subtotal, 45000.0);
     });
 
-    test('rejects unreasonable dates (year < 2020 or far future)', () {
-      final data = ParsedReceiptData.fromGeminiJson({
-        'date': '1999-05-01',
+    test('accepts readable old dates; rejects unreasonable ones', () {
+      // Nota lama terbaca & valid harus DITERIMA (umur diatur Task 2:
+      // dialog >7 hari). Batas bawah sanity = 1990.
+      final old = ParsedReceiptData.fromGeminiJson({
+        'date': '2015-05-01',
       });
-      // Should fall back to now
-      expect(data.transactionDate.year, DateTime.now().year);
+      expect(old.dateFallback, isFalse);
+      expect(old.transactionDate.year, 2015);
 
+      // Di bawah batas 1990 → fallback ke now.
+      final ancient = ParsedReceiptData.fromGeminiJson({
+        'date': '1985-05-01',
+      });
+      expect(ancient.dateFallback, isTrue);
+      expect(ancient.transactionDate.year, DateTime.now().year);
+
+      // Far future (>30 hari) tetap dianggap tak wajar → fallback.
       final future = ParsedReceiptData.fromGeminiJson({
         'date': DateTime.now().add(const Duration(days: 60)).toIso8601String(),
       });
+      expect(future.dateFallback, isTrue);
       expect(future.transactionDate.year, DateTime.now().year);
+    });
+
+    test('accepts non-ISO formats the model often returns', () {
+      final monthName = ParsedReceiptData.fromGeminiJson({
+        'date': 'September 15, 2024',
+      });
+      expect(monthName.dateFallback, isFalse);
+      expect(monthName.transactionDate.year, 2024);
+      expect(monthName.transactionDate.month, 9);
+
+      final usOrder = ParsedReceiptData.fromGeminiJson({
+        'date': '09/15/2024',
+      });
+      expect(usOrder.dateFallback, isFalse);
+      expect(usOrder.transactionDate.month, 9);
+      expect(usOrder.transactionDate.day, 15);
+
+      final slashId = ParsedReceiptData.fromGeminiJson({
+        'date': '15/09/2024',
+      });
+      expect(slashId.dateFallback, isFalse);
+      expect(slashId.transactionDate.day, 15);
+    });
+
+    test('rantai date_raw: date null tapi verbatim ada → diterima', () {
+      final viaRaw = ParsedReceiptData.fromGeminiJson({
+        'date': null,
+        'date_raw': '3 Mei 2024',
+      });
+      expect(viaRaw.dateFallback, isFalse);
+      expect(viaRaw.transactionDate.month, 5);
+      expect(viaRaw.transactionDate.day, 3);
+
+      // date ISO tetap prioritas di atas date_raw bila dua-duanya ada.
+      final both = ParsedReceiptData.fromGeminiJson({
+        'date': '2024-11-24',
+        'date_raw': '3 Mei 2024',
+      });
+      expect(both.dateFallback, isFalse);
+      expect(both.transactionDate.month, 11);
+    });
+
+    test('rescues date from raw OCR text when model returns null', () {
+      final rescued = ParsedReceiptData.fromGeminiJson(
+        {'date': null},
+        rawText: 'ARTISAN CAFE\nTANGGAL: 24/11/2024\nTOTAL 50.000',
+      );
+      expect(rescued.dateFallback, isFalse);
+      expect(rescued.transactionDate.year, 2024);
+      expect(rescued.transactionDate.month, 11);
+
+      final nothing = ParsedReceiptData.fromGeminiJson(
+        {'date': null},
+        rawText: 'TOTAL 50000\nTERIMA KASIH',
+      );
+      expect(nothing.dateFallback, isTrue);
     });
   });
 }

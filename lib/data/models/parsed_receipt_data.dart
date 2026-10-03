@@ -1,3 +1,5 @@
+import '../../core/utils/receipt_date_parser.dart';
+
 class ParsedReceiptItem {
   final String itemName;
   final double quantity;
@@ -129,23 +131,24 @@ class ParsedReceiptData {
     String? rawText,
     String? imagePath,
   }) {
-    // Parse date from "YYYY-MM-DD" string — gagal/tak ada → hari ini + flag.
+    // Rantai tanggal: ISO mesin dulu, verbatim model, rescue dari teks OCR
+    // mentah, terakhir fallback. decode cukup .toString — NULL JSON
+    // menjadi null (bukan string 'null').
     DateTime transactionDate = DateTime.now();
     var dateFallback = false;
-    final dateStr = json['date'] as String?;
-    if (dateStr != null && dateStr.isNotEmpty) {
-      try {
-        transactionDate = DateTime.parse(dateStr);
-        // Sanity check: date should be reasonable
-        if (transactionDate.isBefore(DateTime(2020)) ||
-            transactionDate.isAfter(DateTime.now().add(const Duration(days: 30)))) {
-          transactionDate = DateTime.now();
-          dateFallback = true;
-        }
-      } catch (_) {
-        transactionDate = DateTime.now();
-        dateFallback = true;
-      }
+    final rawDateFields = [
+      json['date']?.toString(),
+      json['date_raw']?.toString(),
+    ];
+    DateTime? accepted;
+    for (final v in rawDateFields) {
+      if (v == null || v.isEmpty || v == 'null') continue;
+      accepted = parseReceiptDate(v);
+      if (accepted != null) break;
+    }
+    accepted ??= extractReceiptDate(rawText ?? '');
+    if (accepted != null) {
+      transactionDate = accepted;
     } else {
       dateFallback = true;
     }

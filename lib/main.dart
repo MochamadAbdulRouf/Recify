@@ -7,11 +7,17 @@ import 'presentation/components/app_toast.dart';
 import 'presentation/providers/finance_provider.dart';
 import 'presentation/providers/locale_provider.dart';
 import 'presentation/providers/scanner_provider.dart';
+import 'package:intl/date_symbol_data_local.dart';
+
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/screens/main_shell_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Nama bulan ID untuk parser tanggal nota (receipt_date_parser pakai
+  // DateFormat(..., 'id')). Default locale app tidak berubah.
+  await initializeDateFormatting('id');
 
   // Load tema lebih dulu agar palet benar sebelum frame pertama (anti-flash).
   final themeProvider = ThemeProvider();
@@ -88,13 +94,17 @@ class _RecifyAppState extends State<RecifyApp> with WidgetsBindingObserver {
             darkTheme: AppTheme.darkTheme,
             themeMode: theme.flutterMode,
             // Consumer DI DALAM route (home dibangun Navigator sekali di
-            // awal): saat tema berubah, notify → instance MainShellScreen
-            // BARU (non-const) → Element.update cascade ke seluruh layar
-            // tanpa remount — state tab & scroll aman. Tanpa ini, ganti
-            // tema hanya memperbarui widget yang watch ThemeProvider.
-            home: Consumer<ThemeProvider>(
-              // ignore: prefer_const_constructors — non-const disengaja, lihat komentar di atas
-              builder: (context, theme, _) => MainShellScreen(),
+            // awal): notify tema/locale → instance MainShellScreen BARU
+            // (non-const) → Element.update cascade ke seluruh layar tanpa
+            // remount — state tab & scroll aman. Tanpa ini, ganti tema
+            // atau bahasa hanya memperbarui widget yang watch provider.
+            // LocaleProvider di luar: AppStrings.of pakai context.read,
+            // jadi perlu cascade rebuild agar semua teks ikut berubah.
+            home: Consumer<LocaleProvider>(
+              builder: (context, locale, _) => Consumer<ThemeProvider>(
+                // ignore: prefer_const_constructors — non-const disengaja, lihat komentar di atas
+                builder: (context, theme, _) => MainShellScreen(),
+              ),
             ),
           );
         },

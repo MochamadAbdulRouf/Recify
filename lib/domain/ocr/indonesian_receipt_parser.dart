@@ -1,4 +1,4 @@
-import 'package:intl/intl.dart';
+import '../../core/utils/receipt_date_parser.dart';
 import '../../data/models/parsed_receipt_data.dart';
 
 class IndonesianReceiptParser {
@@ -1300,32 +1300,10 @@ class IndonesianReceiptParser {
 
   /// Tanggal pertama yang valid dari teks nota, atau null bila tidak ada /
   /// tidak kenal format / di luar rentang wajar (pemanggil fallback ke now).
-  DateTime? _extractDate(String rawText) {
-    final datePatterns = [
-      {'format': 'dd/MM/yyyy', 'regex': r'\b(\d{1,2}/\d{1,2}/\d{4})\b'},
-      {'format': 'dd-MM-yyyy', 'regex': r'\b(\d{1,2}-\d{1,2}-\d{4})\b'},
-      {'format': 'dd.MM.yyyy', 'regex': r'\b(\d{1,2}\.\d{1,2}\.\d{4})\b'},
-      {'format': 'yyyy-MM-dd', 'regex': r'\b(\d{4}-\d{1,2}-\d{1,2})\b'},
-      {'format': 'yyyy/MM/dd', 'regex': r'\b(\d{4}/\d{1,2}/\d{1,2})\b'},
-      {'format': 'dd/MM/yy', 'regex': r'\b(\d{1,2}/\d{1,2}/\d{2})\b'},
-      {'format': 'dd-MM-yy', 'regex': r'\b(\d{1,2}-\d{1,2}-\d{2})\b'},
-    ];
-
-    for (final pattern in datePatterns) {
-      final match = RegExp(pattern['regex']!).firstMatch(rawText);
-      if (match != null) {
-        final dateStr = match.group(1);
-        try {
-          final parsed = DateFormat(pattern['format']!).parse(dateStr!);
-          if (parsed.isAfter(DateTime(2020)) &&
-              parsed.isBefore(DateTime.now().add(const Duration(days: 30)))) {
-            return parsed;
-          }
-        } catch (_) {}
-      }
-    }
-    return null;
-  }
+  /// Tanggal pertama yang valid dari teks nota, atau null bila tidak ada /
+  /// tidak kenal format (pemanggil fallback ke now + flag dateFallback).
+  /// Ekstraksi + multi-format ditangani [extractReceiptDate].
+  DateTime? _extractDate(String rawText) => extractReceiptDate(rawText);
 
   String _detectPaymentMethod(String rawText) {
     final upper = rawText.toUpperCase();

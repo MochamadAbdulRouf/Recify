@@ -353,8 +353,8 @@ class AppStrings {
       ? 'Local Account Preferences & Security'
       : 'Preferensi & Keamanan Akun Lokal';
   String get offlineNote => isEn
-      ? '100% Offline • Local SQLite Storage'
-      : '100% Offline • Penyimpanan SQLite Lokal';
+      ? 'Local SQLite Storage • Optional AI'
+      : 'Penyimpanan SQLite Lokal • AI Opsional';
   String get sectionAccountSecurity =>
       isEn ? 'ACCOUNT & SECURITY' : 'AKUN & KEAMANAN';
   String get sectionDataManager => isEn ? 'DATA MANAGEMENT' : 'MANAJEMEN DATA';
@@ -418,25 +418,26 @@ class AppStrings {
   String get helpCenter =>
       isEn ? 'Help Center & Guide' : 'Pusat Bantuan & Panduan';
   String get helpCenterSubtitle => isEn
-      ? 'How to scan receipts & auto recap'
-      : 'Cara scan struk & rekap otomatis';
+      ? 'Scan receipts, auto recap & reports'
+      : 'Scan struk, rekap otomatis & laporan';
   String get guideTitle => isEn ? 'Recify Guide' : 'Panduan Recify';
   String get guideBody => isEn
       ? '1. Tap the camera button in the middle of the bottom menu to scan a receipt.\n'
           '2. Make sure the receipt is flat and the text is clearly readable.\n'
-          '3. Verify the total & save to your local SQLite database.\n'
+          '3. Verify the total & save to your local SQLite database. If Gemini AI is on, the OCR text is sent to Google for analysis.\n'
           '4. Export accounting reports to Excel/CSV straight to the Download folder.'
       : '1. Buka tombol kamera di tengah menu bawah untuk scan struk belanja.\n'
           '2. Pastikan nota rata dan tulisan terbaca jelas.\n'
-          '3. Verifikasi total & simpan ke database SQLite lokal Anda.\n'
+          '3. Verifikasi total & simpan ke database SQLite lokal Anda. Bila AI Gemini aktif, teks OCR dikirim ke Google untuk dianalisis.\n'
           '4. Ekspor laporan pembukuan ke format Excel/CSV langsung di folder Download.';
   String get understood => isEn ? 'Got it' : 'Mengerti';
   String get closeButton => isEn ? 'Close' : 'Tutup';
   String get privacyPolicy => isEn ? 'Privacy Policy' : 'Kebijakan Privasi';
-  String get privacySubtitle => 'Zero Cloud • 100% Offline AI';
+  String get privacySubtitle =>
+      isEn ? 'On-device first • Optional AI' : 'Lokal dulu • AI opsional';
   String get privacyBody => isEn
-      ? 'Recify is built on a philosophy of total privacy. No cloud servers, no third-party analytics, no tracking of your personal data.'
-      : 'Recify dirancang dengan filosofi privasi total. Tidak ada server cloud, analitik pihak ketiga, atau pelacakan data pribadi Anda.';
+      ? 'Transactions, wallets & settings stay local (SQLite). If you enable the Gemini AI Parser and add an API key, OCR text is sent to Google and subject to Google’s privacy policy. Without a key, everything is 100% offline.'
+      : 'Transaksi, dompet & pengaturan tersimpan lokal (SQLite). Bila Anda mengaktifkan AI Parser (Gemini) dan memasukkan API key, teks hasil OCR dikirim ke Google dan tunduk pada kebijakan privasi Google. Tanpa key, semua 100% offline.';
   String get versionLabel => isEn
       ? 'Recify Version 1.0.0 (Build 2026)'
       : 'Recify Versi 1.0.0 (Build 2026)';
@@ -604,6 +605,47 @@ class AppStrings {
   String get dateFutureNotice => isEn
       ? 'Receipt date is in the future — using today'
       : 'Tanggal nota di masa depan — memakai hari ini';
+  String dateConfirmToday(String date) => isEn
+      ? 'Use today ($date)?'
+      : 'Yakin memakai tanggal hari ini ($date)?';
+  String dateConfirmReceipt(String date) => isEn
+      ? 'Use receipt date ($date)?'
+      : 'Yakin memakai tanggal nota ($date)?';
+  String get confirmUse => isEn ? 'Yes, use it' : 'Ya, gunakan';
+  String get kembali => isEn ? 'Back' : 'Kembali';
+
+  // ── Discard scan result ──
+  String get discardScanTitle =>
+      isEn ? 'Discard scan result?' : 'Buang hasil scan?';
+  String get discardScanBody => isEn
+      ? 'Scan result will be lost and not saved. Continue?'
+      : 'Hasil scan akan hilang dan tidak tersimpan. Lanjutkan?';
+  String get keepEditing => isEn ? 'Keep editing' : 'Tetap di sini';
+  String get discardScan => isEn ? 'Discard' : 'Buang hasil';
+
+  // ── Gemini quota ──
+  String geminiQuotaExhausted(String model, String remaining) => isEn
+      ? 'Free quota for $model exhausted, back in $remaining. Using offline parser for now.'
+      : 'Kuota gratis $model habis, kembali dalam $remaining. Sementara memakai parser offline.';
+  String get geminiModel => isEn ? 'Gemini Model' : 'Model Gemini';
+  String geminiKeysSubtitle(int n) => isEn
+      ? '$n key${n == 1 ? '' : 's'} • tap to manage'
+      : '$n kunci • ketuk untuk kelola';
+  String get geminiKeysTitle => isEn ? 'Gemini API Keys' : 'Kunci API Gemini';
+  String get addKey => isEn ? 'Add key' : 'Tambah kunci';
+  String get keyActive => isEn ? 'Active' : 'Aktif';
+  String quotaAvailableIn(String t) => isEn
+      ? 'available in $t'
+      : 'tersedia $t';
+  String get pasteKeyHint => 'AIza...';
+  String get keyAdded => isEn ? 'API key added' : 'Kunci API ditambahkan';
+  String get keyRemoved => isEn ? 'API key removed' : 'Kunci API dihapus';
+  String get keyDeleteBody => isEn
+      ? 'Remove this API key from the list?'
+      : 'Hapus kunci API ini dari daftar?';
+  String get keyDeleteActiveBody => isEn
+      ? 'This is the active key. Remove it and switch to another key?'
+      : 'Ini kunci yang sedang aktif. Hapus dan pindah ke kunci lain?';
 
   // ── OCR Scanner Verification v2 (Stitch) ──
   String get scanAndPay => 'Scan & Pay';

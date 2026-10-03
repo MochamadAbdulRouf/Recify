@@ -4,11 +4,14 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'dart:convert';
+
 import '../../data/models/parsed_receipt_data.dart';
 import '../../data/models/transaction_item_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/repositories/finance_repository.dart';
 import '../../data/repositories/receipt_archive_manager.dart';
+import '../../domain/ocr/gemini_models.dart';
 import '../../domain/ocr/gemini_receipt_parser.dart';
 import '../../domain/ocr/indonesian_receipt_parser.dart';
 import '../../domain/ocr/mlkit_receipt_scanner.dart';
@@ -18,7 +21,11 @@ enum ScannerState { idle, picking, scanning, parsing, validating, success, error
 
 /// SharedPreferences keys for OCR settings
 class OcrPrefsKeys {
-  static const String geminiApiKey = 'ocr_gemini_api_key';
+  static const String geminiApiKey = 'ocr_gemini_api_key'; // legacy single key
+  static const String geminiApiKeys = 'ocr_gemini_api_keys'; // JSON list
+  static const String geminiActiveKey = 'ocr_gemini_active_key'; // index
+  static const String geminiModel = 'ocr_gemini_model';
+  static const String quotaBlocked = 'ocr_quota_blocked'; // JSON {key: ms}
   static const String useAiParser = 'ocr_use_ai_parser';
 }
 
@@ -43,6 +50,23 @@ class ScannerProvider with ChangeNotifier {
   /// Whether a valid Gemini API key is configured
   bool _hasApiKey = false;
 
+  /// Multi API keys — index aktif dipakai untuk request Gemini.
+  List<String> _apiKeys = [];
+  int _activeKeyIndex = 0;
+
+  /// Model Gemini aktif (lihat gemini_models.dart).
+  String _modelId = defaultGeminiModelId;
+
+  /// Blokir kuota per '$keyIndex|$model' → kapan bisa dipakai lagi (UTC ms).
+  /// Hanya untuk key aktif — survive restart via prefs.
+  final Map<String, int> _quotaBlockedUntil = {};
+
+  /// Model yang kena blokir kuota pada scan TERAKHIR (untuk toast sekali
+  /// di caller — provider tidak punya BuildContext/AppStrings).
+  final List<String> _lastQuotaHits = [];
+  List<String> get lastQuotaHits => List.unmodifiable(_lastQuotaHits);
+  void clearQuotaHits() => _lastQuotaHits.clear();
+
   ScannerState get state => _state;
   String get errorMessage => _errorMessage;
   File? get capturedImage => _capturedImage;
@@ -54,18 +78,104 @@ class ScannerProvider with ChangeNotifier {
   bool get useAiParser => _useAiParser;
   bool get hasApiKey => _hasApiKey;
 
+  /// Daftar key (apa adanya — UI yang me-mask).
+  List<String> get apiKeys => List.unmodifiable(_apiKeys);
+  int get activeKeyIndex => _activeKeyIndex;
+  String get modelId => _modelId;
+  GeminiModelOption? get activeModel => geminiModelById(_modelId);
+
+  /// Label key aktif untuk UI: '••••' + 4 char terakhir.
+  String get activeKeyLabel {
+    if (_apiKeys.isEmpty) return '';
+    final k = _apiKeys[_activeKeyIndex.clamp(0, _apiKeys.length - 1)];
+    return k.length <= 4 ? '••••' : '••••${k.substring(k.length - 4)}';
+  }
+
+  String _quotaKey(String model) => '$_activeKeyIndex|$model';
+
+  /// True bila model ini diblokir kuota di key aktif (auto-prune kedaluwarsa).
+  bool isModelBlocked(String model) {
+    final until = _quotaBlockedUntil[_quotaKey(model)];
+    if (until == null) return false;
+    if (DateTime.now().millisecondsSinceEpoch >= until) {
+      _quotaBlockedUntil.remove(_quotaKey(model));
+      return false;
+    }
+    return true;
+  }
+
+  /// Sisa waktu blokir, atau null bila tidak diblokir.
+  Duration? quotaRemaining(String model) {
+    final until = _quotaBlockedUntil[_quotaKey(model)];
+    if (until == null) return null;
+    final left =
+        until - DateTime.now().millisecondsSinceEpoch;
+    if (left <= 0) {
+      _quotaBlockedUntil.remove(_quotaKey(model));
+      return null;
+    }
+    return Duration(milliseconds: left);
+  }
+
+  Future<void> _persistQuota() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _quotaBlockedUntil.removeWhere((_, until) => until <= now);
+    await prefs.setString(OcrPrefsKeys.quotaBlocked, jsonEncode(_quotaBlockedUntil));
+  }
+
+  void _useActiveKey() {
+    if (_apiKeys.isEmpty) return;
+    _activeKeyIndex = _activeKeyIndex.clamp(0, _apiKeys.length - 1);
+    _geminiParser.initialize(_apiKeys[_activeKeyIndex], model: _modelId);
+  }
+
   /// Initialize AI parser settings from SharedPreferences.
   /// Call this once when the provider is first created.
   Future<void> initializeSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _useAiParser = prefs.getBool(OcrPrefsKeys.useAiParser) ?? true;
-      final apiKey = prefs.getString(OcrPrefsKeys.geminiApiKey) ?? '';
-      _hasApiKey = apiKey.isNotEmpty;
 
-      if (_hasApiKey) {
-        _geminiParser.initialize(apiKey);
+      // Multi-key (baru); migrasi sekali dari single key lama.
+      final stored = prefs.getString(OcrPrefsKeys.geminiApiKeys);
+      if (stored != null) {
+        final decoded = jsonDecode(stored);
+        if (decoded is List) {
+          _apiKeys = decoded.whereType<String>().toList();
+        }
+      } else {
+        final legacy = prefs.getString(OcrPrefsKeys.geminiApiKey) ?? '';
+        if (legacy.trim().isNotEmpty) {
+          _apiKeys = [legacy.trim()];
+          await prefs.setString(
+              OcrPrefsKeys.geminiApiKeys, jsonEncode(_apiKeys));
+          await prefs.remove(OcrPrefsKeys.geminiApiKey);
+        }
       }
+      _activeKeyIndex = prefs.getInt(OcrPrefsKeys.geminiActiveKey) ?? 0;
+      _modelId = prefs.getString(OcrPrefsKeys.geminiModel) ??
+          defaultGeminiModelId;
+      if (geminiModelById(_modelId) == null) _modelId = defaultGeminiModelId;
+      _hasApiKey = _apiKeys.isNotEmpty;
+
+      // Quota map — prune yang kedaluwarsa.
+      final quotaRaw = prefs.getString(OcrPrefsKeys.quotaBlocked);
+      if (quotaRaw != null) {
+        try {
+          final decoded = jsonDecode(quotaRaw);
+          if (decoded is Map) {
+            final now = DateTime.now().millisecondsSinceEpoch;
+            decoded.forEach((k, v) {
+              if (k is String && v is int && v > now) {
+                _quotaBlockedUntil[k] = v;
+              }
+            });
+          }
+        } catch (_) {}
+      }
+
+      if (_hasApiKey) _useActiveKey();
       notifyListeners();
     } catch (e) {
       debugPrint('⚠️ Failed to load OCR settings: $e');
@@ -73,14 +183,74 @@ class ScannerProvider with ChangeNotifier {
   }
 
   /// Update the Gemini API key and persist it.
+  /// Kompat lama: mengganti key aktif (index 0 bila belum ada).
   Future<void> setGeminiApiKey(String apiKey) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(OcrPrefsKeys.geminiApiKey, apiKey.trim());
-    _hasApiKey = apiKey.trim().isNotEmpty;
-
-    if (_hasApiKey) {
-      _geminiParser.initialize(apiKey.trim());
+    final key = apiKey.trim();
+    if (_apiKeys.isEmpty) {
+      _apiKeys = [key];
+      _activeKeyIndex = 0;
+    } else {
+      _activeKeyIndex = _activeKeyIndex.clamp(0, _apiKeys.length - 1);
+      _apiKeys[_activeKeyIndex] = key;
     }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(OcrPrefsKeys.geminiApiKeys, jsonEncode(_apiKeys));
+    _hasApiKey = key.isNotEmpty && _apiKeys.any((k) => k.isNotEmpty);
+
+    if (_hasApiKey) _useActiveKey();
+    notifyListeners();
+  }
+
+  /// Tambah API key baru (paste manual) dan jadikan aktif.
+  Future<void> addApiKey(String apiKey) async {
+    final key = apiKey.trim();
+    if (key.isEmpty) return;
+    _apiKeys.add(key);
+    _activeKeyIndex = _apiKeys.length - 1;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(OcrPrefsKeys.geminiApiKeys, jsonEncode(_apiKeys));
+    await prefs.setInt(OcrPrefsKeys.geminiActiveKey, _activeKeyIndex);
+    _hasApiKey = true;
+    _useActiveKey();
+    notifyListeners();
+  }
+
+  /// Hapus key index i. Boleh hapus semua (→ regex saja). Bila yang aktif
+  /// terhapus, aktif pindah ke index 0.
+  Future<void> removeApiKey(int i) async {
+    if (i < 0 || i >= _apiKeys.length) return;
+    _apiKeys.removeAt(i);
+    if (_apiKeys.isEmpty) {
+      _activeKeyIndex = 0;
+      _hasApiKey = false;
+    } else {
+      if (_activeKeyIndex >= _apiKeys.length) _activeKeyIndex = 0;
+      _hasApiKey = true;
+      _useActiveKey();
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(OcrPrefsKeys.geminiApiKeys, jsonEncode(_apiKeys));
+    await prefs.setInt(OcrPrefsKeys.geminiActiveKey, _activeKeyIndex);
+    notifyListeners();
+  }
+
+  /// Pilih key aktif.
+  Future<void> setActiveKey(int i) async {
+    if (i < 0 || i >= _apiKeys.length || i == _activeKeyIndex) return;
+    _activeKeyIndex = i;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(OcrPrefsKeys.geminiActiveKey, i);
+    _useActiveKey();
+    notifyListeners();
+  }
+
+  /// Pilih model Gemini aktif.
+  Future<void> setModel(String id) async {
+    if (geminiModelById(id) == null || id == _modelId) return;
+    _modelId = id;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(OcrPrefsKeys.geminiModel, id);
+    if (_hasApiKey) _useActiveKey();
     notifyListeners();
   }
 
@@ -93,16 +263,36 @@ class ScannerProvider with ChangeNotifier {
   }
 
   /// Get the stored Gemini API key (for display in settings).
+  /// Kompat: key aktif (migrasi dari single key lama sudah di load).
   Future<String> getGeminiApiKey() async {
+    if (_apiKeys.isNotEmpty) {
+      return _apiKeys[_activeKeyIndex.clamp(0, _apiKeys.length - 1)];
+    }
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(OcrPrefsKeys.geminiApiKey) ?? '';
   }
 
-  Future<void> pickAndScanReceipt(ImageSource source) async {
-    await pickImageAndScan(source: source);
+  /// Countdown ringkas sisa blokir kuota ("19j 34m" / "45m 10d" / "30d").
+  /// Null bila model tidak diblokir. Tanpa DateFormat — murni aritmetik.
+  String? quotaCountdownText(String model, {required bool isEn}) {
+    final left = quotaRemaining(model);
+    if (left == null) return null;
+    final h = left.inHours;
+    final m = left.inMinutes % 60;
+    if (h > 0) {
+      return isEn ? '${h}h ${m}m' : '${h}j ${m}m';
+    }
+    final s = left.inSeconds % 60;
+    return isEn ? '${m}m ${s}s' : '${m}m ${s}d';
   }
 
-  Future<void> pickImageAndScan({required ImageSource source}) async {
+  Future<void> pickAndScanReceipt(ImageSource source,
+      {VoidCallback? onImageAcquired}) async {
+    await pickImageAndScan(source: source, onImageAcquired: onImageAcquired);
+  }
+
+  Future<void> pickImageAndScan(
+      {required ImageSource source, VoidCallback? onImageAcquired}) async {
     try {
       _state = ScannerState.picking;
       notifyListeners();
@@ -121,6 +311,9 @@ class ScannerProvider with ChangeNotifier {
       }
 
       _capturedImage = File(photo.path);
+      // Gambar sudah didapat → pemanggil boleh menampilkan progress.
+      // Batal pilih/izin ditolak tidak melewati titik ini (tidak ada popup).
+      onImageAcquired?.call();
       _state = ScannerState.scanning;
       notifyListeners();
 
@@ -143,17 +336,42 @@ class ScannerProvider with ChangeNotifier {
 
       ParsedReceiptData parsed;
       if (_useAiParser && _hasApiKey && await _isOnline()) {
-        // Online + AI enabled → Use Gemini LLM Parser
-        try {
-          debugPrint('🤖 Using Gemini AI parser...');
-          parsed = await _geminiParser.parseOcrText(rawText, imagePath: _capturedImage!.path);
-          debugPrint('✅ Gemini parser succeeded');
-        } catch (e) {
-          // Gemini failed → fallback to regex parser
-          debugPrint('⚠️ Gemini parser failed: $e');
-          debugPrint('🔄 Falling back to regex parser...');
-          parsed = _regexParser.parse(rawText, imagePath: _capturedImage!.path);
-          parsed = parsed.copyWith(parserSource: 'regex');
+        // Online + AI enabled → Use Gemini LLM Parser.
+        // Transient (timeout/jaringan) → retry 1x setelah 2 detik sebelum
+        // menyerah ke regex — selama ini pemulihannya manual oleh user.
+        // State tetap 'parsing' (dialog tahap 2 aktif) — wajar.
+        var attempt = 0;
+        while (true) {
+          try {
+            debugPrint('🤖 Using Gemini AI parser...');
+            parsed = await _geminiParser.parseOcrText(rawText, imagePath: _capturedImage!.path);
+            debugPrint('✅ Gemini parser succeeded');
+            break;
+          } catch (e) {
+            // Kuota habis → catat blokir (model, kapan reset) untuk toast
+            // sekali di caller, lalu regex fallback seperti biasa.
+            final quota = parseGeminiQuotaError(e, fallbackModel: _modelId);
+            if (quota != null) {
+              _quotaBlockedUntil[_quotaKey(quota.model)] =
+                  quota.availableAt.millisecondsSinceEpoch;
+              _lastQuotaHits.add(quota.model);
+              await _persistQuota();
+              debugPrint(
+                  '⛔ Gemini quota habis (${quota.model}), reset ${quota.retryAfter}');
+              notifyListeners();
+            }
+            attempt++;
+            if (attempt >= 2) {
+              // Gemini failed → fallback to regex parser
+              debugPrint('⚠️ Gemini parser failed: $e');
+              debugPrint('🔄 Falling back to regex parser...');
+              parsed = _regexParser.parse(rawText, imagePath: _capturedImage!.path);
+              parsed = parsed.copyWith(parserSource: 'regex');
+              break;
+            }
+            debugPrint('⏳ Gemini transient, retry $attempt/1...');
+            await Future.delayed(const Duration(seconds: 2));
+          }
         }
       } else {
         // Offline or AI disabled → Use regex parser
@@ -193,8 +411,15 @@ class ScannerProvider with ChangeNotifier {
       _state = ScannerState.success;
       notifyListeners();
     } catch (e, stackTrace) {
-      _state = ScannerState.error;
-      _errorMessage = 'Gagal memproses struk: $e';
+      if (_capturedImage == null) {
+        // Gagal SEBELUM gambar ada (izin kamera/file bermasalah) →
+        // kembali ke awal supaya bisa scan ulang tanpa sisa error.
+        _state = ScannerState.idle;
+        _errorMessage = '';
+      } else {
+        _state = ScannerState.error;
+        _errorMessage = 'Gagal memproses struk: $e';
+      }
       debugPrint('❌ Scanner Error: $e');
       debugPrint('Stack trace: $stackTrace');
       notifyListeners();

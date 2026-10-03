@@ -27,7 +27,7 @@ class StickyFrostedAppBar extends StatelessWidget implements PreferredSizeWidget
   Widget build(BuildContext context) {
     return ClipRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           decoration: BoxDecoration(
             color: AppColors.bgCanvas.withValues(alpha: 0.85),

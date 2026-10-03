@@ -5,6 +5,7 @@ import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/transaction_model.dart';
+import 'pressable.dart';
 
 class TransactionListItem extends StatelessWidget {
   final TransactionModel transaction;
@@ -52,7 +53,7 @@ class TransactionListItem extends StatelessWidget {
       iconBg = AppColors.primary.withValues(alpha: 0.15);
     }
 
-    return Container(
+    return PressableScale(child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: AppColors.bgSurface,
@@ -162,6 +163,6 @@ class TransactionListItem extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }

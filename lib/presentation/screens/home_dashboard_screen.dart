@@ -9,6 +9,7 @@ import '../../core/services/profile_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../components/app_toast.dart';
+import '../../domain/ocr/gemini_models.dart';
 import '../components/glass_panel.dart';
 import '../components/pressable.dart';
 import '../components/export_format_dialog.dart';
@@ -80,7 +81,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   toolbarHeight: 68,
                   flexibleSpace: ClipRect(
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                       child: Container(
                         decoration: BoxDecoration(
                           color: AppColors.bgCanvas.withValues(alpha: 0.60),
@@ -404,36 +405,59 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     );
   }
 
-  /// Opens the live progress dialog, runs the scan pipeline, closes the
-  /// dialog, then navigates to verification on success.
+  /// Runs the scan pipeline: shows the live progress dialog only AFTER the
+  /// image is actually acquired (photo taken / file chosen), closes it when
+  /// the pipeline finishes, then navigates to verification on success.
+  /// Batal pilih/izin ditolak → tidak ada dialog, state kembali awal.
   Future<void> _scanWithProgress(
     BuildContext context,
     ScannerProvider scannerProvider,
     ImageSource source,
   ) async {
-    unawaited(showDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black54,
-      builder: (_) => const ScanProgressDialog(),
-    ));
-
-    await scannerProvider.pickAndScanReceipt(source);
-
-    if (context.mounted) {
-      // Close the progress dialog (safe even if already closed).
-      Navigator.of(context, rootNavigator: true).pop();
-      if (scannerProvider.lastScanResult != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => QuickVerificationScreen(
-              parsedData: scannerProvider.lastScanResult!,
-              receiptImagePath: scannerProvider.scannedReceiptImagePath,
-            ),
-          ),
-        );
+    var dialogShown = false;
+    try {
+      await scannerProvider.pickAndScanReceipt(
+        source,
+        onImageAcquired: () {
+          dialogShown = true;
+          unawaited(showDialog(
+            context: context,
+            barrierDismissible: false,
+            barrierColor: Colors.black54,
+            builder: (_) => const ScanProgressDialog(),
+          ));
+        },
+      );
+    } finally {
+      // Tutup tepat sekali, sukses maupun gagal.
+      if (dialogShown && context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
       }
+    }
+
+    // Kuota model habis saat scan ini → notifikasi otomatis sekali.
+    // (State kuota diblokir di provider; regex fallback sudah jalan.)
+    if (context.mounted) {
+      final s = AppStrings.of(context);
+      for (final m in scannerProvider.lastQuotaHits) {
+        final left =
+            scannerProvider.quotaCountdownText(m, isEn: s.isEn);
+        AppToast.error(
+            s.geminiQuotaExhausted(geminiModelShort(m), left ?? ''));
+      }
+      scannerProvider.clearQuotaHits();
+    }
+
+    if (context.mounted && scannerProvider.lastScanResult != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => QuickVerificationScreen(
+            parsedData: scannerProvider.lastScanResult!,
+            receiptImagePath: scannerProvider.scannedReceiptImagePath,
+          ),
+        ),
+      );
     }
   }
 

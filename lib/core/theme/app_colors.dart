@@ -136,6 +136,12 @@ class AppColors {
   static Color get toggleTrack =>
       _light ? const Color(0x1F000000) : const Color(0xB3151926);
 
+  // ── Kartu Detected Total di atas biru elektrik (Stitch OCR SCAN V2 Light) ──
+  /// Label kartu di atas blue-600 — blue-100 (#DBEAFE).
+  static Color get detectedTotalLabel => const Color(0xFFDBEAFE);
+  /// Border aksen kartu — blue-400 (#60A5FA).
+  static Color get detectedTotalBorder => const Color(0xFF60A5FA);
+
   // ── Bespoke Card Gradients ──
   static LinearGradient get cardRimGradient => _light
       ? const LinearGradient(

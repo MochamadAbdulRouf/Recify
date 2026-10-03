@@ -54,6 +54,7 @@ class TransactionDetailScreen extends StatelessWidget {
                   child: Image.file(
                     File(transaction.receiptImagePath!),
                     fit: BoxFit.cover,
+                    cacheWidth: 1080,
                     errorBuilder: (_, __, ___) => Center(
                       child: Icon(Icons.broken_image, color: AppColors.textSecondary, size: 40),
                     ),
