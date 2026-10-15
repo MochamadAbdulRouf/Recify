@@ -57,6 +57,41 @@ GeminiQuotaInfo? parseGeminiQuotaError(Object e, {String? fallbackModel}) {
   return GeminiQuotaInfo(model: model, retryAfter: retryAfter);
 }
 
+/// Jenis kegagalan Gemini untuk notifikasi & fallback antar key.
+enum GeminiErrorKind { quota, overload, config, other }
+
+/// Klasifikasi error Gemini → jenis penanganan (kuota / gangguan /
+/// konfigurasi key / lainnya). Dipakai scanner untuk notifikasi & fallback
+/// antar API key. Pola diturunkan dari source `google_generative_ai` 0.4.7:
+/// ≥500 → `GenerativeAIException: Server Error [50x]`; 429 → teks kuota
+/// verbatim; key invalid → `API_KEY_INVALID` / `API key not valid`.
+GeminiErrorKind classifyGeminiError(Object e) {
+  final msg = e.toString();
+  final lower = msg.toLowerCase();
+  // 5xx (500/503/504/529) selalu gangguan server — dicek dulu supaya
+  // body seperti "RESOURCE_EXHAUSTED" tidak salah klasifikasi ke quota.
+  if (RegExp(r'Server Error \[5[0-5]\d\]', caseSensitive: false)
+      .hasMatch(msg)) {
+    return GeminiErrorKind.overload;
+  }
+  if (lower.contains('exceeded your current quota') ||
+      lower.contains('quota exceeded') ||
+      lower.contains('resource_exhausted') ||
+      RegExp(r'\b429\b').hasMatch(msg)) {
+    return GeminiErrorKind.quota;
+  }
+  if (lower.contains('overloaded') || lower.contains('try again later')) {
+    return GeminiErrorKind.overload;
+  }
+  if (lower.contains('api_key_invalid') ||
+      lower.contains('api key not valid') ||
+      lower.contains('api key expired') ||
+      lower.contains('permission_denied')) {
+    return GeminiErrorKind.config;
+  }
+  return GeminiErrorKind.other;
+}
+
 class GeminiReceiptParser {
   GenerativeModel? _model;
   String? _currentApiKey;
@@ -64,20 +99,86 @@ class GeminiReceiptParser {
 
   static const String _systemPrompt = '''
 Kamu adalah Receipt Parsing Engine khusus struk transaksi di Indonesia.
-Tugasmu: Mengekstrak teks mentah hasil OCR menjadi format JSON yang valid dan terstruktur.
+Tugasmu: mengekstrak teks mentah hasil OCR menjadi JSON valid dan terstruktur.
 
-Aturan Pemrosesan:
-1. Abaikan bagian Header (nama jalan, nomor RT/RW, kota, kode pos, nomor telepon kasir, nomor NPWP, nomor mesin kasir). Nomor-nomor ini BUKAN harga atau kuantitas barang.
-2. Item transaksi hanya mencakup produk atau jasa yang dibeli, kuantitas (qty), dan harga akhir (price = total harga per item setelah dikali qty).
-3. Bersihkan format angka dari mata uang atau pemisah ribuan (misal: "Rp 15.000" menjadi 15000, "22,400" menjadi 22400).
-4. Pisahkan secara ketat nilai subtotal, tax (PPN/PB1/Service Charge), discount, dan grand_total.
-5. Jika ada diskon per barang, catat harga setelah diskon pada item. Jika ada diskon global, catat pada field discount.
-6. Tulis field "date" dengan format YYYY-MM-DD; BILA tidak pasti, TULIS null — jangan menebak tanggal.
-6b. Tulis juga field "date_raw": salinan VERBATIM teks tanggal persis seperti tertulis di nota (misal '15 Pebruari 2024', '24/11/2024'); gunakan null bila tidak ada. JANGAN mengubah ejaan/nama bulan dari nota ke bahasa lain.
-7. grand_total adalah angka final yang harus dibayar pelanggan (setelah pajak dan diskon).
-8. Untuk field payment_method, deteksi dari teks: "CASH", "E_WALLET" (GOPAY/OVO/DANA/SHOPEEPAY/QRIS), "BANK" (DEBIT/BCA/MANDIRI/BRI), "CREDIT" (VISA/MASTERCARD). Default "CASH".
-9. Untuk field category, tentukan berdasarkan nama merchant: "cat_groceries" (minimarket/supermarket), "cat_food" (restoran/cafe), "cat_transport" (SPBU/bensin), "cat_health" (apotek), "cat_shopping" (toko retail). Default "cat_groceries".
-10. Hanya keluarkan raw JSON tanpa format Markdown triple backtick.
+=== STRUKTUR STRUK (pisahkan 3 bagian ini) ===
+A. HEADER — nama toko, alamat, kota, telp, no struk/kasir/NPWP, tanggal, jam.
+   → hanya mengisi "merchant", "date"/"date_raw", "payment_method".
+B. ITEMS — HANYA baris produk/jasa yang dibeli: nama, qty, harga.
+C. FOOTER — subtotal, pajak (PPN/PB1/Service), diskon, grand_total.
+
+=== ATURAN ITEMS (PALING PENTING) ===
+- "items" HANYA berisi produk/jasa yang dibeli + qty + price
+  (price = total per baris setelah dikali qty).
+- DILARANG masuk ke "items": nama toko, alamat, kota, nomor telepon,
+  nomor struk/kasir/NPWP, baris TOTAL, pajak, diskon, sisa uang,
+  "kasir", "terima kasih", nama promo/voucher, sapaan.
+- Jika sebuah baris meragukan dan bukan produk → JANGAN masukkan.
+
+=== ATURAN ANGKA ===
+- Bersihkan format angka: "Rp 15.000" → 15000, "22,400" → 22400.
+- subtotal, tax (PPN/PB1/Service Charge), discount, grand_total
+  diambil dari FOOTER, bukan dihitung ulang dari items.
+- grand_total = angka final yang dibayar pelanggan (setelah pajak & diskon).
+
+=== ATURAN VALIDASI (wajib) ===
+- Cek: sum(price) ≈ subtotal (toleransi Rp 1).
+- Cek: subtotal + tax - discount ≈ grand_total (toleransi Rp 1).
+- Jika salah satu tidak cocok atau tidak yakin → set
+  "needs_review": true dan isi "review_reason" (alasan singkat, mis.
+  "sum items 57000 ≠ subtotal 60000").
+- Jika semua cocok → "needs_review": false, "review_reason": null.
+
+=== FIELD LAINNYA ===
+- "date": YYYY-MM-DD saja; jika TIDAK PASTI tulis null (jangan menebak).
+- "date_raw": salinan VERBATIM teks tanggal seperti tertulis di nota
+  (mis. '15 Pebruari 2024', '24/11/2024'); null bila tidak ada.
+  JANGAN menerjemahkan/mengubah ejaan nama bulan.
+- "payment_method": "CASH" | "E_WALLET" (GOPAY/OVO/DANA/SHOPEEPAY/QRIS) |
+  "BANK" (DEBIT/BCA/MANDIRI/BRI) | "CREDIT". Default "CASH".
+- "category" dari nama merchant: cat_groceries (minimarket), cat_food
+  (restoran/cafe), cat_transport (SPBU), cat_health (apotek),
+  cat_shopping (toko retail). Default "cat_groceries".
+- Output: HANYA raw JSON, tanpa Markdown triple backtick.
+
+=== CONTOH BENAR ===
+Input:
+TOKO MAJU JAYA
+Jl. Merdeka No. 12, Bandung
+Telp 0812-3456-7890
+Struk #A00123
+24/11/2024 10:32
+2x Kopi Susu      18000
+1x Roti Bakar     12000
+Subtotal          30000
+PB1 10%           3000
+TOTAL             33000
+Bayar Tunai       50000
+Terima kasih
+
+Output:
+{
+  "merchant": "TOKO MAJU JAYA",
+  "date": "2024-11-24",
+  "date_raw": "24/11/2024",
+  "category": "cat_groceries",
+  "payment_method": "CASH",
+  "items": [
+    {"name": "Kopi Susu", "qty": 2, "price": 18000},
+    {"name": "Roti Bakar", "qty": 1, "price": 12000}
+  ],
+  "subtotal": 30000,
+  "tax": 3000,
+  "discount": 0,
+  "grand_total": 33000,
+  "needs_review": false,
+  "review_reason": null
+}
+
+=== CONTOH SALAH (dilarang) ===
+"items" berisi: "TOKO MAJU JAYA", "Jl. Merdeka No. 12", "Telp 0812-3456-7890",
+"TOTAL 33000", "Bayar Tunai 50000", "Terima kasih" → SEMUA INI SALAH,
+baris-baris itu milik HEADER/FOOTER, bukan item pembelian.
 
 Skema JSON output:
 {
@@ -90,7 +191,9 @@ Skema JSON output:
   "subtotal": number,
   "tax": number,
   "discount": number,
-  "grand_total": number
+  "grand_total": number,
+  "needs_review": boolean,
+  "review_reason": string | null
 }
 ''';
 

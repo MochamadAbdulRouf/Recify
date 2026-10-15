@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_motion.dart';
 import 'pressable.dart';
 
 /// App-level atmospheric backdrop. Without a non-uniform layer behind them,
@@ -226,7 +227,8 @@ class GlassSegmentedTabs extends StatelessWidget {
                     behavior: HitTestBehavior.opaque,
                     onTap: () => onChanged(i),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
+                      duration: kTabContentFadeDuration,
+                      curve: kTabTransitionCurve,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
                         color: i == index
@@ -237,8 +239,8 @@ class GlassSegmentedTabs extends StatelessWidget {
                             ? [
                                 BoxShadow(
                                   color: (activeGlow ?? AppColors.primary)
-                                      .withValues(alpha: 0.40),
-                                  blurRadius: 16,
+                                      .withValues(alpha: 0.30),
+                                  blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
                               ]

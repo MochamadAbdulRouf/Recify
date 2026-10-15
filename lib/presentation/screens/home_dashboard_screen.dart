@@ -9,8 +9,6 @@ import '../../core/services/profile_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../components/app_toast.dart';
-import '../../domain/ocr/gemini_models.dart';
-import '../components/glass_panel.dart';
 import '../components/pressable.dart';
 import '../components/export_format_dialog.dart';
 import '../components/obsidian_hero_card.dart';
@@ -65,10 +63,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     final firstName = _userName.split(' ').first;
 
     return Scaffold(
-      backgroundColor: AppColors.bgCanvas,
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          const Positioned.fill(child: MeshBackdrop()),
           NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) {
               return [
@@ -435,17 +432,25 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       }
     }
 
-    // Kuota model habis saat scan ini → notifikasi otomatis sekali.
-    // (State kuota diblokir di provider; regex fallback sudah jalan.)
+    // Notifikasi sekali per scan (kuota / gangguan / key bermasalah /
+    // semua key habis) → toast. Event ganti key tampil di dialog progress.
     if (context.mounted) {
       final s = AppStrings.of(context);
-      for (final m in scannerProvider.lastQuotaHits) {
-        final left =
-            scannerProvider.quotaCountdownText(m, isEn: s.isEn);
-        AppToast.error(
-            s.geminiQuotaExhausted(geminiModelShort(m), left ?? ''));
+      for (final n in scannerProvider.lastScanNotices) {
+        switch (n.kind) {
+          case ScanNoticeKind.quota:
+            AppToast.error(s.geminiQuotaLimit);
+          case ScanNoticeKind.overload:
+            AppToast.error(s.geminiOverloaded);
+          case ScanNoticeKind.config:
+            AppToast.error(s.keyNeedsCheck(n.fromKey ?? 1));
+          case ScanNoticeKind.allFailed:
+            AppToast.error(s.geminiAllKeysFailed);
+          case ScanNoticeKind.keySwitch:
+            break; // tampil sebagai baris status di dialog progress
+        }
       }
-      scannerProvider.clearQuotaHits();
+      scannerProvider.clearScanNotices();
     }
 
     if (context.mounted && scannerProvider.lastScanResult != null) {

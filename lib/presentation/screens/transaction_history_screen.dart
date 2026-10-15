@@ -58,7 +58,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         TransactionFilter.groupByDay(filtered, s);
 
     return Scaffold(
-      backgroundColor: AppColors.bgCanvas,
+      backgroundColor: Colors.transparent,
       // Fixed / Sticky Frosted Header with Embedded Search & Filter
       appBar: StickyFrostedAppBar(
         height: 64,

@@ -64,3 +64,12 @@ Pasted image*.png
 
 # MCP config berisi API key — jangan ke-push
 .mcp.json
+
+
+## Skill Agent 
+.claude/skills/flutter-analyze-bracket-fix/SKILL.md
+.claude/settings.json
+
+
+
+

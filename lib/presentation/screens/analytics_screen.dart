@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_motion.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/category_insight.dart';
@@ -113,6 +114,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             : financeProvider.monthlyIncome);
 
     // ── Active bar gradient & glow based on type ──
+    // (di build agar bisa diteruskan ke _buildTabContent)
     final activeBarGradient =
         _isExpense ? AppColors.barExpenseGradient : AppColors.barIncomeGradient;
     final activeBarGlow =
@@ -121,25 +123,26 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         _isExpense ? AppColors.error : AppColors.statusPositive;
 
     return Scaffold(
-      backgroundColor: AppColors.bgCanvas,
+      backgroundColor: Colors.transparent,
       appBar: StickyFrostedAppBar(
         height: 64,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(s.statsTitle, style: AppTypography.headlineMd.copyWith(fontSize: 20)),
+            Text(s.statsTitle,
+                style: AppTypography.headlineMd.copyWith(fontSize: 20)),
             const SizedBox(height: 2),
             Text(
               s.statsSubtitle,
-              style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+              style: AppTypography.caption
+                  .copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
       ),
       body: Stack(
         children: [
-          const Positioned.fill(child: MeshBackdrop()),
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -174,8 +177,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       _isExpense ? AppColors.error : AppColors.statusPositive,
                   activeGlow:
                       _isExpense ? AppColors.error : AppColors.statusPositive,
-                  activeTextColor: (!_isExpense && AppColors.isLight)
-                      ? Colors.white // pill hijau pekat di light → putih
+                  activeTextColor: AppColors.isLight
+                      ? Colors.white // pill merah/hijau pekat di light → putih
                       : AppColors.textPrimary, // token teks putih di dark
                   inactiveTextColorBuilder: !AppColors.isLight
                       ? (i) => i == 0 ? AppColors.textPrimary : null
@@ -189,487 +192,572 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 const SizedBox(height: 20),
 
                 // ═══════════════════════════════════════════
-                // GLASS HERO: Total + Bar Chart
+                // INSIGHT + KATEGORI + EXPORT (hero di luar):
+                // cross-fade saat tab berubah — tanpa slide.
                 // ═══════════════════════════════════════════
-                GlassPanel(
-                  padding: const EdgeInsets.all(24),
-                  fill: AppColors.heroCardGradient,
-                  glowBlobs: true,
-                  child: Column(
-                    children: [
-                      Text(
-                        CurrencyFormatter.formatRupiah(heroTotalOrFallback),
-                        style: AppTypography.displayLg.copyWith(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _periodLine(now, s),
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.onSurfaceVariant.withValues(alpha: 0.8),
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Day inspector pill
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainerLowest.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: AppColors.borderSubtle),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                color: activeBarGlow,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${_bucketAxisLabel(buckets, activeIndex, s)}: ',
-                              style: AppTypography.caption.copyWith(
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                            Text(
-                              activeAmount > 0
-                                  ? '${CurrencyFormatter.formatRupiah(activeAmount)} (${activePercent.toStringAsFixed(1)}%)'
-                                  : (_isExpense ? s.noSpending : s.noIncome),
-                              style: AppTypography.caption.copyWith(
-                                color: activeAmount > 0
-                                    ? (_isExpense
-                                        ? AppColors.primaryLight
-                                        : AppColors.statusPositive)
-                                    : AppColors.textSecondary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Bar chart: jumlah bar = jumlah bucket periode aktif.
-                      SizedBox(
-                        height: 200,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: List.generate(buckets.length, (i) {
-                            final isActive = i == activeIndex;
-                            final bucketTotal = buckets[i].total;
-                            // Tinggi = total bucket / bucket terbesar.
-                            // Floor supaya bar nol tetap terlihat seulas;
-                            // cap 0.90 supaya tooltip tidak kepotong.
-                            final factor = hasBalance
-                                ? (bucketTotal / totalBalance).clamp(
-                                    bucketTotal > 0 ? 0.05 : 0.03, 0.90)
-                                : 0.10;
-                            // Periode berjalan belum penuh → redupkan supaya
-                            // tidak dibaca sebagai penurunan.
-                            final dimCurrent =
-                                buckets[i].isCurrent && !isActive;
-
-                            // Kap lebar bar: Daily (3 bucket) ramping & center,
-                            // Weekly/Monthly (6) slot < konstanta → tampil penuh.
-                            const maxBarWidth = 60.0;
-                            return Expanded(
-                              child: PressableScale(child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () => setState(() => _selectedBarIndex = i),
-                                child: Center(
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: maxBarWidth),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                                      child: LayoutBuilder(
-                                    builder: (ctx, c) {
-                                      final barHeight = c.maxHeight * factor;
-                                      return Stack(
-                                        clipBehavior: Clip.none,
-                                        alignment: Alignment.bottomCenter,
-                                        children: [
-                                          AnimatedPositioned(
-                                            duration: const Duration(milliseconds: 300),
-                                            curve: Curves.easeOutCubic,
-                                            bottom: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: barHeight,
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                gradient: isActive
-                                                    ? activeBarGradient
-                                                    : null,
-                                                color: isActive
-                                                    ? null
-                                                    : (dimCurrent
-                                                        ? AppColors.subtleFillDim
-                                                        : AppColors.subtleFill),
-                                                borderRadius:
-                                                    BorderRadius.circular(999),
-                                                border: Border.all(
-                                                  color: isActive
-                                                      ? Colors.white
-                                                          .withValues(alpha: 0.40)
-                                                      : AppColors.subtleFill,
-                                                ),
-                                                boxShadow: isActive
-                                                    ? [
-                                                        BoxShadow(
-                                                          color: activeBarGlow
-                                                              .withValues(alpha: 0.65),
-                                                          blurRadius: 24,
-                                                        ),
-                                                      ]
-                                                    : null,
-                                              ),
-                                            ),
-                                          ),
-                                          if (isActive && activeAmount > 0)
-                                            Positioned(
-                                              bottom: barHeight + 8,
-                                              child: _ChartTooltip(
-                                                label: CurrencyFormatter
-                                                    .formatRupiah(activeAmount),
-                                                percent: hasBalance
-                                                    ? '${activePercent.toStringAsFixed(1)}%'
-                                                    : null,
-                                                dotColor: tooltipDotColor,
-                                              ),
-                                            ),
-                                          Positioned(
-                                            bottom: -18,
-                                            left: 0,
-                                            right: 0,
-                                            child: Text(
-                                              _bucketAxisLabel(buckets, i, s),
-                                              textAlign: TextAlign.center,
-                                              style: AppTypography.caption.copyWith(
-                                                color: isActive
-                                                    ? AppColors.textPrimary
-                                                    : AppColors.onSurfaceVariant,
-                                                fontWeight: isActive
-                                                    ? FontWeight.w700
-                                                    : FontWeight.w500,
-                                                fontSize: 11,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ),
-                          )),
-                        );
-                      }),
-                        ),
-                      ),
-
-                      const SizedBox(height: 34),
-
-                      // Tap hint
-                      Container(
-                        padding: const EdgeInsets.only(top: 14),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            top: BorderSide(color: AppColors.borderSubtle),
-                          ),
-                        ),
-                        child: Text(
-                          s.tapBarHint,
-                          textAlign: TextAlign.center,
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.onSurfaceVariant.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                // Hero TIDAK di dalam switcher: biar AnimatedPositioned bar
+                // chart meng-animasikan tinggi dari nilai lama → baru
+                // (remount KeyedSubtree menghapus animasi itu).
+                _buildTabContent(
+                  s: s,
+                  financeProvider: financeProvider,
+                  now: now,
+                  buckets: buckets,
+                  summary: summary,
+                  sortedCategories: sortedCategories,
+                  windowTotal: windowTotal,
+                  activeIndex: activeIndex,
+                  activeBucket: activeBucket,
+                  activeAmount: activeAmount,
+                  activePercent: activePercent,
+                  maxBucketAmount: maxBucketAmount,
+                  hasBalance: hasBalance,
+                  insight: insight,
+                  insightPeriod: insightPeriod,
+                  heroTotalOrFallback: heroTotalOrFallback,
+                  totalBalance: totalBalance,
+                  activeBarGradient: activeBarGradient,
+                  activeBarGlow: activeBarGlow,
+                  tooltipDotColor: tooltipDotColor,
                 ),
-
-                const SizedBox(height: 16),
-
-                // ═══════════════════════════════════════════
-                // INSIGHT ROW
-                // ═══════════════════════════════════════════
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: (_isExpense
-                                  ? AppColors.primary
-                                  : AppColors.statusPositive)
-                              .withValues(alpha: 0.20),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.auto_awesome_rounded,
-                            size: 20,
-                            color: _isExpense
-                                ? AppColors.primaryLight
-                                : AppColors.statusPositive),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              s.insightTitle,
-                              style: AppTypography.bodyBold.copyWith(fontSize: 14),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              insight != null
-                                  ? (_isExpense
-                                      ? s.insightTopCategory(insight.name,
-                                          insight.percent, insightPeriod)
-                                      : s.insightTopIncomeCategory(insight.name,
-                                          insight.percent, insightPeriod))
-                                  : s.insightEmpty,
-                              style: AppTypography.caption
-                                  .copyWith(color: AppColors.onSurfaceVariant),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // ═══════════════════════════════════════════
-                // CATEGORY BREAKDOWN
-                // ═══════════════════════════════════════════
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _isExpense
-                          ? s.categoryBreakdown
-                          : s.incomeCategoryBreakdown,
-                      style: AppTypography.titleSm,
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainer,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        s.activeCount(sortedCategories.length),
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.onSurfaceVariant,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                if (sortedCategories.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.borderSubtle),
-                    ),
-                    alignment: Alignment.center,
-                    child: Column(
-                      children: [
-                        Icon(
-                          _isExpense
-                              ? Icons.pie_chart_outline_rounded
-                              : Icons.account_balance_wallet_outlined,
-                          size: 40,
-                          color: AppColors.textSecondary,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _isExpense ? s.noSpendingData : s.noIncomeData,
-                          style: AppTypography.bodyBold,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _isExpense ? s.noSpendingDataHint : s.noIncomeDataHint,
-                          style: AppTypography.caption,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  ...sortedCategories.map((entry) {
-                    final percentage =
-                        windowTotal > 0 ? (entry.value / windowTotal) : 0.0;
-                    final count = summary.counts[entry.key] ?? 0;
-                    final meta = _getCategoryMeta(entry.key);
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: PressableScale(child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _showCategoryDetail(
-                            context, entry.key, financeProvider,
-                            buckets.first.start, buckets.last.end, s),
-                        child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainer,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(meta.icon, size: 22, color: meta.color),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    entry.key,
-                                    style: AppTypography.bodyBold.copyWith(fontSize: 14),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${s.totalLabel}: ${CurrencyFormatter.formatRupiah(entry.value)}',
-                                    style: AppTypography.caption
-                                        .copyWith(color: AppColors.onSurfaceVariant),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '$count ${s.transactionsLabel}',
-                                    style: AppTypography.caption.copyWith(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: meta.color.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.pie_chart_rounded, size: 13, color: meta.color),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${(percentage * 100).toStringAsFixed(1)}%',
-                                    style: AppTypography.caption.copyWith(
-                                      color: meta.color,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      )),
-                    );
-                  }),
 
                 const SizedBox(height: 14),
-
-                // ═══════════════════════════════════════════
-                // EXPORT CARD → dialog bulan + format (Poin 4)
-                // ═══════════════════════════════════════════
-                PressableScale(child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _handleMonthlyExport(context),
-                  child: GlassPanel(
-                  radius: 20,
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.20),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(Icons.description_outlined,
-                            size: 20, color: AppColors.primaryLight),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(s.exportTaxReport,
-                                style: AppTypography.bodyBold.copyWith(fontSize: 14)),
-                            const SizedBox(height: 2),
-                            Text(
-                              s.exportTaxReportHint,
-                              style: AppTypography.caption
-                                  .copyWith(color: AppColors.onSurfaceVariant),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.chevron_right_rounded,
-                          color: AppColors.onSurfaceVariant),
-                    ],
-                  ),
-                  ),
-                )),
-
-                const SizedBox(height: 132), // Space for Floating Island + FAB
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Isi tab (insight + kategori + export). Hero card dirender langsung
+  /// di build (di luar switcher) agar bar chart menganimasikan nilai
+  /// lama → baru, bukan remount dari nol.
+  /// JANGAN taruh input ber-state (TextField/scroll controller) di sini:
+  /// AnimatedSwitcher di atas me-reset state anak tiap tab berganti.
+  Widget _buildTabContent({
+    required AppStrings s,
+    required FinanceProvider financeProvider,
+    required DateTime now,
+    required List<PeriodBucket> buckets,
+    required ({
+      Map<String, double> totals,
+      Map<String, int> counts,
+      double total
+    }) summary,
+    required List<MapEntry<String, double>> sortedCategories,
+    required double windowTotal,
+    required int activeIndex,
+    required PeriodBucket activeBucket,
+    required double activeAmount,
+    required double activePercent,
+    required double maxBucketAmount,
+    required bool hasBalance,
+    required ({String name, double amount, int percent})? insight,
+    required String insightPeriod,
+    required double heroTotalOrFallback,
+    required double totalBalance,
+    required LinearGradient activeBarGradient,
+    required Color activeBarGlow,
+    required Color tooltipDotColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GlassPanel(
+          padding: const EdgeInsets.all(24),
+          fill: AppColors.heroCardGradient,
+          glowBlobs: true,
+          child: Column(
+            children: [
+              Text(
+                CurrencyFormatter.formatRupiah(heroTotalOrFallback),
+                style: AppTypography.displayLg.copyWith(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _periodLine(now, s),
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.onSurfaceVariant.withValues(alpha: 0.8),
+                  letterSpacing: 0.4,
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Day inspector pill
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color:
+                      AppColors.surfaceContainerLowest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: AppColors.borderSubtle),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: activeBarGlow,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${_bucketAxisLabel(buckets, activeIndex, s)}: ',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
+                      activeAmount > 0
+                          ? '${CurrencyFormatter.formatRupiah(activeAmount)} (${activePercent.toStringAsFixed(1)}%)'
+                          : (_isExpense ? s.noSpending : s.noIncome),
+                      style: AppTypography.caption.copyWith(
+                        color: activeAmount > 0
+                            ? (_isExpense
+                                ? AppColors.primaryLight
+                                : AppColors.statusPositive)
+                            : AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Bar chart: jumlah bar = jumlah bucket periode aktif.
+              SizedBox(
+                height: 200,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: List.generate(buckets.length, (i) {
+                    final isActive = i == activeIndex;
+                    final bucketTotal = buckets[i].total;
+                    // Tinggi = total bucket / bucket terbesar.
+                    // Floor supaya bar nol tetap terlihat seulas;
+                    // cap 0.90 supaya tooltip tidak kepotong.
+                    final factor = hasBalance
+                        ? (bucketTotal / totalBalance)
+                            .clamp(bucketTotal > 0 ? 0.05 : 0.03, 0.90)
+                        : 0.10;
+                    // Periode berjalan belum penuh → redupkan supaya
+                    // tidak dibaca sebagai penurunan.
+                    final dimCurrent = buckets[i].isCurrent && !isActive;
+
+                    // Kap lebar bar: Daily (3 bucket) ramping & center,
+                    // Weekly/Monthly (6) slot < konstanta → tampil penuh.
+                    const maxBarWidth = 60.0;
+                    return Expanded(
+                      child: PressableScale(
+                          child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => setState(() => _selectedBarIndex = i),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints:
+                                const BoxConstraints(maxWidth: maxBarWidth),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
+                              child: LayoutBuilder(
+                                builder: (ctx, c) {
+                                  final barHeight = c.maxHeight * factor;
+                                  return Stack(
+                                    clipBehavior: Clip.none,
+                                    alignment: Alignment.bottomCenter,
+                                    children: [
+                                      AnimatedPositioned(
+                                        duration:
+                                            const Duration(milliseconds: 300),
+                                        curve: kTabTransitionCurve,
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        height: barHeight,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            gradient: isActive
+                                                ? activeBarGradient
+                                                : null,
+                                            color: isActive
+                                                ? null
+                                                : (dimCurrent
+                                                    ? AppColors.subtleFillDim
+                                                    : AppColors.subtleFill),
+                                            borderRadius:
+                                                BorderRadius.circular(999),
+                                            border: Border.all(
+                                              color: isActive
+                                                  ? Colors.white
+                                                      .withValues(alpha: 0.40)
+                                                  : AppColors.subtleFill,
+                                            ),
+                                            boxShadow: isActive
+                                                ? [
+                                                    BoxShadow(
+                                                      color: activeBarGlow
+                                                          .withValues(
+                                                              alpha: 0.35),
+                                                      blurRadius: 12,
+                                                    ),
+                                                  ]
+                                                : null,
+                                          ),
+                                        ),
+                                      ),
+                                      if (isActive && activeAmount > 0)
+                                        Positioned(
+                                          bottom: barHeight + 8,
+                                          child: _ChartTooltip(
+                                            label:
+                                                CurrencyFormatter.formatRupiah(
+                                                    activeAmount),
+                                            percent: hasBalance
+                                                ? '${activePercent.toStringAsFixed(1)}%'
+                                                : null,
+                                            dotColor: tooltipDotColor,
+                                          ),
+                                        ),
+                                      Positioned(
+                                        bottom: -18,
+                                        left: 0,
+                                        right: 0,
+                                        child: Text(
+                                          _bucketAxisLabel(buckets, i, s),
+                                          textAlign: TextAlign.center,
+                                          style: AppTypography.caption.copyWith(
+                                            // Label tanggal selalu biru cerah
+                                            // (primaryLight adaptif: #1D4ED8
+                                            // di light, #B5C4FF di dark).
+                                            color: isActive
+                                                ? AppColors.primaryLight
+                                                : AppColors.primaryLight
+                                                    .withValues(alpha: 0.7),
+                                            fontWeight: isActive
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      )),
+                    );
+                  }),
+                ),
+              ),
+
+              const SizedBox(height: 34),
+
+              // Tap hint
+              Container(
+                padding: const EdgeInsets.only(top: 14),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: AppColors.borderSubtle),
+                  ),
+                ),
+                child: Text(
+                  s.tapBarHint,
+                  textAlign: TextAlign.center,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.onSurfaceVariant.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // ═══════════════════════════════════════════
+        // INSIGHT ROW
+        // ═══════════════════════════════════════════
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: (_isExpense
+                          ? AppColors.primary
+                          : AppColors.statusPositive)
+                      .withValues(alpha: 0.20),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.auto_awesome_rounded,
+                    size: 20,
+                    color: _isExpense
+                        ? AppColors.primaryLight
+                        : AppColors.statusPositive),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      s.insightTitle,
+                      style: AppTypography.bodyBold.copyWith(fontSize: 14),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      insight != null
+                          ? (_isExpense
+                              ? s.insightTopCategory(
+                                  insight.name, insight.percent, insightPeriod)
+                              : s.insightTopIncomeCategory(
+                                  insight.name, insight.percent, insightPeriod))
+                          : s.insightEmpty,
+                      style: AppTypography.caption
+                          .copyWith(color: AppColors.onSurfaceVariant),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // ═══════════════════════════════════════════
+        // CATEGORY BREAKDOWN
+        // ═══════════════════════════════════════════
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              _isExpense ? s.categoryBreakdown : s.incomeCategoryBreakdown,
+              style: AppTypography.titleSm,
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainer,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                s.activeCount(sortedCategories.length),
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.onSurfaceVariant,
+                  fontSize: 10,
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        if (sortedCategories.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.borderSubtle),
+            ),
+            alignment: Alignment.center,
+            child: Column(
+              children: [
+                Icon(
+                  _isExpense
+                      ? Icons.pie_chart_outline_rounded
+                      : Icons.account_balance_wallet_outlined,
+                  size: 40,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _isExpense ? s.noSpendingData : s.noIncomeData,
+                  style: AppTypography.bodyBold,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _isExpense ? s.noSpendingDataHint : s.noIncomeDataHint,
+                  style: AppTypography.caption,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+        else
+          ...sortedCategories.map((entry) {
+            final percentage =
+                windowTotal > 0 ? (entry.value / windowTotal) : 0.0;
+            final count = summary.counts[entry.key] ?? 0;
+            final meta = _getCategoryMeta(entry.key);
+
+            return PressableScale(
+              key: ValueKey('cat-${entry.key}'),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _showCategoryDetail(
+                      context,
+                      entry.key,
+                      financeProvider,
+                      buckets.first.start,
+                      buckets.last.end,
+                      s),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainer,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(meta.icon, size: 22, color: meta.color),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                entry.key,
+                                style: AppTypography.bodyBold
+                                    .copyWith(fontSize: 14),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${s.totalLabel}: ${CurrencyFormatter.formatRupiah(entry.value)}',
+                                style: AppTypography.caption.copyWith(
+                                    color: AppColors.onSurfaceVariant),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$count ${s.transactionsLabel}',
+                                style: AppTypography.caption.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: meta.color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.pie_chart_rounded,
+                                  size: 13, color: meta.color),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${(percentage * 100).toStringAsFixed(1)}%',
+                                style: AppTypography.caption.copyWith(
+                                  color: meta.color,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+
+        const SizedBox(height: 14),
+
+        // ═══════════════════════════════════════════
+        // EXPORT CARD → dialog bulan + format (Poin 4)
+        // ═══════════════════════════════════════════
+        PressableScale(
+            child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _handleMonthlyExport(context),
+          child: GlassPanel(
+            radius: 20,
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.20),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.description_outlined,
+                      size: 20, color: AppColors.primaryLight),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.exportTaxReport,
+                          style: AppTypography.bodyBold.copyWith(fontSize: 14)),
+                      const SizedBox(height: 2),
+                      Text(
+                        s.exportTaxReportHint,
+                        style: AppTypography.caption
+                            .copyWith(color: AppColors.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded,
+                    color: AppColors.onSurfaceVariant),
+              ],
+            ),
+          ),
+        )),
+
+        const SizedBox(height: 132), // Space for Floating Island + FAB
+      ],
     );
   }
 
@@ -751,8 +839,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   /// Label sumbu-X untuk bar ke-[index], tergantung tab periode aktif.
   /// Daftar bucket diteruskan eksplisit karena helper ini dipanggil dari
   /// dalam `build` sesudah `buckets` dihitung.
-  String _bucketAxisLabel(
-      List<PeriodBucket> buckets, int index, AppStrings s) {
+  String _bucketAxisLabel(List<PeriodBucket> buckets, int index, AppStrings s) {
     return switch (_selectedPeriodIndex) {
       // Daily: tanggal singkat; bar terakhir = hari ini.
       0 => DateFormatter.formatDayMonth(buckets[index].start),
@@ -769,12 +856,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   String _periodLine(DateTime now, AppStrings s) {
     const idMonths = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
     ];
     const enMonths = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     final month = (s.isEn ? enMonths : idMonths)[now.month - 1];
     return '$month • ${s.daysFull[now.weekday - 1]}, ${now.day} • ${now.year}';
@@ -782,25 +889,45 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   _CategoryMeta _getCategoryMeta(String categoryName) {
     final lower = categoryName.toLowerCase();
-    if (lower.contains('belanja') || lower.contains('shop') || lower.contains('pasar')) {
+    if (lower.contains('belanja') ||
+        lower.contains('shop') ||
+        lower.contains('pasar')) {
       return _CategoryMeta(Icons.shopping_bag_rounded, AppColors.meshCyan);
-    } else if (lower.contains('makan') || lower.contains('food') || lower.contains('kuliner')) {
+    } else if (lower.contains('makan') ||
+        lower.contains('food') ||
+        lower.contains('kuliner')) {
       return _CategoryMeta(Icons.restaurant_rounded, AppColors.secondary);
-    } else if (lower.contains('kesehatan') || lower.contains('obat') || lower.contains('medis')) {
+    } else if (lower.contains('kesehatan') ||
+        lower.contains('obat') ||
+        lower.contains('medis')) {
       return _CategoryMeta(Icons.medical_services_rounded, AppColors.error);
-    } else if (lower.contains('transport') || lower.contains('bensin') || lower.contains('kendaraan')) {
+    } else if (lower.contains('transport') ||
+        lower.contains('bensin') ||
+        lower.contains('kendaraan')) {
       return _CategoryMeta(Icons.directions_car_rounded, AppColors.meshViolet);
-    } else if (lower.contains('tagihan') || lower.contains('listrik') || lower.contains('air')) {
+    } else if (lower.contains('tagihan') ||
+        lower.contains('listrik') ||
+        lower.contains('air')) {
       return _CategoryMeta(Icons.bolt_rounded, AppColors.meshIndigo);
-    } else if (lower.contains('hiburan') || lower.contains('game') || lower.contains('nonton')) {
+    } else if (lower.contains('hiburan') ||
+        lower.contains('game') ||
+        lower.contains('nonton')) {
       return _CategoryMeta(Icons.movie_rounded, AppColors.primaryLight);
-    } else if (lower.contains('gaji') || lower.contains('salary') || lower.contains('upah')) {
+    } else if (lower.contains('gaji') ||
+        lower.contains('salary') ||
+        lower.contains('upah')) {
       return _CategoryMeta(Icons.payments_rounded, AppColors.statusPositive);
-    } else if (lower.contains('bonus') || lower.contains('hadiah') || lower.contains('gift')) {
+    } else if (lower.contains('bonus') ||
+        lower.contains('hadiah') ||
+        lower.contains('gift')) {
       return _CategoryMeta(Icons.card_giftcard_rounded, AppColors.meshViolet);
-    } else if (lower.contains('investasi') || lower.contains('invest') || lower.contains('dividen')) {
+    } else if (lower.contains('investasi') ||
+        lower.contains('invest') ||
+        lower.contains('dividen')) {
       return _CategoryMeta(Icons.show_chart_rounded, AppColors.meshCyan);
-    } else if (lower.contains('freelance') || lower.contains('proyek') || lower.contains('project')) {
+    } else if (lower.contains('freelance') ||
+        lower.contains('proyek') ||
+        lower.contains('project')) {
       return _CategoryMeta(Icons.work_rounded, AppColors.meshIndigo);
     }
     return _CategoryMeta(Icons.category_rounded, AppColors.primaryLight);
@@ -818,8 +945,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 // (ikuti selera AppColors: green = money in, red = out).
 Color _typeOverlay(int typeIndex) =>
     typeIndex == 0 ? AppColors.error : AppColors.statusPositive;
-// Teks Income selalu putih (aktif & nonaktif, dark & light).
-Color _typeOnOverlay(int typeIndex) => typeIndex == 1 ? AppColors.textPrimary : Colors.white;
+// Teks + ikon pill terpilih selalu putih di light (pill merah/hijau pekat);
+// di dark ikut token teks putih.
+Color _typeOnOverlay(int typeIndex) =>
+    AppColors.isLight ? Colors.white : AppColors.textPrimary;
 
 class _GlassTypeToggle extends StatelessWidget {
   const _GlassTypeToggle({
@@ -854,11 +983,13 @@ class _GlassTypeToggle extends StatelessWidget {
         children: [
           for (var i = 0; i < labels.length; i++)
             Expanded(
-              child: PressableScale(child: GestureDetector(
+              child: PressableScale(
+                  child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => onChanged(i),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
+                  duration: kTabContentFadeDuration,
+                  curve: kTabTransitionCurve,
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
                     color: i == index ? _typeOverlay(i) : null,
@@ -866,9 +997,8 @@ class _GlassTypeToggle extends StatelessWidget {
                     boxShadow: i == index
                         ? [
                             BoxShadow(
-                              color:
-                                  _typeOverlay(i).withValues(alpha: 0.40),
-                              blurRadius: 16,
+                              color: _typeOverlay(i).withValues(alpha: 0.30),
+                              blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
                           ]
@@ -938,7 +1068,10 @@ class _ChartTooltip extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: AppColors.borderMedium),
             boxShadow: const [
-              BoxShadow(color: Color(0xA6000000), blurRadius: 20, offset: Offset(0, 6)),
+              BoxShadow(
+                  color: Color(0xA6000000),
+                  blurRadius: 12,
+                  offset: Offset(0, 6)),
             ],
           ),
           child: Row(

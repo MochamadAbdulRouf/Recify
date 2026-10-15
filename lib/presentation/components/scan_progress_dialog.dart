@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../providers/scanner_provider.dart';
@@ -22,9 +23,11 @@ class ScanProgressDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scanner = context.watch<ScannerProvider>();
+    final s = AppStrings.of(context);
     final state = scanner.state;
     final useAi = scanner.useAiParser && scanner.hasApiKey;
     final isError = state == ScannerState.error;
+    final switchNote = scanner.scanStatusNote;
 
     return Dialog(
       backgroundColor: AppColors.bgSurface,
@@ -56,6 +59,35 @@ class ScanProgressDialog extends StatelessWidget {
               label: useAi ? 'AI menganalisis struk (Gemini)' : 'Parsing offline (regex)',
               status: _statusForStep2(state),
             ),
+            if (useAi) ...[
+              const SizedBox(height: 6),
+              Text(
+                s.usingKeyLabel(scanner.activeKeyIndex + 1),
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+            if (switchNote != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                s.keySwitchNotice(
+                  switchNote.from,
+                  switchNote.to,
+                  switchNote.reason == 'config'
+                      ? s.keySwitchReasonConfig
+                      : switchNote.reason == 'limit'
+                          ? s.keySwitchReasonQuota
+                          : s.keySwitchReasonOverload,
+                ),
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.primaryLight,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
             const SizedBox(height: 14),
             _StepRow(
               label: 'Validasi perhitungan',

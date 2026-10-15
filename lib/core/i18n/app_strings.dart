@@ -623,10 +623,31 @@ class AppStrings {
   String get keepEditing => isEn ? 'Keep editing' : 'Tetap di sini';
   String get discardScan => isEn ? 'Discard' : 'Buang hasil';
 
-  // ── Gemini quota ──
-  String geminiQuotaExhausted(String model, String remaining) => isEn
-      ? 'Free quota for $model exhausted, back in $remaining. Using offline parser for now.'
-      : 'Kuota gratis $model habis, kembali dalam $remaining. Sementara memakai parser offline.';
+  // ── Gemini quota / error / multi-key ──
+  String get geminiQuotaLimit => isEn
+      ? 'Your Gemini quota has reached its limit.'
+      : 'Kuota Gemini Anda sudah mencapai limit.';
+  String get geminiOverloaded => isEn
+      ? 'Gemini is having trouble. Please try again later.'
+      : 'Gemini sedang mengalami gangguan, silakan coba lagi nanti.';
+  String get geminiAllKeysFailed => isEn
+      ? 'All API keys are unusable. Switching to Offline Parser.'
+      : 'Semua API key tidak dapat digunakan. Beralih ke Offline Parser.';
+  String keyNeedsCheck(int n) => isEn
+      ? 'API key $n is invalid — please check it.'
+      : 'API key $n tidak valid — periksa kembali.';
+  String keySwitchNotice(int from, int to, String reason) => isEn
+      ? 'API key $from error: $reason. Switching to API key $to…'
+      : 'API key $from error: $reason. Beralih ke API key $to…';
+  String get keySwitchReasonOverload =>
+      isEn ? 'Gemini is having trouble' : 'Gemini sedang mengalami gangguan';
+  String get keySwitchReasonQuota =>
+      isEn ? 'quota reached its limit' : 'kuota sudah mencapai limit';
+  String get keySwitchReasonConfig =>
+      isEn ? 'key configuration invalid' : 'konfigurasi key bermasalah';
+  String usingKeyLabel(int n) => isEn
+      ? 'Using API key $n'
+      : 'Menggunakan API key $n';
   String get geminiModel => isEn ? 'Gemini Model' : 'Model Gemini';
   String geminiKeysSubtitle(int n) => isEn
       ? '$n key${n == 1 ? '' : 's'} • tap to manage'

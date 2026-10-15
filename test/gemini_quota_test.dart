@@ -56,4 +56,54 @@ void main() {
       expect(info!.retryAfter.inMinutes, 4);
     });
   });
+
+  group('classifyGeminiError', () {
+    test('kuota → quota', () {
+      expect(
+        classifyGeminiError(
+            'You exceeded your current quota, please check your plan'),
+        GeminiErrorKind.quota,
+      );
+      expect(
+        classifyGeminiError('Server Exception: RESOURCE_EXHAUSTED ...'),
+        GeminiErrorKind.quota,
+      );
+    });
+
+    test('gangguan server → overload', () {
+      expect(
+        classifyGeminiError(
+            'GenerativeAIException: Server Error [503]: {"error":"overloaded"}'),
+        GeminiErrorKind.overload,
+      );
+      expect(
+        classifyGeminiError('Server Error [529]: RESOURCE_EXHAUSTED overloaded, please try again later'),
+        GeminiErrorKind.overload,
+      );
+      expect(
+        classifyGeminiError('model is overloaded try again later'),
+        GeminiErrorKind.overload,
+      );
+    });
+
+    test('key salah konfigurasi → config', () {
+      expect(
+        classifyGeminiError('API key not valid. Please pass a valid API key.'),
+        GeminiErrorKind.config,
+      );
+      expect(
+        classifyGeminiError('API_KEY_INVALID: request had invalid key'),
+        GeminiErrorKind.config,
+      );
+      expect(
+        classifyGeminiError('PERMISSION_DENIED: API key expired'),
+        GeminiErrorKind.config,
+      );
+    });
+
+    test('lainnya → other', () {
+      expect(classifyGeminiError('SocketException: timeout'), GeminiErrorKind.other);
+      expect(classifyGeminiError('Gagal mem-parse response JSON'), GeminiErrorKind.other);
+    });
+  });
 }

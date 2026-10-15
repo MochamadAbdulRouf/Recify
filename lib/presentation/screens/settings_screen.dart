@@ -114,7 +114,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final s = AppStrings.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.bgCanvas,
+      backgroundColor: Colors.transparent,
       // Stitch Sticky Frosted Header
       appBar: StickyFrostedAppBar(
         height: 64,

@@ -269,5 +269,22 @@ void main() {
       );
       expect(nothing.dateFallback, isTrue);
     });
+
+    test('reviewReason mengikuti flag needs_review dari model', () {
+      final flagged = ParsedReceiptData.fromGeminiJson({
+        'needs_review': true,
+        'review_reason': 'sum items 57000 ≠ subtotal 60000',
+      });
+      expect(flagged.reviewReason, 'sum items 57000 ≠ subtotal 60000');
+
+      // needs_review tanpa alasan → placeholder 'needs_review'.
+      final noReason = ParsedReceiptData.fromGeminiJson({
+        'needs_review': true,
+      });
+      expect(noReason.reviewReason, 'needs_review');
+
+      final clean = ParsedReceiptData.fromGeminiJson({'needs_review': false});
+      expect(clean.reviewReason, isNull);
+    });
   });
 }

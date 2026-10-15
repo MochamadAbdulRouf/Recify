@@ -56,6 +56,10 @@ class ParsedReceiptData {
   /// di luar rentang) sehingga [transactionDate] jatuh ke now().
   final bool dateFallback;
 
+  /// Alasan "perlu direview" dari model Gemini (flag needs_review di JSON).
+  /// null = tidak ada tanda review dari model.
+  final String? reviewReason;
+
   ParsedReceiptData({
     this.merchantName = '',
     this.suggestedCategory = 'cat_groceries',
@@ -72,6 +76,7 @@ class ParsedReceiptData {
     this.validationStatus,
     this.parserSource,
     this.dateFallback = false,
+    this.reviewReason,
   });
 
   ParsedReceiptData copyWith({
@@ -90,6 +95,7 @@ class ParsedReceiptData {
     String? validationStatus,
     String? parserSource,
     bool? dateFallback,
+    String? reviewReason,
   }) {
     return ParsedReceiptData(
       merchantName: merchantName ?? this.merchantName,
@@ -107,6 +113,7 @@ class ParsedReceiptData {
       validationStatus: validationStatus ?? this.validationStatus,
       parserSource: parserSource ?? this.parserSource,
       dateFallback: dateFallback ?? this.dateFallback,
+      reviewReason: reviewReason ?? this.reviewReason,
     );
   }
 
@@ -178,6 +185,13 @@ class ParsedReceiptData {
     final discount = (json['discount'] as num?)?.toDouble() ?? 0.0;
     final grandTotal = (json['grand_total'] as num?)?.toDouble() ?? 0.0;
 
+    // Flag review dari model (prompt meminta validasi jumlah-item).
+    final String? reviewReason = json['needs_review'] == true
+        ? (json['review_reason']?.toString().trim().isNotEmpty == true
+            ? json['review_reason'].toString()
+            : 'needs_review')
+        : null;
+
     return ParsedReceiptData(
       merchantName: (json['merchant'] as String?)?.trim() ?? '',
       suggestedCategory: (json['category'] as String?)?.trim() ?? 'cat_groceries',
@@ -195,6 +209,7 @@ class ParsedReceiptData {
       localImageTempPath: imagePath,
       parserSource: 'gemini',
       dateFallback: dateFallback,
+      reviewReason: reviewReason,
     );
   }
 }

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_motion.dart';
 import '../../core/theme/app_typography.dart';
+import '../components/glass_panel.dart';
 import '../components/floating_island_nav_bar.dart';
 import '../providers/scanner_provider.dart';
 import 'analytics_screen.dart';
@@ -20,40 +22,12 @@ class MainShellScreen extends StatefulWidget {
 
 class _MainShellScreenState extends State<MainShellScreen> {
   int _currentIndex = 0;
-  late final PageController _pageController;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(initialPage: _currentIndex);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
 
   void _onTabSelected(int index) {
     if (_currentIndex == index) return;
-
-    // If jumping multiple tabs, jump to adjacent page first to guarantee 60/120fps ultra-smooth slide
-    if ((index - _currentIndex).abs() > 1 && _pageController.hasClients) {
-      final adjacent = index > _currentIndex ? index - 1 : index + 1;
-      _pageController.jumpToPage(adjacent);
-    }
-
-    if (_pageController.hasClients) {
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-      );
-    } else {
-      setState(() {
-        _currentIndex = index;
-      });
-    }
+    setState(() {
+      _currentIndex = index;
+    });
   }
 
   @override
@@ -75,16 +49,29 @@ class _MainShellScreenState extends State<MainShellScreen> {
       backgroundColor: AppColors.bgCanvas,
       body: Stack(
         children: [
-          // Full-Screen Carousel PageView with Smooth Spring Physics
-          PageView(
-            controller: _pageController,
-            physics: const BouncingScrollPhysics(),
-            onPageChanged: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            children: screens,
+          // Satu-satunya MeshBackdrop — tiap halaman transparan, tanpa garis.
+          const Positioned.fill(child: MeshBackdrop()),
+          // Fade-through antar tab: tanpa geser, tanpa sambungan tajam.
+          // IndexedStack menjaga state tiap halaman (tanpa reload).
+          AnimatedSwitcher(
+            duration: kTabTransitionDuration,
+            switchInCurve: kTabTransitionCurve,
+            switchOutCurve: kTabTransitionCurve,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.98, end: 1.0)
+                    .animate(animation),
+                child: child,
+              ),
+            ),
+            layoutBuilder: (currentChild, _) =>
+                currentChild ?? const SizedBox(),
+            child: IndexedStack(
+              key: ValueKey(_currentIndex),
+              index: _currentIndex,
+              children: screens,
+            ),
           ),
 
           // Floating Island Navbar at bottom

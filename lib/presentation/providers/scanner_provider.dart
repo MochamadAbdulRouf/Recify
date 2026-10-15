@@ -26,7 +26,38 @@ class OcrPrefsKeys {
   static const String geminiActiveKey = 'ocr_gemini_active_key'; // index
   static const String geminiModel = 'ocr_gemini_model';
   static const String quotaBlocked = 'ocr_quota_blocked'; // JSON {key: ms}
+  static const String keyCooldown = 'ocr_key_cooldown'; // JSON {index: ms}
+  static const String badKeys = 'ocr_bad_keys'; // JSON list<int>
   static const String useAiParser = 'ocr_use_ai_parser';
+}
+
+/// Jenis notifikasi satu kali per scan — dikonsumsi caller jadi toast.
+enum ScanNoticeKind { quota, overload, config, allFailed, keySwitch }
+
+class ScanNotice {
+  const ScanNotice(
+    this.kind, {
+    this.model,
+    this.fromKey,
+    this.toKey,
+    this.retry,
+    this.reason,
+  });
+
+  final ScanNoticeKind kind;
+
+  /// Model kena kuota (kind.quota).
+  final String? model;
+
+  /// Nomor key 1-based (kind.config / kind.keySwitch).
+  final int? fromKey;
+  final int? toKey;
+
+  /// Sisa waktu reset kuota (kind.quota).
+  final Duration? retry;
+
+  /// Alasan pindah key: 'overload' | 'limit' | 'config' (kind.keySwitch).
+  final String? reason;
 }
 
 class ScannerProvider with ChangeNotifier {
@@ -61,11 +92,22 @@ class ScannerProvider with ChangeNotifier {
   /// Hanya untuk key aktif — survive restart via prefs.
   final Map<String, int> _quotaBlockedUntil = {};
 
-  /// Model yang kena blokir kuota pada scan TERAKHIR (untuk toast sekali
-  /// di caller — provider tidak punya BuildContext/AppStrings).
-  final List<String> _lastQuotaHits = [];
-  List<String> get lastQuotaHits => List.unmodifiable(_lastQuotaHits);
-  void clearQuotaHits() => _lastQuotaHits.clear();
+  /// Notifikasi scan terakhir (kuota/gangguan/key) — dikonsumsi caller
+  /// menjadi toast sekali setelah scan selesai (provider tanpa context).
+  final List<ScanNotice> _lastScanNotices = [];
+  List<ScanNotice> get lastScanNotices => List.unmodifiable(_lastScanNotices);
+  void clearScanNotices() => _lastScanNotices.clear();
+
+  /// Status ganti key aktif — tampil LIVE di ScanProgressDialog selama
+  /// proses pindah; direset di awal & akhir scan.
+  ({int from, int to, String reason})? scanStatusNote;
+  void _resetScanStatusNote() => scanStatusNote = null;
+
+  /// Key bermasalah permanen (error konfigurasi 400/403).
+  final Set<int> _badKeys = {};
+
+  /// Cooldown sementara key (gangguan 5xx → 2 menit). Epoch ms.
+  final Map<int, int> _keyCooldownUntil = {};
 
   ScannerState get state => _state;
   String get errorMessage => _errorMessage;
@@ -124,6 +166,51 @@ class ScannerProvider with ChangeNotifier {
     await prefs.setString(OcrPrefsKeys.quotaBlocked, jsonEncode(_quotaBlockedUntil));
   }
 
+  /// Persist kesehatan key (cooldown gangguan + key bermasalah).
+  Future<void> _persistKeyHealth() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _keyCooldownUntil.removeWhere((_, until) => until <= now);
+    await prefs.setString(
+        OcrPrefsKeys.keyCooldown, jsonEncode(_keyCooldownUntil));
+    await prefs.setString(
+        OcrPrefsKeys.badKeys, jsonEncode(_badKeys.toList()));
+  }
+
+  Future<void> _persistActiveKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(OcrPrefsKeys.geminiActiveKey, _activeKeyIndex);
+  }
+
+  /// Key index i layak dipakai: ada, tidak bermasalah, tidak cooldown,
+  /// dan model aktif tidak sedang diblokir kuota untuk key ini.
+  bool _keyUsable(int i) {
+    if (i < 0 || i >= _apiKeys.length || _badKeys.contains(i)) return false;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final until = _keyCooldownUntil[i];
+    if (until != null) {
+      if (until > now) return false;
+      _keyCooldownUntil.remove(i);
+    }
+    final quotaUntil = _quotaBlockedUntil['$i|$_modelId'];
+    if (quotaUntil != null) {
+      if (quotaUntil > now) return false;
+      _quotaBlockedUntil.remove('$i|$_modelId');
+    }
+    return true;
+  }
+
+  /// Key layak berikutnya setelah `startAfter` (wrap), skip [tried].
+  int? _nextUsableKey(int startAfter, Set<int> tried) {
+    if (_apiKeys.isEmpty) return null;
+    for (var step = 1; step <= _apiKeys.length; step++) {
+      final i = (startAfter + step) % _apiKeys.length;
+      if (tried.contains(i)) continue;
+      if (_keyUsable(i)) return i;
+    }
+    return null;
+  }
+
   void _useActiveKey() {
     if (_apiKeys.isEmpty) return;
     _activeKeyIndex = _activeKeyIndex.clamp(0, _apiKeys.length - 1);
@@ -171,6 +258,35 @@ class ScannerProvider with ChangeNotifier {
                 _quotaBlockedUntil[k] = v;
               }
             });
+          }
+        } catch (_) {}
+      }
+
+      // Kesehatan key: cooldown (gangguan) + key bermasalah (konfigurasi).
+      final cooldownRaw = prefs.getString(OcrPrefsKeys.keyCooldown);
+      if (cooldownRaw != null) {
+        try {
+          final decoded = jsonDecode(cooldownRaw);
+          if (decoded is Map) {
+            final now = DateTime.now().millisecondsSinceEpoch;
+            decoded.forEach((k, v) {
+              final idx = int.tryParse(k.toString());
+              if (idx != null && v is int && v > now) {
+                _keyCooldownUntil[idx] = v;
+              }
+            });
+          }
+        } catch (_) {}
+      }
+      final badRaw = prefs.getString(OcrPrefsKeys.badKeys);
+      if (badRaw != null) {
+        try {
+          final decoded = jsonDecode(badRaw);
+          if (decoded is List) {
+            for (final v in decoded) {
+              final idx = v is int ? v : int.tryParse('$v');
+              if (idx != null) _badKeys.add(idx);
+            }
           }
         } catch (_) {}
       }
@@ -238,8 +354,7 @@ class ScannerProvider with ChangeNotifier {
   Future<void> setActiveKey(int i) async {
     if (i < 0 || i >= _apiKeys.length || i == _activeKeyIndex) return;
     _activeKeyIndex = i;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(OcrPrefsKeys.geminiActiveKey, i);
+    await _persistActiveKey();
     _useActiveKey();
     notifyListeners();
   }
@@ -294,6 +409,7 @@ class ScannerProvider with ChangeNotifier {
   Future<void> pickImageAndScan(
       {required ImageSource source, VoidCallback? onImageAcquired}) async {
     try {
+      _resetScanStatusNote();
       _state = ScannerState.picking;
       notifyListeners();
 
@@ -335,42 +451,109 @@ class ScannerProvider with ChangeNotifier {
       notifyListeners();
 
       ParsedReceiptData parsed;
+      // true bila jatuh ke regex KARENA kegagalan AI (kuota/gangguan/key)
+      // → hasil wajib ditandai 'needs_review' (brief poin 3).
+      var errorFallback = false;
       if (_useAiParser && _hasApiKey && await _isOnline()) {
-        // Online + AI enabled → Use Gemini LLM Parser.
-        // Transient (timeout/jaringan) → retry 1x setelah 2 detik sebelum
-        // menyerah ke regex — selama ini pemulihannya manual oleh user.
-        // State tetap 'parsing' (dialog tahap 2 aktif) — wajar.
-        var attempt = 0;
+        // Loop key: coba key aktif → gagal (klasifikasi) → pindah key
+        // berikutnya sesuai urutan tersimpan → semua habis → regex.
+        final tried = <int>{};
+        var attempts = 0;
+        var otherRetries = 0;
         while (true) {
-          try {
-            debugPrint('🤖 Using Gemini AI parser...');
-            parsed = await _geminiParser.parseOcrText(rawText, imagePath: _capturedImage!.path);
-            debugPrint('✅ Gemini parser succeeded');
-            break;
-          } catch (e) {
-            // Kuota habis → catat blokir (model, kapan reset) untuk toast
-            // sekali di caller, lalu regex fallback seperti biasa.
-            final quota = parseGeminiQuotaError(e, fallbackModel: _modelId);
-            if (quota != null) {
-              _quotaBlockedUntil[_quotaKey(quota.model)] =
-                  quota.availableAt.millisecondsSinceEpoch;
-              _lastQuotaHits.add(quota.model);
-              await _persistQuota();
-              debugPrint(
-                  '⛔ Gemini quota habis (${quota.model}), reset ${quota.retryAfter}');
-              notifyListeners();
-            }
-            attempt++;
-            if (attempt >= 2) {
-              // Gemini failed → fallback to regex parser
-              debugPrint('⚠️ Gemini parser failed: $e');
-              debugPrint('🔄 Falling back to regex parser...');
+          attempts++;
+          // Pastikan key aktif layak; kalau tidak, geser ke key layak.
+          if (!_keyUsable(_activeKeyIndex)) {
+            final alt = _nextUsableKey(_activeKeyIndex, tried);
+            if (alt == null) {
+              _lastScanNotices.add(const ScanNotice(ScanNoticeKind.allFailed));
+              errorFallback = true;
+              debugPrint('🚫 Tidak ada API key layak → regex.');
               parsed = _regexParser.parse(rawText, imagePath: _capturedImage!.path);
               parsed = parsed.copyWith(parserSource: 'regex');
               break;
             }
-            debugPrint('⏳ Gemini transient, retry $attempt/1...');
-            await Future.delayed(const Duration(seconds: 2));
+            _activeKeyIndex = alt;
+            await _persistActiveKey();
+            _useActiveKey();
+            notifyListeners();
+          } else {
+            _useActiveKey(); // sinkronkan model/key (setModel / ganti manual)
+          }
+          if (attempts > _apiKeys.length + 1) {
+            // Pengaman loop: semua key sudah dicoba.
+            _lastScanNotices.add(const ScanNotice(ScanNoticeKind.allFailed));
+            errorFallback = true;
+            parsed = _regexParser.parse(rawText, imagePath: _capturedImage!.path);
+            parsed = parsed.copyWith(parserSource: 'regex');
+            break;
+          }
+          try {
+            debugPrint('🤖 Using Gemini AI parser (key ${_activeKeyIndex + 1}, $_modelId)...');
+            parsed = await _geminiParser.parseOcrText(rawText, imagePath: _capturedImage!.path);
+            debugPrint('✅ Gemini parser succeeded');
+            break;
+          } catch (e) {
+            final failedKey = _activeKeyIndex;
+            final kind = classifyGeminiError(e);
+            debugPrint('⚠️ Gemini error (${kind.name}): $e');
+
+            // Error 'lain' (timeout/jaringan) → 1x retry key yang sama
+            // dulu sebelum menganggap key bermasalah.
+            if (kind == GeminiErrorKind.other && otherRetries < 1) {
+              otherRetries++;
+              debugPrint('⏳ Gemini transient, retry...');
+              await Future.delayed(const Duration(seconds: 2));
+              continue;
+            }
+
+            if (kind == GeminiErrorKind.quota) {
+              final info = parseGeminiQuotaError(e, fallbackModel: _modelId);
+              if (info != null) {
+                _quotaBlockedUntil['$failedKey|${info.model}'] =
+                    info.availableAt.millisecondsSinceEpoch;
+                await _persistQuota();
+                _lastScanNotices.add(ScanNotice(
+                  ScanNoticeKind.quota,
+                  model: info.model,
+                  retry: info.retryAfter,
+                ));
+              } else {
+                _lastScanNotices.add(const ScanNotice(ScanNoticeKind.quota));
+              }
+            } else if (kind == GeminiErrorKind.config) {
+              // Key salah konfigurasi → tandai bermasalah permanen.
+              _badKeys.add(failedKey);
+              _lastScanNotices.add(ScanNotice(ScanNoticeKind.config,
+                  fromKey: failedKey + 1));
+            } else {
+              // Gangguan server (5xx/overloaded) → cooldown key 2 menit.
+              _keyCooldownUntil[failedKey] =
+                  DateTime.now().millisecondsSinceEpoch + 120000;
+              _lastScanNotices.add(const ScanNotice(ScanNoticeKind.overload));
+            }
+            await _persistKeyHealth();
+            tried.add(failedKey);
+
+            // Coba key berikutnya sesuai urutan tersimpan.
+            final next = _nextUsableKey(failedKey, tried);
+            if (next != null) {
+              final reason = kind == GeminiErrorKind.config
+                  ? 'config'
+                  : kind == GeminiErrorKind.quota
+                      ? 'limit'
+                      : 'overload';
+              scanStatusNote =
+                  (from: failedKey + 1, to: next + 1, reason: reason);
+              _lastScanNotices.add(ScanNotice(ScanNoticeKind.keySwitch,
+                  fromKey: failedKey + 1, toKey: next + 1, reason: reason));
+              _activeKeyIndex = next;
+              await _persistActiveKey();
+              _useActiveKey();
+              notifyListeners(); // dialog menampilkan "Beralih ke key N…"
+            }
+            // Ulangi loop → key aktif sudah diganti (atau semua habis →
+            // allFailed + regex di awal loop berikutnya).
           }
         }
       } else {
@@ -392,7 +575,26 @@ class ScannerProvider with ChangeNotifier {
       notifyListeners();
 
       _validationResult = ReceiptValidator.validate(parsed);
-      _parsedData = parsed.copyWith(validationStatus: _validationResult!.status);
+      // Brief: 'Valid' HANYA dari Gemini yang berhasil. Semua hasil offline
+      // (error fallback, AI off, offline, tanpa key, model minta review)
+      // → needs_review supaya chip "Perlu Review" tampil.
+      final offlineResult = parsed.parserSource != 'gemini';
+      if (errorFallback || parsed.reviewReason != null || offlineResult) {
+        final base = _validationResult!;
+        _validationResult = ValidationResult(
+          status: 'needs_review',
+          message: parsed.reviewReason ??
+              (errorFallback
+                  ? 'Fallback ke Offline Parser — hasil perlu direview user'
+                  : 'Hasil Offline Parser — perlu dicek user'),
+          expectedGrandTotal: base.expectedGrandTotal,
+          actualGrandTotal: base.actualGrandTotal,
+          difference: base.difference,
+        );
+        _parsedData = parsed.copyWith(validationStatus: 'needs_review');
+      } else {
+        _parsedData = parsed.copyWith(validationStatus: _validationResult!.status);
+      }
 
       debugPrint('📊 PARSED RESULT (${_parsedData!.parserSource ?? "unknown"}):');
       debugPrint('  Merchant: ${_parsedData!.merchantName}');
@@ -408,9 +610,11 @@ class ScannerProvider with ChangeNotifier {
       debugPrint('  Validation: ${_validationResult!.status} — ${_validationResult!.message}');
       debugPrint('═══════════════════════════════════════════');
 
+      _resetScanStatusNote();
       _state = ScannerState.success;
       notifyListeners();
     } catch (e, stackTrace) {
+      _resetScanStatusNote();
       if (_capturedImage == null) {
         // Gagal SEBELUM gambar ada (izin kamera/file bermasalah) →
         // kembali ke awal supaya bisa scan ulang tanpa sisa error.
