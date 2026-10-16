@@ -810,4 +810,15 @@ class AppStrings {
   String unlockSubtitle(String name) => isEn
       ? 'Enter the password for $name to switch.'
       : 'Masukkan kata sandi $name untuk berpindah.';
+
+  // ── Kurs Valas / Multi-Currency ──
+  String get currencyLabel =>
+      isEn ? 'Currency' : 'Mata Uang';
+  String get rateUnavailable => isEn
+      ? 'Exchange rate unavailable. Connect to the internet once to fetch rates.'
+      : 'Kurs tidak tersedia. Sambungkan internet sekali untuk mengambil kurs.';
+  String get rateRefresh => isEn ? 'Refresh rate' : 'Muat ulang kurs';
+  String get rateSectionTitle => isEn ? 'Exchange Rates' : 'Kurs Valas';
+  String get rateBaseCurrency =>
+      isEn ? 'Base currency' : 'Mata uang dasar';
 }

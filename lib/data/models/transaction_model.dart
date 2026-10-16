@@ -8,6 +8,7 @@ class TransactionModel {
   final String? categoryId;
   final String type; // 'EXPENSE', 'INCOME', 'TRANSFER'
   final double amount;
+  final String currency; // Kode mata uang asli, mis. 'IDR', 'USD'. Default 'IDR'.
   final int transactionDate;
   final String? merchantName;
   final String? receiptImagePath;
@@ -25,6 +26,7 @@ class TransactionModel {
     this.categoryId,
     required this.type,
     required this.amount,
+    this.currency = 'IDR',
     required this.transactionDate,
     this.merchantName,
     this.receiptImagePath,
@@ -42,6 +44,7 @@ class TransactionModel {
       'category_id': categoryId,
       'type': type,
       'amount': amount,
+      'currency': currency,
       'transaction_date': transactionDate,
       'merchant_name': merchantName,
       'receipt_image_path': receiptImagePath,
@@ -62,6 +65,7 @@ class TransactionModel {
       categoryId: map['category_id'] as String?,
       type: map['type'] as String,
       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      currency: map['currency'] as String? ?? 'IDR',
       transactionDate: map['transaction_date'] as int? ?? DateTime.now().millisecondsSinceEpoch,
       merchantName: map['merchant_name'] as String?,
       receiptImagePath: map['receipt_image_path'] as String?,
@@ -79,6 +83,7 @@ class TransactionModel {
     String? categoryId,
     String? type,
     double? amount,
+    String? currency,
     int? transactionDate,
     String? merchantName,
     String? receiptImagePath,
@@ -94,6 +99,7 @@ class TransactionModel {
       categoryId: categoryId ?? this.categoryId,
       type: type ?? this.type,
       amount: amount ?? this.amount,
+      currency: currency ?? this.currency,
       transactionDate: transactionDate ?? this.transactionDate,
       merchantName: merchantName ?? this.merchantName,
       receiptImagePath: receiptImagePath ?? this.receiptImagePath,

@@ -27,7 +27,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _createDB,
       onUpgrade: _migrateDB,
       // SQLite default OFF; tanpa ini ON DELETE RESTRICT/CASCADE di schema
@@ -81,6 +81,15 @@ class DatabaseHelper {
       if (!hasFlag) {
         await db.execute(
             'ALTER TABLE users ADD COLUMN has_logged_in INTEGER NOT NULL DEFAULT 0');
+      }
+    }
+    // Migrasi v3 → v4: kolom mata uang untuk fitur multi-currency.
+    if (oldVersion < 4) {
+      final cols = await db.rawQuery('PRAGMA table_info(transactions)');
+      final hasCurrency = cols.any((c) => c['name'] == 'currency');
+      if (!hasCurrency) {
+        await db.execute(
+            "ALTER TABLE transactions ADD COLUMN currency TEXT NOT NULL DEFAULT 'IDR'");
       }
     }
   }
@@ -147,6 +156,7 @@ class DatabaseHelper {
         category_id TEXT,
         type TEXT NOT NULL,
         amount REAL NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'IDR',
         transaction_date INTEGER NOT NULL,
         merchant_name TEXT,
         receipt_image_path TEXT,

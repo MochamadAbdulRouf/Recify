@@ -28,6 +28,9 @@ dependencies:
   connectivity_plus: ^6.1.4
   shared_preferences: ^2.5.3
 
+  # Kurs Valas Realtime (open.er-api.com)
+  http: ^1.2.0
+
   # Formatters & Charts
   intl: ^0.19.0
   fl_chart: ^0.70.2
