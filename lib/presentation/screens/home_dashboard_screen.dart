@@ -16,6 +16,7 @@ import '../components/quick_action_grid.dart';
 import '../components/scan_progress_dialog.dart';
 import '../components/transaction_list_item.dart';
 import '../providers/finance_provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/scanner_provider.dart';
 import 'global_search_screen.dart';
 import 'manual_transaction_screen.dart';
@@ -46,8 +47,10 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final name = await ProfileService.getUserName();
-    final avatar = await ProfileService.getAvatarPath();
+    final userId = context.read<AuthProvider>().currentUserId;
+    if (userId == null) return;
+    final name = await ProfileService.getUserName(userId);
+    final avatar = await ProfileService.getAvatarPath(userId);
     if (!mounted) return;
     setState(() {
       _userName = name;
@@ -225,7 +228,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         children: [
                           Text(s.recentActivity, style: AppTypography.titleSm),
                           if (financeProvider.recentTransactions.isNotEmpty)
-                            PressableScale(child: GestureDetector(
+                            PressableScale(
+                                child: GestureDetector(
                               onTap: () => widget.onNavigateTab
                                   ?.call(2), // Jump to History
                               child: Text(

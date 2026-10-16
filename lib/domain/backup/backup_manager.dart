@@ -15,8 +15,11 @@ class BackupManager {
         return downloadDir;
       }
       try {
-        final extDirs = await getExternalStorageDirectories(type: StorageDirectory.downloads);
-        if (extDirs != null && extDirs.isNotEmpty && extDirs.first.existsSync()) {
+        final extDirs = await getExternalStorageDirectories(
+            type: StorageDirectory.downloads);
+        if (extDirs != null &&
+            extDirs.isNotEmpty &&
+            extDirs.first.existsSync()) {
           return extDirs.first;
         }
       } catch (_) {}
@@ -24,13 +27,14 @@ class BackupManager {
     return await getApplicationDocumentsDirectory();
   }
 
-  static Future<File> createBackupFile() async {
-    final data = await _repository.getAllDataForBackup();
+  static Future<File> createBackupFile(String userId) async {
+    final data = await _repository.getAllDataForBackup(userId);
     final jsonString = const JsonEncoder.withIndent('  ').convert(data);
 
     final downloadsDir = await _getPublicDownloadsDirectory();
     final timeStamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-    final backupFile = File(join(downloadsDir.path, 'Recify_Backup_$timeStamp.json'));
+    final backupFile =
+        File(join(downloadsDir.path, 'Recify_Backup_$timeStamp.json'));
 
     await backupFile.writeAsString(jsonString);
     return backupFile;
@@ -50,7 +54,9 @@ class BackupManager {
         try {
           final entries = dir.listSync();
           for (final entry in entries) {
-            if (entry is File && entry.path.endsWith('.json') && entry.path.contains('Recify_Backup_')) {
+            if (entry is File &&
+                entry.path.endsWith('.json') &&
+                entry.path.contains('Recify_Backup_')) {
               if (checkedPaths.add(entry.path)) {
                 backupFiles.add(entry);
               }
@@ -60,11 +66,12 @@ class BackupManager {
       }
     }
 
-    backupFiles.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+    backupFiles
+        .sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
     return backupFiles;
   }
 
-  static Future<bool> restoreFromBackupFile(File file) async {
+  static Future<bool> restoreFromBackupFile(File file, String userId) async {
     if (!file.existsSync()) {
       throw Exception('File backup tidak ditemukan.');
     }
@@ -76,11 +83,12 @@ class BackupManager {
       throw Exception('Format file cadangan tidak valid.');
     }
 
-    if (!decoded.containsKey('wallets') && !decoded.containsKey('transactions')) {
+    if (!decoded.containsKey('wallets') &&
+        !decoded.containsKey('transactions')) {
       throw Exception('File ini bukan file cadangan Recify yang sah.');
     }
 
-    await _repository.restoreAllData(decoded);
+    await _repository.restoreAllData(userId, decoded);
     return true;
   }
 }

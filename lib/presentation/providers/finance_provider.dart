@@ -29,6 +29,49 @@ class FinanceProvider with ChangeNotifier {
   String _searchQuery = '';
   bool _isLoading = false;
 
+  /// Pemilik ruang data yang sedang dimuat. null = belum login,
+  /// semua akses data dilarang sampai [setUser] dipanggil.
+  String? _userId;
+  String? get currentUserId => _userId;
+
+  /// Ganti akun aktif: reset filter + muat ulang seluruh datanya.
+  Future<void> setUser(String userId) async {
+    if (_userId == userId) {
+      await loadInitialData();
+      return;
+    }
+    _userId = userId;
+    _selectedWalletId = null;
+    _selectedCategoryId = null;
+    _searchQuery = '';
+    _readNotifIds = {};
+    _recentSearches = [];
+    await loadInitialData();
+  }
+
+  /// Keluar: kosongkan memori agar data akun tak bocor ke layar auth.
+  void clearUser() {
+    _userId = null;
+    _wallets = [];
+    _categories = [];
+    _transactions = [];
+    _budgets = [];
+    _selectedWalletId = null;
+    _selectedCategoryId = null;
+    _searchQuery = '';
+    _readNotifIds = {};
+    _recentSearches = [];
+    notifyListeners();
+  }
+
+  String get _uid {
+    final id = _userId;
+    if (id == null) throw StateError('FinanceProvider: belum login');
+    return id;
+  }
+
+  String _prefsKey(String base) => _userId == null ? base : '${base}_$_userId';
+
   Set<String> _readNotifIds = {};
   List<String> _recentSearches = [];
 
@@ -115,17 +158,19 @@ class FinanceProvider with ChangeNotifier {
   }
 
   Future<void> loadInitialData() async {
+    if (_userId == null) return;
     _isLoading = true;
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
-    _readNotifIds = (prefs.getStringList(_kReadNotifs) ?? const []).toSet();
-    _recentSearches = prefs.getStringList(_kRecentSearches) ?? [];
+    _readNotifIds =
+        (prefs.getStringList(_prefsKey(_kReadNotifs)) ?? const []).toSet();
+    _recentSearches = prefs.getStringList(_prefsKey(_kRecentSearches)) ?? [];
 
-    _wallets = await _repository.getWallets();
-    _categories = await _repository.getCategories();
+    _wallets = await _repository.getWallets(_uid);
+    _categories = await _repository.getCategories(_uid);
     final now = DateTime.now();
-    _budgets = await _repository.getBudgets(now.month, now.year);
+    _budgets = await _repository.getBudgets(_uid, now.month, now.year);
     await refreshTransactions();
 
     _isLoading = false;
@@ -133,12 +178,14 @@ class FinanceProvider with ChangeNotifier {
   }
 
   Future<void> refreshTransactions() async {
+    if (_userId == null) return;
     _transactions = await _repository.getTransactions(
+      _uid,
       walletId: _selectedWalletId,
       categoryId: _selectedCategoryId,
       searchQuery: _searchQuery.isEmpty ? null : _searchQuery,
     );
-    _wallets = await _repository.getWallets();
+    _wallets = await _repository.getWallets(_uid);
     notifyListeners();
   }
 
@@ -163,14 +210,14 @@ class FinanceProvider with ChangeNotifier {
     if (!_readNotifIds.add(id)) return;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_kReadNotifs, _readNotifIds.toList());
+    await prefs.setStringList(_prefsKey(_kReadNotifs), _readNotifIds.toList());
   }
 
   Future<void> markAllNotificationsRead() async {
     _readNotifIds = notifications.map((n) => n.id).toSet();
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_kReadNotifs, _readNotifIds.toList());
+    await prefs.setStringList(_prefsKey(_kReadNotifs), _readNotifIds.toList());
   }
 
   // --- Recent searches ---
@@ -186,14 +233,14 @@ class FinanceProvider with ChangeNotifier {
     }
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_kRecentSearches, _recentSearches);
+    await prefs.setStringList(_prefsKey(_kRecentSearches), _recentSearches);
   }
 
   Future<void> clearRecentSearches() async {
     _recentSearches = [];
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_kRecentSearches);
+    await prefs.remove(_prefsKey(_kRecentSearches));
   }
 
   // --- Transactions ---
@@ -201,7 +248,7 @@ class FinanceProvider with ChangeNotifier {
     required TransactionModel transaction,
     List<TransactionItemModel> items = const [],
   }) async {
-    await _repository.recordTransaction(transaction, items);
+    await _repository.recordTransaction(_uid, transaction, items);
     await loadInitialData();
   }
 
@@ -209,12 +256,12 @@ class FinanceProvider with ChangeNotifier {
     TransactionModel transaction,
     List<TransactionItemModel> items,
   ) async {
-    await _repository.recordTransaction(transaction, items);
+    await _repository.recordTransaction(_uid, transaction, items);
     await loadInitialData();
   }
 
   Future<void> deleteTransaction(TransactionModel transaction) async {
-    await _repository.deleteTransaction(transaction);
+    await _repository.deleteTransaction(_uid, transaction);
     await loadInitialData();
   }
 
@@ -225,42 +272,43 @@ class FinanceProvider with ChangeNotifier {
     TransactionModel newTransaction,
     List<TransactionItemModel> items,
   ) async {
-    await _repository.updateTransaction(oldTransaction, newTransaction, items);
+    await _repository.updateTransaction(
+        _uid, oldTransaction, newTransaction, items);
     await loadInitialData();
   }
 
   // --- Wallets Management ---
   Future<void> addWallet(WalletModel wallet) async {
-    await _repository.addWallet(wallet);
+    await _repository.addWallet(_uid, wallet);
     await loadInitialData();
   }
 
   Future<void> updateWallet(WalletModel wallet) async {
-    await _repository.updateWallet(wallet);
+    await _repository.updateWallet(_uid, wallet);
     await loadInitialData();
   }
 
   Future<void> deleteWallet(String id) async {
-    await _repository.deleteWallet(id);
+    await _repository.deleteWallet(_uid, id);
     await loadInitialData();
   }
 
   // --- Categories Management ---
   Future<void> addCategory(CategoryModel category) async {
-    await _repository.addCategory(category);
+    await _repository.addCategory(_uid, category);
     await loadInitialData();
   }
 
   Future<void> deleteCategory(String id) async {
-    await _repository.deleteCategory(id);
+    await _repository.deleteCategory(_uid, id);
     await loadInitialData();
   }
 
   // --- Budgets ---
   Future<void> setBudget(BudgetModel budget) async {
-    await _repository.setBudget(budget);
+    await _repository.setBudget(_uid, budget);
     final now = DateTime.now();
-    _budgets = await _repository.getBudgets(now.month, now.year);
+    _budgets = await _repository.getBudgets(_uid, now.month, now.year);
     notifyListeners();
   }
 
@@ -315,8 +363,7 @@ class FinanceProvider with ChangeNotifier {
     }).toList();
     if (monthly.isEmpty) throw StateError('empty-month:$month:$year');
     if (format == 'excel') {
-      final file =
-          await ReportExporter.exportTransactionsToExcel(monthly);
+      final file = await ReportExporter.exportTransactionsToExcel(monthly);
       return file.path;
     } else {
       final file = await ReportExporter.exportTransactionsToCsv(monthly);
@@ -324,14 +371,14 @@ class FinanceProvider with ChangeNotifier {
     }
   }
 
-  // --- Backup & Restore ---
+  // --- Backup & Restore (skop akun aktif) ---
   Future<String> createBackup() async {
-    final file = await BackupManager.createBackupFile();
+    final file = await BackupManager.createBackupFile(_uid);
     return file.path;
   }
 
   Future<void> restoreBackup(File file) async {
-    await BackupManager.restoreFromBackupFile(file);
+    await BackupManager.restoreFromBackupFile(file, _uid);
     await loadInitialData();
   }
 }

@@ -89,9 +89,9 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
       _validateReceiptDate();
       final financeProvider = context.read<FinanceProvider>();
       if (financeProvider.categories.isNotEmpty) {
-        // Match by category ID (suggestedCategory contains ID like 'cat_groceries')
+        // Match by category ID (template parser vs baris milik akun)
         final guessed = financeProvider.categories.firstWhere(
-          (c) => c.id == widget.parsedData.suggestedCategory,
+          (c) => _isSuggestedCategory(c),
           orElse: () => financeProvider.categories.firstWhere(
             (c) => c.type == 'EXPENSE',
             orElse: () => financeProvider.categories.first,
@@ -414,8 +414,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                     icon: const SizedBox.shrink(),
                                     selectedItemBuilder: (ctx) =>
                                         financeProvider.categories.map((c) {
-                                      final auto = c.id ==
-                                          widget.parsedData.suggestedCategory;
+                                      final auto = _isSuggestedCategory(c);
                                       return Row(
                                         children: [
                                           Expanded(
@@ -744,6 +743,13 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
         ),
       ),
     );
+  }
+
+  /// Id template parser (`cat_groceries`) vs baris milik akun
+  /// (`c_<uid>_cat_groceries`): cocok persis atau akhiran template.
+  bool _isSuggestedCategory(CategoryModel c) {
+    final sug = widget.parsedData.suggestedCategory;
+    return c.id == sug || c.id.endsWith('_$sug');
   }
 
   /// Konfirmasi pembatalan hasil scan — satu sumber untuk tombol back

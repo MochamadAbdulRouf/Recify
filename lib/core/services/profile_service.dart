@@ -1,56 +1,27 @@
-import 'dart:convert';
-import 'dart:io';
-import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
+import '../../data/local/database_helper.dart';
 
+/// Profil akun aktif — satu-satunya sumber nama & avatar adalah tabel
+/// `users` (terikat akun, bukan file global), jadi tiap akun punya
+/// profilnya sendiri dan tidak bocor ke akun lain.
 class ProfileService {
-  static Future<File> _getProfileFile() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return File(join(dir.path, 'user_profile.json'));
+  static final _dbHelper = DatabaseHelper.instance;
+
+  static Future<String> getUserName(String userId) async {
+    final user = await _dbHelper.getUserById(userId);
+    final name = user?.name.trim() ?? '';
+    return name.isNotEmpty ? name : 'Pengguna Recify';
   }
 
-  static Future<Map<String, dynamic>> _readData() async {
-    try {
-      final file = await _getProfileFile();
-      if (await file.exists()) {
-        final content = await file.readAsString();
-        final decoded = jsonDecode(content);
-        if (decoded is Map<String, dynamic>) {
-          return decoded;
-        }
-      }
-    } catch (_) {}
-    return {'name': 'Pengguna Recify', 'avatar_path': null};
+  static Future<void> setUserName(String userId, String name) async {
+    await _dbHelper.updateUserProfile(userId, name: name.trim());
   }
 
-  static Future<void> _writeData(Map<String, dynamic> data) async {
-    try {
-      final file = await _getProfileFile();
-      await file.writeAsString(jsonEncode(data));
-    } catch (_) {}
+  static Future<String?> getAvatarPath(String userId) async {
+    final user = await _dbHelper.getUserById(userId);
+    return user?.avatarPath;
   }
 
-  static Future<String> getUserName() async {
-    final data = await _readData();
-    return (data['name'] as String?)?.trim().isNotEmpty == true
-        ? data['name'] as String
-        : 'Pengguna Recify';
-  }
-
-  static Future<void> setUserName(String name) async {
-    final data = await _readData();
-    data['name'] = name.trim();
-    await _writeData(data);
-  }
-
-  static Future<String?> getAvatarPath() async {
-    final data = await _readData();
-    return data['avatar_path'] as String?;
-  }
-
-  static Future<void> setAvatarPath(String? path) async {
-    final data = await _readData();
-    data['avatar_path'] = path;
-    await _writeData(data);
+  static Future<void> setAvatarPath(String userId, String? path) async {
+    await _dbHelper.updateUserProfile(userId, avatarPath: path);
   }
 }

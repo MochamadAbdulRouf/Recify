@@ -4,13 +4,14 @@ import 'package:provider/provider.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/components/app_toast.dart';
+import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/finance_provider.dart';
 import 'presentation/providers/locale_provider.dart';
 import 'presentation/providers/scanner_provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'presentation/providers/theme_provider.dart';
-import 'presentation/screens/main_shell_screen.dart';
+import 'presentation/screens/auth_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -72,7 +73,12 @@ class _RecifyAppState extends State<RecifyApp> with WidgetsBindingObserver {
       providers: [
         ChangeNotifierProvider.value(value: widget.themeProvider),
         ChangeNotifierProvider(
-          create: (_) => FinanceProvider()..loadInitialData(),
+          create: (_) => AuthProvider()..init(),
+        ),
+        // Finance dimuat per akun via AuthGate.setUser — bukan saat start,
+        // agar tidak ada data lintas akun yang sempat terbaca.
+        ChangeNotifierProvider(
+          create: (_) => FinanceProvider(),
         ),
         ChangeNotifierProvider(
           create: (_) => ScannerProvider()..initializeSettings(),
@@ -94,7 +100,7 @@ class _RecifyAppState extends State<RecifyApp> with WidgetsBindingObserver {
             darkTheme: AppTheme.darkTheme,
             themeMode: theme.flutterMode,
             // Consumer DI DALAM route (home dibangun Navigator sekali di
-            // awal): notify tema/locale → instance MainShellScreen BARU
+            // awal): notify tema/locale → instance AuthGate BARU
             // (non-const) → Element.update cascade ke seluruh layar tanpa
             // remount — state tab & scroll aman. Tanpa ini, ganti tema
             // atau bahasa hanya memperbarui widget yang watch provider.
@@ -103,7 +109,7 @@ class _RecifyAppState extends State<RecifyApp> with WidgetsBindingObserver {
             home: Consumer<LocaleProvider>(
               builder: (context, locale, _) => Consumer<ThemeProvider>(
                 // ignore: prefer_const_constructors — non-const disengaja, lihat komentar di atas
-                builder: (context, theme, _) => MainShellScreen(),
+                builder: (context, theme, _) => AuthGate(),
               ),
             ),
           );

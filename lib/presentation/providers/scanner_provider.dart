@@ -17,7 +17,15 @@ import '../../domain/ocr/indonesian_receipt_parser.dart';
 import '../../domain/ocr/mlkit_receipt_scanner.dart';
 import '../../domain/ocr/receipt_validator.dart';
 
-enum ScannerState { idle, picking, scanning, parsing, validating, success, error }
+enum ScannerState {
+  idle,
+  picking,
+  scanning,
+  parsing,
+  validating,
+  success,
+  error
+}
 
 /// SharedPreferences keys for OCR settings
 class OcrPrefsKeys {
@@ -150,8 +158,7 @@ class ScannerProvider with ChangeNotifier {
   Duration? quotaRemaining(String model) {
     final until = _quotaBlockedUntil[_quotaKey(model)];
     if (until == null) return null;
-    final left =
-        until - DateTime.now().millisecondsSinceEpoch;
+    final left = until - DateTime.now().millisecondsSinceEpoch;
     if (left <= 0) {
       _quotaBlockedUntil.remove(_quotaKey(model));
       return null;
@@ -163,7 +170,8 @@ class ScannerProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now().millisecondsSinceEpoch;
     _quotaBlockedUntil.removeWhere((_, until) => until <= now);
-    await prefs.setString(OcrPrefsKeys.quotaBlocked, jsonEncode(_quotaBlockedUntil));
+    await prefs.setString(
+        OcrPrefsKeys.quotaBlocked, jsonEncode(_quotaBlockedUntil));
   }
 
   /// Persist kesehatan key (cooldown gangguan + key bermasalah).
@@ -173,8 +181,7 @@ class ScannerProvider with ChangeNotifier {
     _keyCooldownUntil.removeWhere((_, until) => until <= now);
     await prefs.setString(
         OcrPrefsKeys.keyCooldown, jsonEncode(_keyCooldownUntil));
-    await prefs.setString(
-        OcrPrefsKeys.badKeys, jsonEncode(_badKeys.toList()));
+    await prefs.setString(OcrPrefsKeys.badKeys, jsonEncode(_badKeys.toList()));
   }
 
   Future<void> _persistActiveKey() async {
@@ -241,8 +248,8 @@ class ScannerProvider with ChangeNotifier {
         }
       }
       _activeKeyIndex = prefs.getInt(OcrPrefsKeys.geminiActiveKey) ?? 0;
-      _modelId = prefs.getString(OcrPrefsKeys.geminiModel) ??
-          defaultGeminiModelId;
+      _modelId =
+          prefs.getString(OcrPrefsKeys.geminiModel) ?? defaultGeminiModelId;
       if (geminiModelById(_modelId) == null) _modelId = defaultGeminiModelId;
       _hasApiKey = _apiKeys.isNotEmpty;
 
@@ -415,7 +422,7 @@ class ScannerProvider with ChangeNotifier {
 
       final XFile? photo = await _picker.pickImage(
         source: source,
-        maxWidth: 2400,  // Increased for better OCR quality
+        maxWidth: 2400, // Increased for better OCR quality
         maxHeight: 2400,
         imageQuality: 92, // Higher quality for better text recognition
       );
@@ -469,7 +476,8 @@ class ScannerProvider with ChangeNotifier {
               _lastScanNotices.add(const ScanNotice(ScanNoticeKind.allFailed));
               errorFallback = true;
               debugPrint('🚫 Tidak ada API key layak → regex.');
-              parsed = _regexParser.parse(rawText, imagePath: _capturedImage!.path);
+              parsed =
+                  _regexParser.parse(rawText, imagePath: _capturedImage!.path);
               parsed = parsed.copyWith(parserSource: 'regex');
               break;
             }
@@ -484,13 +492,16 @@ class ScannerProvider with ChangeNotifier {
             // Pengaman loop: semua key sudah dicoba.
             _lastScanNotices.add(const ScanNotice(ScanNoticeKind.allFailed));
             errorFallback = true;
-            parsed = _regexParser.parse(rawText, imagePath: _capturedImage!.path);
+            parsed =
+                _regexParser.parse(rawText, imagePath: _capturedImage!.path);
             parsed = parsed.copyWith(parserSource: 'regex');
             break;
           }
           try {
-            debugPrint('🤖 Using Gemini AI parser (key ${_activeKeyIndex + 1}, $_modelId)...');
-            parsed = await _geminiParser.parseOcrText(rawText, imagePath: _capturedImage!.path);
+            debugPrint(
+                '🤖 Using Gemini AI parser (key ${_activeKeyIndex + 1}, $_modelId)...');
+            parsed = await _geminiParser.parseOcrText(rawText,
+                imagePath: _capturedImage!.path);
             debugPrint('✅ Gemini parser succeeded');
             break;
           } catch (e) {
@@ -524,8 +535,8 @@ class ScannerProvider with ChangeNotifier {
             } else if (kind == GeminiErrorKind.config) {
               // Key salah konfigurasi → tandai bermasalah permanen.
               _badKeys.add(failedKey);
-              _lastScanNotices.add(ScanNotice(ScanNoticeKind.config,
-                  fromKey: failedKey + 1));
+              _lastScanNotices.add(
+                  ScanNotice(ScanNoticeKind.config, fromKey: failedKey + 1));
             } else {
               // Gangguan server (5xx/overloaded) → cooldown key 2 menit.
               _keyCooldownUntil[failedKey] =
@@ -593,10 +604,12 @@ class ScannerProvider with ChangeNotifier {
         );
         _parsedData = parsed.copyWith(validationStatus: 'needs_review');
       } else {
-        _parsedData = parsed.copyWith(validationStatus: _validationResult!.status);
+        _parsedData =
+            parsed.copyWith(validationStatus: _validationResult!.status);
       }
 
-      debugPrint('📊 PARSED RESULT (${_parsedData!.parserSource ?? "unknown"}):');
+      debugPrint(
+          '📊 PARSED RESULT (${_parsedData!.parserSource ?? "unknown"}):');
       debugPrint('  Merchant: ${_parsedData!.merchantName}');
       debugPrint('  Category: ${_parsedData!.suggestedCategory}');
       debugPrint('  Grand Total: ${_parsedData!.grandTotal}');
@@ -605,9 +618,11 @@ class ScannerProvider with ChangeNotifier {
       debugPrint('  Discount: ${_parsedData!.discount}');
       debugPrint('  Items (${_parsedData!.items.length}):');
       for (final item in _parsedData!.items) {
-        debugPrint('    - ${item.itemName}: ${item.quantity}x @ ${item.unitPrice} = ${item.totalPrice}');
+        debugPrint(
+            '    - ${item.itemName}: ${item.quantity}x @ ${item.unitPrice} = ${item.totalPrice}');
       }
-      debugPrint('  Validation: ${_validationResult!.status} — ${_validationResult!.message}');
+      debugPrint(
+          '  Validation: ${_validationResult!.status} — ${_validationResult!.message}');
       debugPrint('═══════════════════════════════════════════');
 
       _resetScanStatusNote();
@@ -652,7 +667,8 @@ class ScannerProvider with ChangeNotifier {
       _parsedData = _parsedData!.copyWith(grandTotal: total);
       // Re-validate after manual edit
       _validationResult = ReceiptValidator.validate(_parsedData!);
-      _parsedData = _parsedData!.copyWith(validationStatus: _validationResult!.status);
+      _parsedData =
+          _parsedData!.copyWith(validationStatus: _validationResult!.status);
       notifyListeners();
     }
   }
@@ -665,41 +681,50 @@ class ScannerProvider with ChangeNotifier {
   }
 
   void updateItem(int index, ParsedReceiptItem updatedItem) {
-    if (_parsedData != null && index >= 0 && index < _parsedData!.items.length) {
+    if (_parsedData != null &&
+        index >= 0 &&
+        index < _parsedData!.items.length) {
       final updatedList = List<ParsedReceiptItem>.from(_parsedData!.items);
       updatedList[index] = updatedItem;
       _parsedData = _parsedData!.copyWith(items: updatedList);
       // Re-validate after item edit
       _validationResult = ReceiptValidator.validate(_parsedData!);
-      _parsedData = _parsedData!.copyWith(validationStatus: _validationResult!.status);
+      _parsedData =
+          _parsedData!.copyWith(validationStatus: _validationResult!.status);
       notifyListeners();
     }
   }
 
   void removeItem(int index) {
-    if (_parsedData != null && index >= 0 && index < _parsedData!.items.length) {
+    if (_parsedData != null &&
+        index >= 0 &&
+        index < _parsedData!.items.length) {
       final updatedList = List<ParsedReceiptItem>.from(_parsedData!.items);
       updatedList.removeAt(index);
       _parsedData = _parsedData!.copyWith(items: updatedList);
       // Re-validate after item removal
       _validationResult = ReceiptValidator.validate(_parsedData!);
-      _parsedData = _parsedData!.copyWith(validationStatus: _validationResult!.status);
+      _parsedData =
+          _parsedData!.copyWith(validationStatus: _validationResult!.status);
       notifyListeners();
     }
   }
 
   void addItem(ParsedReceiptItem item) {
     if (_parsedData != null) {
-      final updatedList = List<ParsedReceiptItem>.from(_parsedData!.items)..add(item);
+      final updatedList = List<ParsedReceiptItem>.from(_parsedData!.items)
+        ..add(item);
       _parsedData = _parsedData!.copyWith(items: updatedList);
       // Re-validate after item addition
       _validationResult = ReceiptValidator.validate(_parsedData!);
-      _parsedData = _parsedData!.copyWith(validationStatus: _validationResult!.status);
+      _parsedData =
+          _parsedData!.copyWith(validationStatus: _validationResult!.status);
       notifyListeners();
     }
   }
 
   Future<void> saveVerifiedTransaction({
+    required String userId,
     required String walletId,
     String? customNotes,
   }) async {
@@ -711,7 +736,8 @@ class ScannerProvider with ChangeNotifier {
     try {
       String? archivedPath;
       if (_capturedImage != null) {
-        archivedPath = await _archiveManager.saveCompressedReceipt(_capturedImage!);
+        archivedPath =
+            await _archiveManager.saveCompressedReceipt(_capturedImage!);
       }
 
       final txId = const Uuid().v4();
@@ -740,11 +766,13 @@ class ScannerProvider with ChangeNotifier {
         );
       }).toList();
 
-      await _financeRepository.recordTransaction(transaction, items);
+      await _financeRepository.recordTransaction(userId, transaction, items);
 
       debugPrint('✅ Transaction saved: $txId (${_parsedData!.merchantName})');
-      debugPrint('   Amount: ${_parsedData!.grandTotal}, Items: ${items.length}');
-      debugPrint('   Parser: ${_parsedData!.parserSource}, Validation: ${_parsedData!.validationStatus}');
+      debugPrint(
+          '   Amount: ${_parsedData!.grandTotal}, Items: ${items.length}');
+      debugPrint(
+          '   Parser: ${_parsedData!.parserSource}, Validation: ${_parsedData!.validationStatus}');
 
       reset();
     } catch (e, stackTrace) {

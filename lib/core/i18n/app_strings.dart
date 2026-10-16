@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../presentation/providers/locale_provider.dart';
+import '../../data/repositories/auth_repository.dart' show AuthError;
 
 /// App-wide UI strings. Transaction data (merchant, category names) is NOT
 /// translated — it stays exactly as the user recorded it.
@@ -63,11 +64,11 @@ class AppStrings {
   String get insightEmpty => isEn
       ? 'Record spending to unlock insights'
       : 'Catat pengeluaran untuk melihat analisis';
-  String insightTopCategory(String category, int percent, String period) =>
-      isEn
-          ? '$category takes $percent% of $period spending'
-          : '$category menyerap $percent% pengeluaran $period';
-  String get insightPeriodDaily => isEn ? 'the last 3 days’' : '3 hari terakhir';
+  String insightTopCategory(String category, int percent, String period) => isEn
+      ? '$category takes $percent% of $period spending'
+      : '$category menyerap $percent% pengeluaran $period';
+  String get insightPeriodDaily =>
+      isEn ? 'the last 3 days’' : '3 hari terakhir';
   String get insightPeriodWeekly => isEn ? 'this week’s' : 'pekan ini';
   String get insightPeriodMonthly => isEn ? 'this month’s' : 'bulan ini';
   String get insightOnTrack => isEn
@@ -78,8 +79,9 @@ class AppStrings {
   String get exportTaxReportHint =>
       isEn ? 'CSV ready for your records' : 'CSV siap untuk arsip Anda';
   String activeCount(int n) => isEn ? '$n active' : '$n aktif';
-  String get tapBarHint =>
-      isEn ? 'Tap a bar to see that period' : 'Ketuk batang untuk lihat periode itu';
+  String get tapBarHint => isEn
+      ? 'Tap a bar to see that period'
+      : 'Ketuk batang untuk lihat periode itu';
   String get totalLabel => isEn ? 'Total' : 'Total';
 
   // ── Manual entry ──
@@ -211,19 +213,40 @@ class AppStrings {
   String get noIncomeDataHint => isEn
       ? 'Record an income transaction to see visual stats.'
       : 'Catat transaksi pemasukan untuk melihat statistik visual.';
-  String insightTopIncomeCategory(String category, int percent, String period) =>
+  String insightTopIncomeCategory(
+          String category, int percent, String period) =>
       isEn
           ? '$category is $percent% of $period income'
           : '$category menyumbang $percent% pemasukan $period';
 
   List<String> get monthsShort => isEn
       ? const [
-          'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
         ]
       : const [
-          'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-          'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'Mei',
+          'Jun',
+          'Jul',
+          'Agu',
+          'Sep',
+          'Okt',
+          'Nov',
+          'Des',
         ];
 
   /// Label minggu berjalan pada sumbu grafik.
@@ -364,7 +387,8 @@ class AppStrings {
   String get sectionHelpInfo =>
       isEn ? 'HELP & INFORMATION' : 'BANTUAN & INFORMASI';
 
-  String get manageWallets => isEn ? 'Wallets & Accounts' : 'Kelola Dompet & Akun';
+  String get manageWallets =>
+      isEn ? 'Wallets & Accounts' : 'Kelola Dompet & Akun';
   String walletCountSubtitle(int n) => isEn
       ? '$n Wallet${n == 1 ? '' : 's'} • Edit Balance & Add'
       : '$n Dompet • Edit Saldo & Tambah';
@@ -404,7 +428,8 @@ class AppStrings {
       : '$n Kategori • Tambah & Kelola';
   String get monthlyBudget => isEn ? 'Monthly Budget' : 'Budget Bulanan';
 
-  String get geminiAiParser => isEn ? 'Use AI Parser (Gemini)' : 'Gunakan AI Parser (Gemini)';
+  String get geminiAiParser =>
+      isEn ? 'Use AI Parser (Gemini)' : 'Gunakan AI Parser (Gemini)';
   String get geminiParserOn => isEn
       ? 'Parse receipts with Gemini AI'
       : 'Parsing struk menggunakan Gemini AI';
@@ -473,7 +498,8 @@ class AppStrings {
 
   // Delete wallet (Poin 1)
   String get hapus => isEn ? 'Delete' : 'Hapus';
-  String get deleteWalletConfirmTitle => isEn ? 'Delete Wallet?' : 'Hapus Dompet?';
+  String get deleteWalletConfirmTitle =>
+      isEn ? 'Delete Wallet?' : 'Hapus Dompet?';
   String deleteWalletBody(String name) => isEn
       ? 'Wallet "$name" will be removed permanently. A wallet that still contains transactions cannot be deleted.'
       : 'Dompet "$name" akan dihapus permanen. Dompet yang masih berisi transaksi tidak bisa dihapus.';
@@ -483,9 +509,8 @@ class AppStrings {
   String get deleteWalletInUse => isEn
       ? 'Wallet still contains transactions and cannot be deleted.'
       : 'Dompet masih berisi transaksi dan tidak bisa dihapus.';
-  String deleteWalletSuccess(String name) => isEn
-      ? 'Wallet "$name" deleted'
-      : 'Dompet "$name" berhasil dihapus!';
+  String deleteWalletSuccess(String name) =>
+      isEn ? 'Wallet "$name" deleted' : 'Dompet "$name" berhasil dihapus!';
   String deleteWalletFailed(String e) =>
       isEn ? 'Failed to delete wallet: $e' : 'Gagal menghapus dompet: $e';
 
@@ -498,9 +523,8 @@ class AppStrings {
   String get createBackupSubtitle => isEn
       ? 'Save a JSON file to your phone Download folder'
       : 'Simpan file JSON ke folder Download HP';
-  String get restoreBackup => isEn
-      ? 'Restore from Backup File'
-      : 'Pulihkan dari File Cadangan';
+  String get restoreBackup =>
+      isEn ? 'Restore from Backup File' : 'Pulihkan dari File Cadangan';
   String get restoreBackupSubtitle => isEn
       ? 'Pick from the backup files found'
       : 'Pilih dari file cadangan yang ditemukan';
@@ -536,8 +560,7 @@ class AppStrings {
   String get categoryNameHint => isEn
       ? 'e.g. Streaming, Hobbies, Donations'
       : 'Contoh: Streaming, Hobi, Donasi';
-  String get transactionType =>
-      isEn ? 'Transaction Type' : 'Tipe Transaksi';
+  String get transactionType => isEn ? 'Transaction Type' : 'Tipe Transaksi';
   String categoryAdded(String name) => isEn
       ? 'Category "$name" added!'
       : 'Kategori "$name" berhasil ditambahkan!';
@@ -551,14 +574,12 @@ class AppStrings {
   String get budgetHint => isEn
       ? 'Tap a category to set or change its monthly limit'
       : 'Ketuk kategori untuk atur atau ubah limit bulanan';
-  String get noExpenseCategories => isEn
-      ? 'No expense categories yet'
-      : 'Belum ada kategori pengeluaran';
+  String get noExpenseCategories =>
+      isEn ? 'No expense categories yet' : 'Belum ada kategori pengeluaran';
   String spentLabel(String amount) =>
       isEn ? 'Used: $amount' : 'Terpakai: $amount';
   String get setLimit => isEn ? 'Set Limit' : 'Atur Limit';
-  String limitTitle(String name) =>
-      isEn ? 'Limit for $name' : 'Limit $name';
+  String limitTitle(String name) => isEn ? 'Limit for $name' : 'Limit $name';
   String get monthlyLimitField =>
       isEn ? 'Monthly Limit (Rp)' : 'Limit Bulanan (Rp)';
   String get limitHint => isEn ? 'e.g. 1,500,000' : 'Contoh: 1.500.000';
@@ -573,7 +594,8 @@ class AppStrings {
       : 'Cache sementara berhasil dibersihkan!';
   String cacheFailed(String e) =>
       isEn ? 'Failed to clear cache: $e' : 'Gagal membersihkan cache: $e';
-  String get profileSaved => isEn ? 'Profile saved!' : 'Profil berhasil disimpan!';
+  String get profileSaved =>
+      isEn ? 'Profile saved!' : 'Profil berhasil disimpan!';
   String get userNameDefault => isEn ? 'Recify User' : 'Pengguna Recify';
 
   // ── Toast ──
@@ -585,29 +607,24 @@ class AppStrings {
   String get themeSystem => isEn ? 'System' : 'Sistem';
   String get themeLight => isEn ? 'Light' : 'Terang';
   String get themeDark => isEn ? 'Dark' : 'Gelap';
-  String get themeSystemSubtitle => isEn
-      ? 'Follows device setting'
-      : 'Ikut pengaturan perangkat';
-  String get themeLightSubtitle =>
-      isEn ? 'Light theme' : 'Tema terang';
-  String get themeDarkSubtitle =>
-      isEn ? 'Dark theme' : 'Tema gelap';
+  String get themeSystemSubtitle =>
+      isEn ? 'Follows device setting' : 'Ikut pengaturan perangkat';
+  String get themeLightSubtitle => isEn ? 'Light theme' : 'Tema terang';
+  String get themeDarkSubtitle => isEn ? 'Dark theme' : 'Tema gelap';
 
   // ── Receipt date validation ──
   String get dateOldTitle =>
       isEn ? 'Receipt Date Is Old' : 'Tanggal Nota Sudah Lama';
-  String useReceiptDate(String date) => isEn
-      ? 'Use Receipt Date ($date)'
-      : 'Pakai Tanggal Nota ($date)';
+  String useReceiptDate(String date) =>
+      isEn ? 'Use Receipt Date ($date)' : 'Pakai Tanggal Nota ($date)';
   String get dateUnreadableNotice => isEn
       ? 'Receipt date unreadable — using today'
       : 'Tanggal nota tidak terbaca — memakai hari ini';
   String get dateFutureNotice => isEn
       ? 'Receipt date is in the future — using today'
       : 'Tanggal nota di masa depan — memakai hari ini';
-  String dateConfirmToday(String date) => isEn
-      ? 'Use today ($date)?'
-      : 'Yakin memakai tanggal hari ini ($date)?';
+  String dateConfirmToday(String date) =>
+      isEn ? 'Use today ($date)?' : 'Yakin memakai tanggal hari ini ($date)?';
   String dateConfirmReceipt(String date) => isEn
       ? 'Use receipt date ($date)?'
       : 'Yakin memakai tanggal nota ($date)?';
@@ -645,9 +662,8 @@ class AppStrings {
       isEn ? 'quota reached its limit' : 'kuota sudah mencapai limit';
   String get keySwitchReasonConfig =>
       isEn ? 'key configuration invalid' : 'konfigurasi key bermasalah';
-  String usingKeyLabel(int n) => isEn
-      ? 'Using API key $n'
-      : 'Menggunakan API key $n';
+  String usingKeyLabel(int n) =>
+      isEn ? 'Using API key $n' : 'Menggunakan API key $n';
   String get geminiModel => isEn ? 'Gemini Model' : 'Model Gemini';
   String geminiKeysSubtitle(int n) => isEn
       ? '$n key${n == 1 ? '' : 's'} • tap to manage'
@@ -655,9 +671,7 @@ class AppStrings {
   String get geminiKeysTitle => isEn ? 'Gemini API Keys' : 'Kunci API Gemini';
   String get addKey => isEn ? 'Add key' : 'Tambah kunci';
   String get keyActive => isEn ? 'Active' : 'Aktif';
-  String quotaAvailableIn(String t) => isEn
-      ? 'available in $t'
-      : 'tersedia $t';
+  String quotaAvailableIn(String t) => isEn ? 'available in $t' : 'tersedia $t';
   String get pasteKeyHint => 'AIza...';
   String get keyAdded => isEn ? 'API key added' : 'Kunci API ditambahkan';
   String get keyRemoved => isEn ? 'API key removed' : 'Kunci API dihapus';
@@ -679,18 +693,15 @@ class AppStrings {
   String get encryptedBadge => isEn
       ? 'Data encrypted locally using AES-256-GCM hardware encryption'
       : 'Data dienkripsi lokal dengan enkripsi perangkat AES-256-GCM';
-  String walletUpdated(String name) => isEn
-      ? 'Wallet "$name" updated!'
-      : 'Dompet "$name" berhasil diperbarui!';
+  String walletUpdated(String name) =>
+      isEn ? 'Wallet "$name" updated!' : 'Dompet "$name" berhasil diperbarui!';
   String apiKeySavedMsg(int n) => isEn
       ? 'API key saved! $n characters.'
       : 'API Key berhasil disimpan! $n karakter.';
-  String walletAdded(String name) => isEn
-      ? 'Wallet "$name" added!'
-      : 'Dompet "$name" berhasil ditambahkan!';
-  String backupSaved(String path) => isEn
-      ? 'Backup saved at: $path'
-      : 'Cadangan tersimpan di: $path';
+  String walletAdded(String name) =>
+      isEn ? 'Wallet "$name" added!' : 'Dompet "$name" berhasil ditambahkan!';
+  String backupSaved(String path) =>
+      isEn ? 'Backup saved at: $path' : 'Cadangan tersimpan di: $path';
   String backupFailed(String e) =>
       isEn ? 'Backup failed: $e' : 'Gagal backup: $e';
   String get restoreDone => isEn
@@ -701,7 +712,102 @@ class AppStrings {
   String exportDone(String path) => isEn
       ? 'Report exported to: $path'
       : 'Laporan berhasil diekspor ke: $path';
-  String exportTransactionsFailed(String e) => isEn
-      ? 'Export failed: $e'
-      : 'Gagal mengekspor: $e';
+  String exportTransactionsFailed(String e) =>
+      isEn ? 'Export failed: $e' : 'Gagal mengekspor: $e';
+
+  // ── Auth (login / signup, 100% lokal) ──
+  String get authWelcomeBack =>
+      isEn ? 'Welcome Back' : 'Selamat Datang Kembali';
+  String get authWelcomeSubtitle =>
+      isEn ? 'Sign in to your offline account' : 'Masuk ke akun offline Anda';
+  String get authCreateAccount => isEn ? 'Create Account' : 'Buat Akun Baru';
+  String get authCreateSubtitle => isEn
+      ? 'Your data stays on this device'
+      : 'Data Anda tetap di perangkat ini';
+  String get emailField => isEn ? 'EMAIL' : 'EMAIL';
+  String get emailHint => isEn ? 'you@example.com' : 'nama@contoh.com';
+  String get passwordField => isEn ? 'PASSWORD' : 'KATA SANDI';
+  String get passwordHint =>
+      isEn ? 'Minimum 6 characters' : 'Minimal 6 karakter';
+  String get confirmPasswordField =>
+      isEn ? 'CONFIRM PASSWORD' : 'KONFIRMASI KATA SANDI';
+  String get confirmPasswordHint =>
+      isEn ? 'Repeat your password' : 'Ulangi kata sandi Anda';
+  String get loginButton => isEn ? 'Sign In' : 'Masuk';
+  String get signupButton => isEn ? 'Create Account' : 'Buat Akun';
+  String get noAccountYet =>
+      isEn ? "Don't have an account? " : 'Belum punya akun? ';
+  String get haveAccount =>
+      isEn ? 'Already have an account? ' : 'Sudah punya akun? ';
+  String get authOfflineNote => isEn
+      ? '100% Offline • No email verification needed'
+      : '100% Offline • Tanpa verifikasi email';
+  String welcomeUser(String name) =>
+      isEn ? 'Welcome, $name!' : 'Selamat datang, $name!';
+  String get accountCreated =>
+      isEn ? 'Account created!' : 'Akun berhasil dibuat!';
+
+  String authErrorMessage(AuthError code) => switch (code) {
+        AuthError.emptyName =>
+          isEn ? 'Please enter your name.' : 'Mohon isi nama Anda.',
+        AuthError.invalidEmail =>
+          isEn ? 'Email address is not valid.' : 'Alamat email tidak valid.',
+        AuthError.weakPassword => isEn
+            ? 'Password must be at least 6 characters.'
+            : 'Kata sandi minimal 6 karakter.',
+        AuthError.passwordMismatch => isEn
+            ? 'Passwords do not match.'
+            : 'Konfirmasi kata sandi tidak sama.',
+        AuthError.emailTaken => isEn
+            ? 'Email is already registered on this device.'
+            : 'Email sudah terdaftar di perangkat ini.',
+        AuthError.userNotFound => isEn
+            ? 'Account not found. Check your email or sign up.'
+            : 'Akun tidak ditemukan. Periksa email atau daftar dulu.',
+        AuthError.wrongPassword =>
+          isEn ? 'Wrong password. Try again.' : 'Kata sandi salah. Coba lagi.',
+      };
+
+  // ── Settings: akun aktif ──
+  String get activeAccount => isEn ? 'Active Account' : 'Akun Aktif';
+  String get switchAccount => isEn ? 'Switch Account' : 'Ganti Akun';
+  String get switchAccountSubtitle => isEn
+      ? 'Sign in with another account on this device'
+      : 'Masuk dengan akun lain di perangkat ini';
+  String get signOut => isEn ? 'Sign Out' : 'Keluar';
+  String get deleteAccount => isEn ? 'Delete Account' : 'Hapus Akun';
+  String get deleteAccountSubtitle => isEn
+      ? 'Permanently erase this account and all its data'
+      : 'Hapus permanen akun ini beserta seluruh datanya';
+  String deleteAccountConfirmTitle(String email) =>
+      isEn ? 'Delete $email?' : 'Hapus $email?';
+  String get deleteAccountConfirmBody => isEn
+      ? 'All wallets, transactions, categories and budgets in this account will be erased permanently. Other accounts are not affected.'
+      : 'Seluruh dompet, transaksi, kategori, dan budget di akun ini akan dihapus permanen. Akun lain tidak terpengaruh.';
+  String get accountDeleted =>
+      isEn ? 'Account deleted.' : 'Akun berhasil dihapus.';
+  String get signedOut => isEn ? 'Signed out.' : 'Berhasil keluar.';
+
+  // ── Auth lanjutan: identifier, kredensial, switcher ──
+  String get identifierField => 'EMAIL / USERNAME';
+  String get identifierHint =>
+      isEn ? 'Email address or username' : 'Alamat email atau username';
+  String get credTitle =>
+      isEn ? 'Save Your Sign-In Info' : 'Simpan Info Masuk Anda';
+  String get credSubtitle => isEn
+      ? 'Copy or screenshot this — you need it to sign in'
+      : 'Salin atau screenshot — Anda butuh ini untuk masuk';
+  String get copyAll => isEn ? 'Copy All' : 'Salin Semua';
+  String get copiedMsg => isEn
+      ? 'Credentials copied to clipboard!'
+      : 'Kredensial tersalin ke clipboard!';
+  String credRedirect(int n) =>
+      isEn ? 'Moving to sign in within $n…' : 'Pindah ke layar masuk dalam $n…';
+  String get loginNow => isEn ? 'Sign In Now' : 'Masuk Sekarang';
+  String get switchTitle => isEn ? 'Choose Account' : 'Pilih Akun';
+  String get addAccount => isEn ? 'Add New Account' : 'Tambah Akun Baru';
+  String get unlockTitle => isEn ? 'Account Password' : 'Kata Sandi Akun';
+  String unlockSubtitle(String name) => isEn
+      ? 'Enter the password for $name to switch.'
+      : 'Masukkan kata sandi $name untuk berpindah.';
 }

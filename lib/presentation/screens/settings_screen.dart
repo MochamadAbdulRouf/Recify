@@ -22,7 +22,9 @@ import '../components/budget_progress_bar.dart';
 import '../components/glass_panel.dart';
 import '../components/sticky_frosted_app_bar.dart';
 import '../providers/finance_provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
+import 'account_switch_sheet.dart';
 import '../providers/scanner_provider.dart';
 import '../providers/theme_provider.dart';
 import '../../domain/backup/backup_manager.dart';
@@ -48,8 +50,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final name = await ProfileService.getUserName();
-    final avatar = await ProfileService.getAvatarPath();
+    final auth = context.read<AuthProvider>();
+    final userId = auth.currentUserId;
+    if (userId == null) return;
+    final name = await ProfileService.getUserName(userId);
+    final avatar = await ProfileService.getAvatarPath(userId);
     if (mounted) {
       setState(() {
         _userName = name;
@@ -111,6 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final financeProvider = context.watch<FinanceProvider>();
+    final auth = context.watch<AuthProvider>();
     final s = AppStrings.of(context);
 
     return Scaffold(
@@ -122,11 +128,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(s.profileSettings, style: AppTypography.headlineMd.copyWith(fontSize: 20)),
+            Text(s.profileSettings,
+                style: AppTypography.headlineMd.copyWith(fontSize: 20)),
             const SizedBox(height: 2),
             Text(
               s.accountSecuritySubtitle,
-              style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+              style: AppTypography.caption
+                  .copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -140,7 +148,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 10),
 
             // 1. Hero Profile Section with Ambient Glowing Aura (Stitch Design)
-            PressableScale(child: GestureDetector(
+            PressableScale(
+                child: GestureDetector(
               onTap: _showEditProfileSheet,
               child: Stack(
                 alignment: Alignment.center,
@@ -169,20 +178,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.bgSurfaceElevated,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.borderSubtle, width: 1.5),
+                      border:
+                          Border.all(color: AppColors.borderSubtle, width: 1.5),
                     ),
                     child: ClipOval(
-                      child: _avatarPath != null && File(_avatarPath!).existsSync()
-                          ? Image.file(
-                              File(_avatarPath!),
-                              width: 84,
-                              height: 84,
-                              cacheWidth: 168,
-                              fit: BoxFit.cover,
-                            )
-                          : Center(
-                              child: Icon(Icons.person_rounded, size: 44, color: AppColors.primaryLight),
-                            ),
+                      child:
+                          _avatarPath != null && File(_avatarPath!).existsSync()
+                              ? Image.file(
+                                  File(_avatarPath!),
+                                  width: 84,
+                                  height: 84,
+                                  cacheWidth: 168,
+                                  fit: BoxFit.cover,
+                                )
+                              : Center(
+                                  child: Icon(Icons.person_rounded,
+                                      size: 44, color: AppColors.primaryLight),
+                                ),
                     ),
                   ),
 
@@ -198,10 +210,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.borderSubtle),
                         boxShadow: const [
-                          BoxShadow(color: Color(0x66000000), blurRadius: 6, offset: Offset(0, 2)),
+                          BoxShadow(
+                              color: Color(0x66000000),
+                              blurRadius: 6,
+                              offset: Offset(0, 2)),
                         ],
                       ),
-                      child: Icon(Icons.edit_rounded, size: 14, color: AppColors.primaryLight),
+                      child: Icon(Icons.edit_rounded,
+                          size: 14, color: AppColors.primaryLight),
                     ),
                   ),
                 ],
@@ -211,7 +227,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 14),
 
             // Profile Name (Click to edit) & Security Badge
-            PressableScale(child: GestureDetector(
+            PressableScale(
+                child: GestureDetector(
               onTap: _showEditProfileSheet,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -220,10 +237,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _userName.isEmpty || _userName == 'Pengguna Recify'
                         ? s.userNameDefault
                         : _userName,
-                    style: AppTypography.headlineMd.copyWith(fontSize: 20, fontWeight: FontWeight.w700),
+                    style: AppTypography.headlineMd
+                        .copyWith(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(width: 6),
-                  Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary),
+                  Icon(Icons.edit_outlined,
+                      size: 16, color: AppColors.textSecondary),
                 ],
               ),
             )),
@@ -237,11 +256,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               child: Text(
                 s.offlineNote,
-                style: AppTypography.caption.copyWith(color: AppColors.textSecondary, fontSize: 11),
+                style: AppTypography.caption
+                    .copyWith(color: AppColors.textSecondary, fontSize: 11),
               ),
             ),
 
             const SizedBox(height: 28),
+
+            // 1b. Section: Active Account (multi-akun lokal)
+            _buildSectionHeader(s.activeAccount),
+            _buildCardGroup([
+              _buildSettingItem(
+                icon: Icons.person_rounded,
+                iconColor: AppColors.primary,
+                title: auth.currentUser?.name ?? s.userNameDefault,
+                subtitle: auth.currentUser?.email ?? '',
+              ),
+              _buildDivider(),
+              _buildSettingItem(
+                icon: Icons.switch_account_rounded,
+                iconColor: AppColors.meshCyan,
+                title: s.switchAccount,
+                subtitle: s.switchAccountSubtitle,
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textSecondary, size: 18),
+                onTap: () => _switchAccount(context),
+              ),
+              _buildDivider(),
+              _buildSettingItem(
+                icon: Icons.logout_rounded,
+                iconColor: AppColors.textSecondary,
+                title: s.signOut,
+                subtitle: auth.currentUser?.email ?? '',
+                onTap: () => _signOut(context),
+              ),
+              _buildDivider(),
+              _buildSettingItem(
+                icon: Icons.delete_forever_rounded,
+                iconColor: AppColors.error,
+                title: s.deleteAccount,
+                subtitle: s.deleteAccountSubtitle,
+                onTap: () => _confirmDeleteAccount(context),
+              ),
+            ]),
+
+            const SizedBox(height: 22),
 
             // 2. Section: Account & Security (Stitch Match)
             _buildSectionHeader(s.sectionAccountSecurity),
@@ -255,14 +314,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      CurrencyFormatter.formatRupiah(financeProvider.totalBalance),
+                      CurrencyFormatter.formatRupiah(
+                          financeProvider.totalBalance),
                       style: AppTypography.caption.copyWith(
                         color: AppColors.primaryLight,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(width: 4),
-                    Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+                    Icon(Icons.chevron_right_rounded,
+                        color: AppColors.textSecondary, size: 18),
                   ],
                 ),
                 onTap: () => _showManageWalletsSheet(context, financeProvider),
@@ -274,7 +335,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: s.securityData,
                 subtitle: s.onDeviceProtection,
                 trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: AppColors.secondary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
@@ -296,7 +358,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: s.mainCurrency,
                 subtitle: s.rupiahFormat,
                 trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
@@ -323,7 +386,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: AppColors.meshCyan,
                 title: s.localBackupRestore,
                 subtitle: s.localBackupSubtitle,
-                trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textSecondary, size: 18),
                 onTap: () => _showBackupRestoreSheet(context, financeProvider),
               ),
               _buildDivider(),
@@ -333,7 +397,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: s.exportTransactions,
                 subtitle: s.exportTransactionsSubtitle,
                 trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: AppColors.meshViolet.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
@@ -359,7 +424,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: AppColors.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(6),
@@ -374,7 +440,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+                    Icon(Icons.chevron_right_rounded,
+                        color: AppColors.textSecondary, size: 18),
                   ],
                 ),
                 onTap: _clearCache,
@@ -542,7 +609,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: scannerProvider.hasApiKey
                                 ? AppColors.secondary.withValues(alpha: 0.12)
@@ -550,16 +618,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            scannerProvider.hasApiKey ? s.activeStatus : s.emptyStatus,
+                            scannerProvider.hasApiKey
+                                ? s.activeStatus
+                                : s.emptyStatus,
                             style: AppTypography.caption.copyWith(
-                              color: scannerProvider.hasApiKey ? AppColors.secondary : AppColors.error,
+                              color: scannerProvider.hasApiKey
+                                  ? AppColors.secondary
+                                  : AppColors.error,
                               fontWeight: FontWeight.w700,
                               fontSize: 10,
                             ),
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+                        Icon(Icons.chevron_right_rounded,
+                            color: AppColors.textSecondary, size: 18),
                       ],
                     ),
                     onTap: () => _showKeysSheet(context),
@@ -578,14 +651,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: AppColors.textSecondary,
                 title: s.helpCenter,
                 subtitle: s.helpCenterSubtitle,
-                trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textSecondary, size: 18),
                 onTap: () {
                   showDialog(
                     context: context,
                     builder: (ctx) => AlertDialog(
                       backgroundColor: AppColors.bgSurface,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      title: Text(s.guideTitle, style: AppTypography.titleMedium),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                      title:
+                          Text(s.guideTitle, style: AppTypography.titleMedium),
                       content: Text(
                         s.guideBody,
                         style: AppTypography.bodyReg,
@@ -593,7 +669,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
-                          child: Text(s.understood, style: TextStyle(color: AppColors.primaryLight)),
+                          child: Text(s.understood,
+                              style: TextStyle(color: AppColors.primaryLight)),
                         ),
                       ],
                     ),
@@ -606,14 +683,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: AppColors.textSecondary,
                 title: s.privacyPolicy,
                 subtitle: s.privacySubtitle,
-                trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textSecondary, size: 18),
                 onTap: () {
                   showDialog(
                     context: context,
                     builder: (ctx) => AlertDialog(
                       backgroundColor: AppColors.bgSurface,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      title: Text(s.privacyPolicy, style: AppTypography.titleMedium),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                      title: Text(s.privacyPolicy,
+                          style: AppTypography.titleMedium),
                       content: Text(
                         s.privacyBody,
                         style: AppTypography.bodyReg,
@@ -621,7 +701,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
-                          child: Text(s.closeButton, style: TextStyle(color: AppColors.primaryLight)),
+                          child: Text(s.closeButton,
+                              style: TextStyle(color: AppColors.primaryLight)),
                         ),
                       ],
                     ),
@@ -635,7 +716,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // App Version Badge
             Text(
               s.versionLabel,
-              style: AppTypography.caption.copyWith(color: AppColors.textSecondary, fontSize: 11),
+              style: AppTypography.caption
+                  .copyWith(color: AppColors.textSecondary, fontSize: 11),
             ),
 
             const SizedBox(height: 100), // Space for Floating Island Navbar
@@ -698,10 +780,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           decoration: BoxDecoration(
                             color: AppColors.bgSurfaceElevated,
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.borderSubtle, width: 1.5),
+                            border: Border.all(
+                                color: AppColors.borderSubtle, width: 1.5),
                           ),
                           child: ClipOval(
-                            child: tempAvatarPath != null && File(tempAvatarPath!).existsSync()
+                            child: tempAvatarPath != null &&
+                                    File(tempAvatarPath!).existsSync()
                                 ? Image.file(
                                     File(tempAvatarPath!),
                                     width: 84,
@@ -709,7 +793,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     cacheWidth: 168,
                                     fit: BoxFit.cover,
                                   )
-                                : Icon(Icons.person_rounded, size: 44, color: AppColors.primaryLight),
+                                : Icon(Icons.person_rounded,
+                                    size: 44, color: AppColors.primaryLight),
                           ),
                         ),
                       ],
@@ -727,14 +812,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             foregroundColor: AppColors.primaryLight,
                             elevation: 0,
                             side: BorderSide(color: AppColors.borderSubtle),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
                           ),
                           icon: const Icon(Icons.camera_alt_rounded, size: 16),
-                          label: Text(s.camera, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          label: Text(s.camera,
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w600)),
                           onPressed: () async {
                             final picker = ImagePicker();
-                            final photo = await picker.pickImage(source: ImageSource.camera, maxWidth: 600, imageQuality: 85);
+                            final photo = await picker.pickImage(
+                                source: ImageSource.camera,
+                                maxWidth: 600,
+                                imageQuality: 85);
                             if (photo != null) {
                               setSheetState(() => tempAvatarPath = photo.path);
                             }
@@ -747,14 +839,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             foregroundColor: AppColors.secondary,
                             elevation: 0,
                             side: BorderSide(color: AppColors.borderSubtle),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
                           ),
-                          icon: const Icon(Icons.photo_library_rounded, size: 16),
-                          label: Text(s.gallery, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          icon:
+                              const Icon(Icons.photo_library_rounded, size: 16),
+                          label: Text(s.gallery,
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w600)),
                           onPressed: () async {
                             final picker = ImagePicker();
-                            final photo = await picker.pickImage(source: ImageSource.gallery, maxWidth: 600, imageQuality: 85);
+                            final photo = await picker.pickImage(
+                                source: ImageSource.gallery,
+                                maxWidth: 600,
+                                imageQuality: 85);
                             if (photo != null) {
                               setSheetState(() => tempAvatarPath = photo.path);
                             }
@@ -763,8 +863,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         if (tempAvatarPath != null) ...[
                           const SizedBox(width: 8),
                           IconButton(
-                            icon: Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 22),
-                            onPressed: () => setSheetState(() => tempAvatarPath = null),
+                            icon: Icon(Icons.delete_outline_rounded,
+                                color: AppColors.error, size: 22),
+                            onPressed: () =>
+                                setSheetState(() => tempAvatarPath = null),
                           ),
                         ],
                       ],
@@ -774,7 +876,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                     // Name Input
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: AppColors.bgSurfaceElevated,
                         borderRadius: BorderRadius.circular(16),
@@ -783,11 +886,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(s.usernameField, style: AppTypography.caption.copyWith(fontSize: 10, letterSpacing: 1.1)),
+                          Text(s.usernameField,
+                              style: AppTypography.caption
+                                  .copyWith(fontSize: 10, letterSpacing: 1.1)),
                           const SizedBox(height: 4),
                           TextField(
                             controller: nameController,
-                            style: AppTypography.bodyBold.copyWith(fontSize: 15),
+                            style:
+                                AppTypography.bodyBold.copyWith(fontSize: 15),
                             decoration: InputDecoration(
                               hintText: s.usernameHint,
                               border: InputBorder.none,
@@ -808,7 +914,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Material(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(24),
-                      child: PressableScale(child: InkWell(
+                      child: PressableScale(
+                          child: InkWell(
                         onTap: isSaving
                             ? null
                             : () async {
@@ -819,21 +926,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 FocusScope.of(ctx).unfocus();
 
                                 try {
+                                  final auth = context.read<AuthProvider>();
                                   String? finalPath = tempAvatarPath;
-                                  if (tempAvatarPath != null && File(tempAvatarPath!).existsSync()) {
+                                  if (tempAvatarPath != null &&
+                                      File(tempAvatarPath!).existsSync()) {
                                     try {
-                                      final appDir = await getApplicationDocumentsDirectory();
-                                      final ext = tempAvatarPath!.split('.').last;
-                                      final targetFile = File('${appDir.path}/avatar_${DateTime.now().millisecondsSinceEpoch}.$ext');
-                                      final saved = await File(tempAvatarPath!).copy(targetFile.path);
+                                      final appDir =
+                                          await getApplicationDocumentsDirectory();
+                                      final ext =
+                                          tempAvatarPath!.split('.').last;
+                                      final targetFile = File(
+                                          '${appDir.path}/avatar_${DateTime.now().millisecondsSinceEpoch}.$ext');
+                                      final saved = await File(tempAvatarPath!)
+                                          .copy(targetFile.path);
                                       finalPath = saved.path;
                                     } catch (_) {
                                       finalPath = tempAvatarPath;
                                     }
                                   }
 
-                                  await ProfileService.setUserName(newName);
-                                  await ProfileService.setAvatarPath(finalPath);
+                                  await auth.updateProfile(
+                                      name: newName, avatarPath: finalPath);
 
                                   if (mounted) {
                                     setState(() {
@@ -870,11 +983,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ? const SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white),
                                   )
                                 : Text(
                                     s.saveChanges,
-                                    style: AppTypography.bodyBold.copyWith(color: Colors.white, fontSize: 15),
+                                    style: AppTypography.bodyBold.copyWith(
+                                        color: Colors.white, fontSize: 15),
                                   ),
                           ),
                         ),
@@ -905,8 +1020,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             final s = AppStrings.of(context);
             return SafeArea(
               child: Container(
-                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.75),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(ctx).size.height * 0.75),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -923,20 +1040,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(s.manageWallets, style: AppTypography.titleMedium),
-                        PressableScale(child: GestureDetector(
+                        PressableScale(
+                            child: GestureDetector(
                           onTap: () {
                             Navigator.pop(ctx);
                             _showAddWalletDialog(context, provider);
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.add_rounded, size: 16, color: AppColors.primaryLight),
+                                Icon(Icons.add_rounded,
+                                    size: 16, color: AppColors.primaryLight),
                                 const SizedBox(width: 4),
                                 Text(
                                   s.add,
@@ -952,7 +1072,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-
                     Expanded(
                       child: ListView.separated(
                         physics: const BouncingScrollPhysics(),
@@ -961,7 +1080,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         itemBuilder: (context, index) {
                           final wallet = provider.wallets[index];
                           return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
                               color: AppColors.bgSurfaceElevated,
                               borderRadius: BorderRadius.circular(16),
@@ -973,18 +1093,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   width: 38,
                                   height: 38,
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.15),
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: Icon(Icons.account_balance_wallet_rounded, color: AppColors.primaryLight, size: 18),
+                                  child: Icon(
+                                      Icons.account_balance_wallet_rounded,
+                                      color: AppColors.primaryLight,
+                                      size: 18),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(wallet.name, style: AppTypography.bodyBold),
-                                      Text(_walletTypeLabel(wallet.type, s), style: AppTypography.caption),
+                                      Text(wallet.name,
+                                          style: AppTypography.bodyBold),
+                                      Text(_walletTypeLabel(wallet.type, s),
+                                          style: AppTypography.caption),
                                     ],
                                   ),
                                 ),
@@ -992,14 +1119,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      CurrencyFormatter.formatRupiah(wallet.currentBalance),
-                                      style: AppTypography.bodyBold.copyWith(color: AppColors.textPrimary),
+                                      CurrencyFormatter.formatRupiah(
+                                          wallet.currentBalance),
+                                      style: AppTypography.bodyBold.copyWith(
+                                          color: AppColors.textPrimary),
                                     ),
                                     const SizedBox(height: 4),
-                                    PressableScale(child: GestureDetector(
+                                    PressableScale(
+                                        child: GestureDetector(
                                       onTap: () {
                                         Navigator.pop(ctx);
-                                        _showEditWalletDialog(context, provider, wallet);
+                                        _showEditWalletDialog(
+                                            context, provider, wallet);
                                       },
                                       child: Text(
                                         s.editBalance,
@@ -1010,10 +1141,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ),
                                     )),
                                     const SizedBox(height: 4),
-                                    PressableScale(child: GestureDetector(
+                                    PressableScale(
+                                        child: GestureDetector(
                                       onTap: () {
                                         if (provider.wallets.length <= 1) {
-                                          AppToast.error(s.deleteWalletLastGuard);
+                                          AppToast.error(
+                                              s.deleteWalletLastGuard);
                                           return;
                                         }
                                         _confirmDeleteWallet(context, provider,
@@ -1059,12 +1192,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(s.deleteWalletConfirmTitle, style: AppTypography.titleMedium),
-        content: Text(s.deleteWalletBody(wallet.name), style: AppTypography.bodyReg),
+        title:
+            Text(s.deleteWalletConfirmTitle, style: AppTypography.titleMedium),
+        content:
+            Text(s.deleteWalletBody(wallet.name), style: AppTypography.bodyReg),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(s.cancel, style: TextStyle(color: AppColors.textSecondary)),
+            child: Text(s.cancel,
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -1095,10 +1231,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Ganti akun: popup pilih akun (langsung pindah bila sudah pernah
+  /// login, atau buka kunci via password bila belum).
+  Future<void> _switchAccount(BuildContext context) async {
+    await showAccountSwitchSheet(context);
+  }
+
+  Future<void> _signOut(BuildContext context) async {
+    final s = AppStrings.of(context);
+    context.read<FinanceProvider>().clearUser();
+    await context.read<AuthProvider>().logout();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(s.signedOut)),
+      );
+    }
+  }
+
+  /// Hapus akun + seluruh datanya permanen (akun lain tak tersentuh).
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final s = AppStrings.of(context);
+    final auth = context.read<AuthProvider>();
+    final finance = context.read<FinanceProvider>();
+    final email = auth.currentUser?.email ?? '';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(s.deleteAccountConfirmTitle(email),
+            style: AppTypography.titleMedium),
+        content: Text(s.deleteAccountConfirmBody, style: AppTypography.bodyReg),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(s.cancel,
+                style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(s.hapus, style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    finance.clearUser();
+    await auth.deleteAccount();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(s.accountDeleted)),
+      );
+    }
+  }
+
   // Edit Wallet Dialog
-  void _showEditWalletDialog(BuildContext context, FinanceProvider provider, WalletModel wallet) {
+  void _showEditWalletDialog(
+      BuildContext context, FinanceProvider provider, WalletModel wallet) {
     final nameController = TextEditingController(text: wallet.name);
-    final balanceController = TextEditingController(text: wallet.currentBalance.toInt().toString());
+    final balanceController =
+        TextEditingController(text: wallet.currentBalance.toInt().toString());
     final s = AppStrings.of(context);
 
     showDialog(
@@ -1118,7 +1310,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: AppTypography.bodyBold,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
             ),
             const SizedBox(height: 14),
@@ -1131,7 +1324,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: AppTypography.bodyBold,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
             ),
           ],
@@ -1139,17 +1333,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(s.cancel, style: TextStyle(color: AppColors.textSecondary)),
+            child: Text(s.cancel,
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () async {
               final newName = nameController.text.trim();
-              final rawBalance = balanceController.text.replaceAll(RegExp(r'[^0-9]'), '');
-              final newBalance = double.tryParse(rawBalance) ?? wallet.currentBalance;
+              final rawBalance =
+                  balanceController.text.replaceAll(RegExp(r'[^0-9]'), '');
+              final newBalance =
+                  double.tryParse(rawBalance) ?? wallet.currentBalance;
 
               final updated = WalletModel(
                 id: wallet.id,
@@ -1212,17 +1410,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: ListView.separated(
                       shrinkWrap: true,
                       itemCount: kGeminiModels.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(height: 8),
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
                       itemBuilder: (c, i) {
                         final opt = kGeminiModels[i];
-                        final provider =
-                            c.read<ScannerProvider>();
+                        final provider = c.read<ScannerProvider>();
                         final blockedLeft =
                             provider.quotaCountdownText(opt.id, isEn: s.isEn);
-                        final active =
-                            provider.modelId == opt.id;
-                        return PressableScale(child: GestureDetector(
+                        final active = provider.modelId == opt.id;
+                        return PressableScale(
+                            child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: blockedLeft != null
                               ? null
@@ -1236,8 +1432,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
                                 color: active
-                                    ? AppColors.primary
-                                        .withValues(alpha: 0.12)
+                                    ? AppColors.primary.withValues(alpha: 0.12)
                                     : AppColors.bgSurfaceElevated,
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
@@ -1271,24 +1466,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         const SizedBox(height: 4),
                                         Text(
                                           s.isEn ? opt.blurbEn : opt.blurbId,
-                                          style: AppTypography.caption
-                                              .copyWith(
-                                                  color: AppColors
-                                                      .textSecondary,
-                                                  fontSize: 12),
+                                          style: AppTypography.caption.copyWith(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 12),
                                         ),
                                         if (blockedLeft != null) ...[
                                           const SizedBox(height: 6),
                                           Row(
                                             children: [
-                                              Icon(Icons.hourglass_bottom_rounded,
+                                              Icon(
+                                                  Icons
+                                                      .hourglass_bottom_rounded,
                                                   size: 14,
-                                                  color: AppColors
-                                                      .statusWarning),
+                                                  color:
+                                                      AppColors.statusWarning),
                                               const SizedBox(width: 4),
                                               Text(
-                                                s.quotaAvailableIn(
-                                                    blockedLeft),
+                                                s.quotaAvailableIn(blockedLeft),
                                                 style: AppTypography.caption
                                                     .copyWith(
                                                         color: AppColors
@@ -1361,23 +1555,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 4),
                   Text(
                     s.geminiKeysSubtitle(keys.length),
-                    style: AppTypography.caption.copyWith(
-                        color: AppColors.textSecondary),
+                    style: AppTypography.caption
+                        .copyWith(color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 12),
                   Flexible(
                     child: ListView.separated(
                       shrinkWrap: true,
                       itemCount: keys.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(height: 8),
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
                       itemBuilder: (c, i) {
                         final k = keys[i];
                         final label = k.length <= 4
                             ? '••••'
                             : '••••${k.substring(k.length - 4)}';
                         final active = i == provider.activeKeyIndex;
-                        return PressableScale(child: GestureDetector(
+                        return PressableScale(
+                            child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: active
                               ? null
@@ -1390,8 +1584,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 horizontal: 14, vertical: 12),
                             decoration: BoxDecoration(
                               color: active
-                                  ? AppColors.primary
-                                      .withValues(alpha: 0.12)
+                                  ? AppColors.primary.withValues(alpha: 0.12)
                                   : AppColors.bgSurfaceElevated,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
@@ -1418,8 +1611,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     ),
                                     child: Text(
                                       s.keyActive,
-                                      style:
-                                          AppTypography.caption.copyWith(
+                                      style: AppTypography.caption.copyWith(
                                         color: AppColors.secondary,
                                         fontWeight: FontWeight.w700,
                                         fontSize: 10,
@@ -1427,14 +1619,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     ),
                                   ),
                                 IconButton(
-                                  icon: Icon(
-                                      Icons.delete_outline_rounded,
-                                      color: AppColors.error,
-                                      size: 20),
+                                  icon: Icon(Icons.delete_outline_rounded,
+                                      color: AppColors.error, size: 20),
                                   onPressed: () async {
                                     final ok =
-                                        await _confirmDeleteApiKey(
-                                            ctx, active);
+                                        await _confirmDeleteApiKey(ctx, active);
                                     if (ok == true) {
                                       await provider.removeApiKey(i);
                                       AppToast.success(s.keyRemoved);
@@ -1473,9 +1662,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(s.discardScanTitle, style: AppTypography.titleMedium),
         content: Text(
-          wasActive
-              ? s.keyDeleteActiveBody
-              : s.keyDeleteBody,
+          wasActive ? s.keyDeleteActiveBody : s.keyDeleteBody,
           style: AppTypography.bodyReg,
         ),
         actions: [
@@ -1486,8 +1673,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(dctx, true),
-            child: Text(s.discardScan,
-                style: TextStyle(color: AppColors.error)),
+            child:
+                Text(s.discardScan, style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -1514,7 +1701,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: AppColors.bgSurface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(s.addWalletTitle, style: AppTypography.titleMedium),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1528,7 +1716,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 decoration: InputDecoration(
                   hintText: s.walletNameHint,
                   border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
               const SizedBox(height: 14),
@@ -1539,7 +1728,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: types.map((t) {
                   final isSelected = selectedType == t;
                   return ChoiceChip(
-                    label: Text(_walletTypeLabel(t, s), style: TextStyle(color: isSelected ? Colors.white : AppColors.textSecondary, fontSize: 12)),
+                    label: Text(_walletTypeLabel(t, s),
+                        style: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textSecondary,
+                            fontSize: 12)),
                     selected: isSelected,
                     selectedColor: AppColors.primary,
                     backgroundColor: AppColors.bgSurfaceElevated,
@@ -1558,7 +1752,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 decoration: const InputDecoration(
                   hintText: '0',
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
             ],
@@ -1566,18 +1761,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(s.cancel, style: TextStyle(color: AppColors.textSecondary)),
+              child: Text(s.cancel,
+                  style: TextStyle(color: AppColors.textSecondary)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () async {
                 final name = nameController.text.trim();
                 if (name.isEmpty) return;
 
-                final rawBalance = balanceController.text.replaceAll(RegExp(r'[^0-9]'), '');
+                final rawBalance =
+                    balanceController.text.replaceAll(RegExp(r'[^0-9]'), '');
                 final balance = double.tryParse(rawBalance) ?? 0.0;
 
                 final newWallet = WalletModel(
@@ -1650,11 +1848,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: AppColors.meshCyan.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(Icons.cloud_upload_rounded, color: AppColors.meshCyan, size: 22),
+                      child: Icon(Icons.cloud_upload_rounded,
+                          color: AppColors.meshCyan, size: 22),
                     ),
                     title: Text(s.createBackup, style: AppTypography.bodyBold),
-                    subtitle: Text(s.createBackupSubtitle, style: AppTypography.caption),
-                    trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
+                    subtitle: Text(s.createBackupSubtitle,
+                        style: AppTypography.caption),
+                    trailing: Icon(Icons.arrow_forward_ios_rounded,
+                        size: 14, color: AppColors.textSecondary),
                     onTap: () async {
                       Navigator.pop(ctx);
                       try {
@@ -1687,11 +1888,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: AppColors.secondary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(Icons.restore_page_rounded, color: AppColors.secondary, size: 22),
+                      child: Icon(Icons.restore_page_rounded,
+                          color: AppColors.secondary, size: 22),
                     ),
                     title: Text(s.restoreBackup, style: AppTypography.bodyBold),
-                    subtitle: Text(s.restoreBackupSubtitle, style: AppTypography.caption),
-                    trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
+                    subtitle: Text(s.restoreBackupSubtitle,
+                        style: AppTypography.caption),
+                    trailing: Icon(Icons.arrow_forward_ios_rounded,
+                        size: 14, color: AppColors.textSecondary),
                     onTap: () {
                       Navigator.pop(ctx);
                       _showRestoreFileListSheet(context, provider);
@@ -1707,7 +1911,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // File List Restore Sheet
-  void _showRestoreFileListSheet(BuildContext context, FinanceProvider provider) async {
+  void _showRestoreFileListSheet(
+      BuildContext context, FinanceProvider provider) async {
     final backups = await BackupManager.listAvailableBackups();
 
     if (!context.mounted) return;
@@ -1742,13 +1947,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: AppTypography.caption,
                 ),
                 const SizedBox(height: 16),
-
                 if (backups.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
                     child: Column(
                       children: [
-                        Icon(Icons.folder_off_rounded, color: AppColors.textSecondary, size: 36),
+                        Icon(Icons.folder_off_rounded,
+                            color: AppColors.textSecondary, size: 36),
                         const SizedBox(height: 10),
                         Text(s.noBackupYet, style: AppTypography.bodyBold),
                         const SizedBox(height: 4),
@@ -1762,8 +1967,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   )
                 else
                   ...backups.map((file) {
-                    final fileName = file.path.split(Platform.isWindows ? '\\' : '/').last;
-                    final sizeKb = (file.lengthSync() / 1024).toStringAsFixed(1);
+                    final fileName =
+                        file.path.split(Platform.isWindows ? '\\' : '/').last;
+                    final sizeKb =
+                        (file.lengthSync() / 1024).toStringAsFixed(1);
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
@@ -1772,10 +1979,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         border: Border.all(color: AppColors.borderSubtle),
                       ),
                       child: ListTile(
-                        leading: Icon(Icons.description_rounded, color: AppColors.primaryLight, size: 22),
-                        title: Text(fileName, style: AppTypography.bodyBold.copyWith(fontSize: 13)),
-                        subtitle: Text('$sizeKb KB', style: AppTypography.caption),
-                        trailing: Icon(Icons.restore_rounded, color: AppColors.secondary, size: 20),
+                        leading: Icon(Icons.description_rounded,
+                            color: AppColors.primaryLight, size: 22),
+                        title: Text(fileName,
+                            style:
+                                AppTypography.bodyBold.copyWith(fontSize: 13)),
+                        subtitle:
+                            Text('$sizeKb KB', style: AppTypography.caption),
+                        trailing: Icon(Icons.restore_rounded,
+                            color: AppColors.secondary, size: 20),
                         onTap: () async {
                           Navigator.pop(ctx);
                           try {
@@ -1812,7 +2024,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           builder: (context, setSheetState) {
             return SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1825,7 +2038,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text(s.exportTransactions, style: AppTypography.titleMedium),
+                    Text(s.exportTransactions,
+                        style: AppTypography.titleMedium),
                     const SizedBox(height: 4),
                     Text(
                       s.exportSubtitle,
@@ -1835,15 +2049,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 20),
 
                     // Option 1: Excel (.xlsx)
-                    PressableScale(child: GestureDetector(
-                      onTap: () => setSheetState(() => selectedFormat = 'excel'),
+                    PressableScale(
+                        child: GestureDetector(
+                      onTap: () =>
+                          setSheetState(() => selectedFormat = 'excel'),
                       child: Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: selectedFormat == 'excel' ? AppColors.primary.withValues(alpha: 0.12) : AppColors.bgSurfaceElevated,
+                          color: selectedFormat == 'excel'
+                              ? AppColors.primary.withValues(alpha: 0.12)
+                              : AppColors.bgSurfaceElevated,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: selectedFormat == 'excel' ? AppColors.primary : AppColors.borderSubtle,
+                            color: selectedFormat == 'excel'
+                                ? AppColors.primary
+                                : AppColors.borderSubtle,
                             width: selectedFormat == 'excel' ? 1.5 : 1.0,
                           ),
                         ),
@@ -1852,23 +2072,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: AppColors.secondary.withValues(alpha: 0.15),
+                                color:
+                                    AppColors.secondary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: Icon(Icons.table_chart_rounded, color: AppColors.secondary, size: 22),
+                              child: Icon(Icons.table_chart_rounded,
+                                  color: AppColors.secondary, size: 22),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(s.excelFormat, style: AppTypography.bodyBold),
-                                  Text(s.excelFormatDesc, style: AppTypography.caption),
+                                  Text(s.excelFormat,
+                                      style: AppTypography.bodyBold),
+                                  Text(s.excelFormatDesc,
+                                      style: AppTypography.caption),
                                 ],
                               ),
                             ),
                             if (selectedFormat == 'excel')
-                              Icon(Icons.check_circle_rounded, color: AppColors.primaryLight, size: 20),
+                              Icon(Icons.check_circle_rounded,
+                                  color: AppColors.primaryLight, size: 20),
                           ],
                         ),
                       ),
@@ -1877,15 +2102,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 10),
 
                     // Option 2: CSV (.csv)
-                    PressableScale(child: GestureDetector(
+                    PressableScale(
+                        child: GestureDetector(
                       onTap: () => setSheetState(() => selectedFormat = 'csv'),
                       child: Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: selectedFormat == 'csv' ? AppColors.primary.withValues(alpha: 0.12) : AppColors.bgSurfaceElevated,
+                          color: selectedFormat == 'csv'
+                              ? AppColors.primary.withValues(alpha: 0.12)
+                              : AppColors.bgSurfaceElevated,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: selectedFormat == 'csv' ? AppColors.primary : AppColors.borderSubtle,
+                            color: selectedFormat == 'csv'
+                                ? AppColors.primary
+                                : AppColors.borderSubtle,
                             width: selectedFormat == 'csv' ? 1.5 : 1.0,
                           ),
                         ),
@@ -1894,23 +2124,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: AppColors.meshCyan.withValues(alpha: 0.15),
+                                color:
+                                    AppColors.meshCyan.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: Icon(Icons.receipt_long_rounded, color: AppColors.meshCyan, size: 22),
+                              child: Icon(Icons.receipt_long_rounded,
+                                  color: AppColors.meshCyan, size: 22),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(s.csvFormat, style: AppTypography.bodyBold),
-                                  Text(s.csvFormatDesc, style: AppTypography.caption),
+                                  Text(s.csvFormat,
+                                      style: AppTypography.bodyBold),
+                                  Text(s.csvFormatDesc,
+                                      style: AppTypography.caption),
                                 ],
                               ),
                             ),
                             if (selectedFormat == 'csv')
-                              Icon(Icons.check_circle_rounded, color: AppColors.primaryLight, size: 20),
+                              Icon(Icons.check_circle_rounded,
+                                  color: AppColors.primaryLight, size: 20),
                           ],
                         ),
                       ),
@@ -1919,17 +2154,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 24),
 
                     // Export Button
-                    PressableScale(child: GestureDetector(
+                    PressableScale(
+                        child: GestureDetector(
                       onTap: () async {
                         Navigator.pop(ctx);
                         try {
-                          final path = await provider.exportTransactionsReport(format: selectedFormat);
+                          final path = await provider.exportTransactionsReport(
+                              format: selectedFormat);
                           if (context.mounted) {
                             AppToast.success(s.exportDone(path));
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            AppToast.error(s.exportTransactionsFailed(e.toString()));
+                            AppToast.error(
+                                s.exportTransactionsFailed(e.toString()));
                           }
                         }
                       },
@@ -1943,7 +2181,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Center(
                           child: Text(
                             s.downloadToFolder,
-                            style: AppTypography.bodyBold.copyWith(color: Colors.white),
+                            style: AppTypography.bodyBold
+                                .copyWith(color: Colors.white),
                           ),
                         ),
                       ),
@@ -1959,7 +2198,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // --- 5. MANAGE CUSTOM CATEGORIES SHEET ---
-  void _showManageCategoriesSheet(BuildContext context, FinanceProvider provider) {
+  void _showManageCategoriesSheet(
+      BuildContext context, FinanceProvider provider) {
     String activeType = 'EXPENSE';
 
     showModalBottomSheet(
@@ -1972,13 +2212,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            final categories = provider.categories.where((c) => c.type == activeType).toList();
+            final categories =
+                provider.categories.where((c) => c.type == activeType).toList();
             final s = AppStrings.of(context);
 
             return SafeArea(
               child: Container(
-                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.75),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(ctx).size.height * 0.75),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1994,21 +2237,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(s.ledgerCategories, style: AppTypography.titleMedium),
-                        PressableScale(child: GestureDetector(
+                        Text(s.ledgerCategories,
+                            style: AppTypography.titleMedium),
+                        PressableScale(
+                            child: GestureDetector(
                           onTap: () {
                             Navigator.pop(ctx);
-                            _showAddCategoryDialog(context, provider, activeType);
+                            _showAddCategoryDialog(
+                                context, provider, activeType);
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.add_rounded, size: 16, color: AppColors.primaryLight),
+                                Icon(Icons.add_rounded,
+                                    size: 16, color: AppColors.primaryLight),
                                 const SizedBox(width: 4),
                                 Text(
                                   s.createCategory,
@@ -2029,22 +2277,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: PressableScale(child: GestureDetector(
-                            onTap: () => setSheetState(() => activeType = 'EXPENSE'),
+                          child: PressableScale(
+                              child: GestureDetector(
+                            onTap: () =>
+                                setSheetState(() => activeType = 'EXPENSE'),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
-                                color: activeType == 'EXPENSE' ? AppColors.error.withValues(alpha: 0.15) : AppColors.bgSurfaceElevated,
+                                color: activeType == 'EXPENSE'
+                                    ? AppColors.error.withValues(alpha: 0.15)
+                                    : AppColors.bgSurfaceElevated,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: activeType == 'EXPENSE' ? AppColors.error : AppColors.borderSubtle,
+                                  color: activeType == 'EXPENSE'
+                                      ? AppColors.error
+                                      : AppColors.borderSubtle,
                                 ),
                               ),
                               child: Center(
                                 child: Text(
                                   s.expense,
                                   style: AppTypography.bodyBold.copyWith(
-                                    color: activeType == 'EXPENSE' ? AppColors.error : AppColors.textSecondary,
+                                    color: activeType == 'EXPENSE'
+                                        ? AppColors.error
+                                        : AppColors.textSecondary,
                                     fontSize: 13,
                                   ),
                                 ),
@@ -2054,22 +2310,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: PressableScale(child: GestureDetector(
-                            onTap: () => setSheetState(() => activeType = 'INCOME'),
+                          child: PressableScale(
+                              child: GestureDetector(
+                            onTap: () =>
+                                setSheetState(() => activeType = 'INCOME'),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
-                                color: activeType == 'INCOME' ? AppColors.secondary.withValues(alpha: 0.15) : AppColors.bgSurfaceElevated,
+                                color: activeType == 'INCOME'
+                                    ? AppColors.secondary
+                                        .withValues(alpha: 0.15)
+                                    : AppColors.bgSurfaceElevated,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: activeType == 'INCOME' ? AppColors.secondary : AppColors.borderSubtle,
+                                  color: activeType == 'INCOME'
+                                      ? AppColors.secondary
+                                      : AppColors.borderSubtle,
                                 ),
                               ),
                               child: Center(
                                 child: Text(
                                   s.income,
                                   style: AppTypography.bodyBold.copyWith(
-                                    color: activeType == 'INCOME' ? AppColors.secondary : AppColors.textSecondary,
+                                    color: activeType == 'INCOME'
+                                        ? AppColors.secondary
+                                        : AppColors.textSecondary,
                                     fontSize: 13,
                                   ),
                                 ),
@@ -2090,7 +2355,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         itemBuilder: (context, index) {
                           final cat = categories[index];
                           return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
                               color: AppColors.bgSurfaceElevated,
                               borderRadius: BorderRadius.circular(14),
@@ -2102,17 +2368,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   width: 36,
                                   height: 36,
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.15),
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.15),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: Icon(Icons.category_rounded, size: 18, color: AppColors.primaryLight),
+                                  child: Icon(Icons.category_rounded,
+                                      size: 18, color: AppColors.primaryLight),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: Text(cat.name, style: AppTypography.bodyBold.copyWith(fontSize: 14)),
+                                  child: Text(cat.name,
+                                      style: AppTypography.bodyBold
+                                          .copyWith(fontSize: 14)),
                                 ),
                                 IconButton(
-                                  icon: Icon(Icons.delete_outline_rounded, color: AppColors.textSecondary, size: 18),
+                                  icon: Icon(Icons.delete_outline_rounded,
+                                      color: AppColors.textSecondary, size: 18),
                                   onPressed: () async {
                                     await provider.deleteCategory(cat.id);
                                     setSheetState(() {});
@@ -2140,7 +2411,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _budgetSubtitle(FinanceProvider provider) {
     final s = AppStrings.of(context);
     final expenseCats = provider.categories.where((c) => c.type == 'EXPENSE');
-    final set = expenseCats.where((c) => provider.budgetFor(c.id) != null).length;
+    final set =
+        expenseCats.where((c) => provider.budgetFor(c.id) != null).length;
     if (set == 0) return s.noLimitYet;
     final now = DateTime.now();
     final totalLimit = expenseCats
@@ -2149,7 +2421,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         .fold(0.0, (sum, b) => sum + b.monthlyLimit);
     final totalSpent = expenseCats
         .where((c) => provider.budgetFor(c.id) != null)
-        .fold(0.0, (sum, c) => sum + provider.getCategorySpending(c.id, now.month, now.year));
+        .fold(
+            0.0,
+            (sum, c) =>
+                sum + provider.getCategorySpending(c.id, now.month, now.year));
     return s.budgetSummary(
       set,
       CurrencyFormatter.format(totalSpent),
@@ -2175,9 +2450,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             return SafeArea(
               child: Container(
-                constraints:
-                    BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.8),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(ctx).size.height * 0.8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -2229,7 +2505,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 final spent = provider.getCategorySpending(
                                     cat.id, now.month, now.year);
 
-                                return PressableScale(child: GestureDetector(
+                                return PressableScale(
+                                    child: GestureDetector(
                                   behavior: HitTestBehavior.opaque,
                                   onTap: () async {
                                     await _showBudgetLimitDialog(
@@ -2259,7 +2536,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// Category with no limit yet — a progress bar would be meaningless, so show
   /// the spending so far plus a "set limit" affordance instead.
-  Widget _buildUnbudgetedRow(BuildContext context, CategoryModel cat, double spent) {
+  Widget _buildUnbudgetedRow(
+      BuildContext context, CategoryModel cat, double spent) {
     final s = AppStrings.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -2315,8 +2593,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final controller = TextEditingController(
       text: existing == null
           ? ''
-          : existing.monthlyLimit.toInt().toString().replaceAllMapped(
-              RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.'),
+          : existing.monthlyLimit
+              .toInt()
+              .toString()
+              .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.'),
     );
     final s = AppStrings.of(context);
 
@@ -2325,7 +2605,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(s.limitTitle(category.name), style: AppTypography.titleMedium),
+        title:
+            Text(s.limitTitle(category.name), style: AppTypography.titleMedium),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2364,8 +2645,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   AppToast.success(s.limitDeleted(category.name));
                 }
               },
-              child: Text(s.hapus,
-                  style: TextStyle(color: AppColors.error)),
+              child: Text(s.hapus, style: TextStyle(color: AppColors.error)),
             ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -2375,8 +2655,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              shape:
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () async {
               final raw = controller.text.replaceAll(RegExp(r'[^0-9]'), '');
@@ -2394,8 +2674,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ));
               if (ctx.mounted) {
                 Navigator.pop(ctx);
-                AppToast.success(
-                    s.limitSaved(category.name, CurrencyFormatter.format(limit)));
+                AppToast.success(s.limitSaved(
+                    category.name, CurrencyFormatter.format(limit)));
               }
             },
             child: Text(s.save, style: const TextStyle(color: Colors.white)),
@@ -2406,7 +2686,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // Add Category Dialog
-  void _showAddCategoryDialog(BuildContext context, FinanceProvider provider, String defaultType) {
+  void _showAddCategoryDialog(
+      BuildContext context, FinanceProvider provider, String defaultType) {
     final nameController = TextEditingController();
     String categoryType = defaultType;
     final s = AppStrings.of(context);
@@ -2416,7 +2697,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: AppColors.bgSurface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(s.createCategoryTitle, style: AppTypography.titleMedium),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2430,7 +2712,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 decoration: InputDecoration(
                   hintText: s.categoryNameHint,
                   border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
               const SizedBox(height: 14),
@@ -2439,11 +2722,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Row(
                 children: [
                   ChoiceChip(
-                    label: Text(s.expense, style: const TextStyle(fontSize: 12)),
+                    label:
+                        Text(s.expense, style: const TextStyle(fontSize: 12)),
                     selected: categoryType == 'EXPENSE',
                     selectedColor: AppColors.error,
                     backgroundColor: AppColors.bgSurfaceElevated,
-                    onSelected: (val) => setDialogState(() => categoryType = 'EXPENSE'),
+                    onSelected: (val) =>
+                        setDialogState(() => categoryType = 'EXPENSE'),
                   ),
                   const SizedBox(width: 8),
                   ChoiceChip(
@@ -2451,7 +2736,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     selected: categoryType == 'INCOME',
                     selectedColor: AppColors.secondary,
                     backgroundColor: AppColors.bgSurfaceElevated,
-                    onSelected: (val) => setDialogState(() => categoryType = 'INCOME'),
+                    onSelected: (val) =>
+                        setDialogState(() => categoryType = 'INCOME'),
                   ),
                 ],
               ),
@@ -2460,12 +2746,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(s.cancel, style: TextStyle(color: AppColors.textSecondary)),
+              child: Text(s.cancel,
+                  style: TextStyle(color: AppColors.textSecondary)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () async {
                 final name = nameController.text.trim();
@@ -2525,7 +2813,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildDivider() {
-    return Divider(height: 1, color: AppColors.borderSubtle, indent: 56, endIndent: 16);
+    return Divider(
+        height: 1, color: AppColors.borderSubtle, indent: 56, endIndent: 16);
   }
 
   Widget _buildSettingItem({
@@ -2536,7 +2825,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget? trailing,
     VoidCallback? onTap,
   }) {
-    return PressableScale(child: InkWell(
+    return PressableScale(
+        child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Padding(
@@ -2560,12 +2850,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Text(
                     title,
-                    style: AppTypography.bodyBold.copyWith(fontSize: 14, color: AppColors.textPrimary),
+                    style: AppTypography.bodyBold
+                        .copyWith(fontSize: 14, color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: AppTypography.caption.copyWith(color: AppColors.textSecondary, fontSize: 11),
+                    style: AppTypography.caption
+                        .copyWith(color: AppColors.textSecondary, fontSize: 11),
                   ),
                 ],
               ),
@@ -2648,8 +2940,7 @@ class _AddKeyFieldState extends State<_AddKeyField> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white),
                     )
-                  : Text(s.addKey,
-                      style: const TextStyle(color: Colors.white)),
+                  : Text(s.addKey, style: const TextStyle(color: Colors.white)),
             );
           },
         ),
