@@ -8,28 +8,31 @@ class CurrencyOption {
   final String symbol;
   final String name;
 
-  const CurrencyOption(this.code, this.symbol, this.name);
+  /// Bendera negara (emoji) untuk UI pemilih mata uang.
+  final String flag;
+
+  const CurrencyOption(this.code, this.symbol, this.name, this.flag);
 }
 
 /// Mata uang dasar aplikasi. Semua saldo & total tersimpan dalam IDR.
 const String kBaseCurrency = 'IDR';
 
 const List<CurrencyOption> kSupportedCurrencies = [
-  CurrencyOption('IDR', 'Rp', 'Rupiah Indonesia'),
-  CurrencyOption('USD', r'$', 'Dolar AS'),
-  CurrencyOption('EUR', '€', 'Euro'),
-  CurrencyOption('JPY', '¥', 'Yen Jepang'),
-  CurrencyOption('SGD', 'S\$', 'Dolar Singapura'),
-  CurrencyOption('MYR', 'RM', 'Ringgit Malaysia'),
-  CurrencyOption('AUD', 'A\$', 'Dolar Australia'),
-  CurrencyOption('GBP', '£', 'Pound Sterling'),
-  CurrencyOption('CNY', '¥', 'Yuan Tiongkok'),
-  CurrencyOption('HKD', 'HK\$', 'Dolar Hong Kong'),
-  CurrencyOption('SAR', 'SR', 'Riyal Arab Saudi'),
-  CurrencyOption('AED', 'AED', 'Dirham UEA'),
-  CurrencyOption('KRW', '₩', 'Won Korea Selatan'),
-  CurrencyOption('THB', '฿', 'Baht Thailand'),
-  CurrencyOption('INR', '₹', 'Rupee India'),
+  CurrencyOption('IDR', 'Rp', 'Rupiah Indonesia', '🇮🇩'),
+  CurrencyOption('USD', r'$', 'Dolar AS', '🇺🇸'),
+  CurrencyOption('EUR', '€', 'Euro', '🇪🇺'),
+  CurrencyOption('JPY', '¥', 'Yen Jepang', '🇯🇵'),
+  CurrencyOption('SGD', 'S\$', 'Dolar Singapura', '🇸🇬'),
+  CurrencyOption('MYR', 'RM', 'Ringgit Malaysia', '🇲🇾'),
+  CurrencyOption('AUD', 'A\$', 'Dolar Australia', '🇦🇺'),
+  CurrencyOption('GBP', '£', 'Pound Sterling', '🇬🇧'),
+  CurrencyOption('CNY', '¥', 'Yuan Tiongkok', '🇨🇳'),
+  CurrencyOption('HKD', 'HK\$', 'Dolar Hong Kong', '🇭🇰'),
+  CurrencyOption('SAR', 'SR', 'Riyal Arab Saudi', '🇸🇦'),
+  CurrencyOption('AED', 'AED', 'Dirham UEA', '🇦🇪'),
+  CurrencyOption('KRW', '₩', 'Won Korea Selatan', '🇰🇷'),
+  CurrencyOption('THB', '฿', 'Baht Thailand', '🇹🇭'),
+  CurrencyOption('INR', '₹', 'Rupee India', '🇮🇳'),
 ];
 
 CurrencyOption currencyByCode(String code) {

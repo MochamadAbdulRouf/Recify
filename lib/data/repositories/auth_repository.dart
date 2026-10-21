@@ -61,7 +61,9 @@ class AuthRepository {
     return user;
   }
 
-  Future<UserModel> login({
+  /// Login manual. Return berisi [firstLogin] = apakah ini login manual
+  /// pertama untuk akun tersebut (flag DB dibaca sebelum di-flush).
+  Future<({UserModel user, bool firstLogin})> login({
     required String identifier,
     required String password,
   }) async {
@@ -76,8 +78,10 @@ class AuthRepository {
     if (user == null) throw AuthException(AuthError.userNotFound);
     final ok = PasswordHasher.verify(password, user.salt, user.passwordHash);
     if (!ok) throw AuthException(AuthError.wrongPassword);
+    final firstLogin = !user.hasLoggedIn;
     await _dbHelper.setHasLoggedIn(user.id);
-    return (await _dbHelper.getUserById(user.id)) ?? user;
+    final refreshed = (await _dbHelper.getUserById(user.id)) ?? user;
+    return (user: refreshed, firstLogin: firstLogin);
   }
 
   Future<UserModel?> getUserById(String id) => _dbHelper.getUserById(id);

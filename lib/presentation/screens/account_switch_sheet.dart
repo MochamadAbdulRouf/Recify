@@ -116,7 +116,7 @@ Future<void> _onPickAccount(
     await auth.switchTo(user);
     await finance.setUser(user.id);
     if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-    AppToast.success(s.welcomeUser(user.name));
+    AppToast.success(s.accountSwitched(user.name));
     return;
   }
   // Belum pernah login → wajib buka kunci via password dulu.
@@ -129,7 +129,7 @@ Future<void> _onPickAccount(
     if (fresh != null) {
       await finance.setUser(fresh.id);
       if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-      AppToast.success(s.welcomeUser(fresh.name));
+      AppToast.success(s.accountSwitched(fresh.name));
     } else if (sheetCtx.mounted) {
       Navigator.pop(sheetCtx);
     }

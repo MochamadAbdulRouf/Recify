@@ -52,13 +52,19 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     FocusScope.of(context).unfocus();
     try {
-      final user = await auth.login(
+      final (:user, :firstLogin) = await auth.login(
         identifier: _emailController.text,
         password: _passwordController.text,
       );
+      // Toast dipanggil tanpa cek mounted: AppToast memakai overlay global
+      // dan `s` sudah diambil di awal method — AuthGate bisa meng-unmount
+      // layar login sebetis setelah login sukses (swap ke MainShell).
+      AppToast.success(
+        firstLogin
+            ? s.loginFirstTime(user.name)
+            : s.loginWelcomeBack(user.name),
+      );
       await finance.setUser(user.id);
-      if (!mounted) return;
-      AppToast.success(s.welcomeUser(user.name));
     } on AuthException catch (e) {
       if (mounted) setState(() => _error = s.authErrorMessage(e.code));
     } catch (e) {

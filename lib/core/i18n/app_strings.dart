@@ -742,8 +742,13 @@ class AppStrings {
   String get authOfflineNote => isEn
       ? '100% Offline • No email verification needed'
       : '100% Offline • Tanpa verifikasi email';
-  String welcomeUser(String name) =>
-      isEn ? 'Welcome, $name!' : 'Selamat datang, $name!';
+  String loginFirstTime(String name) => isEn
+      ? 'Welcome to Recify, $name!'
+      : 'Selamat datang di Recify, $name!';
+  String loginWelcomeBack(String name) =>
+      isEn ? 'Welcome back, $name!' : 'Selamat datang kembali, $name!';
+  String accountSwitched(String name) =>
+      isEn ? 'Switched to $name.' : 'Beralih ke akun $name.';
   String get accountCreated =>
       isEn ? 'Account created!' : 'Akun berhasil dibuat!';
 
