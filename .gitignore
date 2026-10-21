@@ -76,3 +76,6 @@ _qv_v2.txt
 _test_out.txt
 _analyze_out.txt
 
+
+# Artefak rilis lokal (APK) — jangan di-commit, upload ke GitHub Releases
+/dist/
