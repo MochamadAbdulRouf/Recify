@@ -315,12 +315,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      CurrencyFormatter.formatRupiah(
-                          financeProvider.totalBalance),
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.primaryLight,
-                        fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: Text(
+                        CurrencyFormatter.formatRupiah(
+                            financeProvider.totalBalance),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.primaryLight,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -2842,14 +2846,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildCardGroup(List<Widget> children) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.borderSubtle),
-      ),
-      child: Column(
-        children: children,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.bgSurface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.borderSubtle),
+        ),
+        child: Column(
+          children: children,
+        ),
       ),
     );
   }

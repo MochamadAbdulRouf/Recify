@@ -8,7 +8,7 @@
 
 ## ✨ Fitur Utama
 
-- 📸 **On-Device Receipt OCR (Offline AI)**: Pindai struk belanja toko (Indomaret, Alfamart, restoran, dll.) secara instan langsung di HP menggunakan Google ML Kit tanpa perlu koneksi internet.
+- 📸 **On-Device Receipt OCR (Offline AI)**: Pindai struk belanja toko (Indomaret, Alfamart, restoran, dll.) secara instan langsung di HP dengan Google ML Kit — OCR 100% on-device; pemecahan rinci ditangani Gemini (butuh koneksi internet + API key, lihat Prasyarat).
 - 💳 **Obsidian Flux Dark Design System**: Antarmuka modern dengan palet warna OLED (*Deep Matte Obsidian*), tipografi *Plus Jakarta Sans*, dan micro-interactions yang halus.
 - 🏝️ **Floating Island Navigation**: Navigasi pulau melayang dengan efek frosted glass dan tombol kamera elevated.
 - 📊 **Statistik & Analisis Keuangan**: Visualisasi pengeluaran riil per kategori dan arus kas bulanan secara dinamis.
@@ -35,8 +35,9 @@
 ## 🚀 Memulai (Getting Started)
 
 ### Prasyarat:
-- Flutter SDK (v3.20.0 atau lebih baru)
+- Flutter SDK (v3.38.1 atau lebih baru — dipresyaratkan `flutter_local_notifications` 22.x)
 - Android SDK & JDK 17
+- API key Gemini dari [aistudio.google.com](https://aistudio.google.com/app/apikey), masukkan di dalam app: Settings → Gemini API Keys
 - Perangkat fisik Android atau Emulator Android (minSdk 21 / Android 5.0+)
 
 ### Langkah Instalasi:
@@ -67,7 +68,7 @@ lib/
 │   ├── theme/           # Obsidian Flux theme tokens, AppColors, AppTypography
 │   └── utils/           # CurrencyFormatter, DateFormatter, CurrencyInputFormatter
 ├── data/
-│   ├── database/        # SQLite DatabaseHelper & skema tabel lokal
+│   ├── local/        # SQLite DatabaseHelper & skema tabel lokal
 │   ├── models/          # Transaction, Category, Wallet, ParsedReceipt models
 │   └── repositories/    # FinanceRepository & ReceiptArchiveManager
 ├── domain/
