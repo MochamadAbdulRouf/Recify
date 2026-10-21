@@ -77,16 +77,16 @@ class AuthProvider with ChangeNotifier {
     return user;
   }
 
-  Future<UserModel> login({
+  Future<({UserModel user, bool firstLogin})> login({
     required String identifier,
     required String password,
   }) async {
-    final user =
+    final result =
         await _repository.login(identifier: identifier, password: password);
-    _user = user;
-    await _persistSession(user.id);
+    _user = result.user;
+    await _persistSession(result.user.id);
     notifyListeners();
-    return user;
+    return result;
   }
 
   /// Keluar: sesi dihapus, data akun tetap tersimpan di perangkat.

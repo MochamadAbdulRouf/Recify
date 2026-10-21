@@ -358,6 +358,11 @@ class AppStrings {
   String get notifUncategorizedBody => isEn
       ? 'Tap to categorize so reports stay accurate'
       : 'Ketuk untuk memberi kategori agar laporan akurat';
+  String get notifTapOtherAccount => isEn
+      ? 'Account that owns this transaction is missing'
+      : 'Akun pemilik transaksi tidak ditemukan';
+  String get notifTapAccountLocked =>
+      isEn ? 'That account is locked' : 'Akun tersebut terkunci';
 
   // ── General ──
   String get umum => isEn ? 'General' : 'Umum';
@@ -742,8 +747,13 @@ class AppStrings {
   String get authOfflineNote => isEn
       ? '100% Offline • No email verification needed'
       : '100% Offline • Tanpa verifikasi email';
-  String welcomeUser(String name) =>
-      isEn ? 'Welcome, $name!' : 'Selamat datang, $name!';
+  String loginFirstTime(String name) => isEn
+      ? 'Welcome to Recify, $name!'
+      : 'Selamat datang di Recify, $name!';
+  String loginWelcomeBack(String name) =>
+      isEn ? 'Welcome back, $name!' : 'Selamat datang kembali, $name!';
+  String accountSwitched(String name) =>
+      isEn ? 'Switched to $name.' : 'Beralih ke akun $name.';
   String get accountCreated =>
       isEn ? 'Account created!' : 'Akun berhasil dibuat!';
 
@@ -810,4 +820,15 @@ class AppStrings {
   String unlockSubtitle(String name) => isEn
       ? 'Enter the password for $name to switch.'
       : 'Masukkan kata sandi $name untuk berpindah.';
+
+  // ── Kurs Valas / Multi-Currency ──
+  String get currencyLabel =>
+      isEn ? 'Currency' : 'Mata Uang';
+  String get rateUnavailable => isEn
+      ? 'Exchange rate unavailable. Connect to the internet once to fetch rates.'
+      : 'Kurs tidak tersedia. Sambungkan internet sekali untuk mengambil kurs.';
+  String get rateRefresh => isEn ? 'Refresh rate' : 'Muat ulang kurs';
+  String get rateSectionTitle => isEn ? 'Exchange Rates' : 'Kurs Valas';
+  String get rateBaseCurrency =>
+      isEn ? 'Base currency' : 'Mata uang dasar';
 }

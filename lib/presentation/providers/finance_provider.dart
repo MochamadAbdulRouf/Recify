@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +12,7 @@ import '../../core/utils/trend_calculator.dart';
 import '../../domain/backup/backup_manager.dart';
 import '../../domain/export/report_exporter.dart';
 import '../../domain/notifications/notification_builder.dart';
+import '../services/transaction_notification_service.dart';
 
 class FinanceProvider with ChangeNotifier {
   final FinanceRepository _repository = FinanceRepository();
@@ -258,6 +260,21 @@ class FinanceProvider with ChangeNotifier {
   ) async {
     await _repository.recordTransaction(_uid, transaction, items);
     await loadInitialData();
+    // Best-effort notifikasi sistem transaksi baru; service sendiri yang
+    // men-skip TRANSFER dan izin ditolak. Tanpa await agar save tetap cepat.
+    unawaited(TransactionNotificationService.I.notifyTransactionSaved(
+      tx: transaction,
+      userId: _uid,
+      accountName: walletNameById(transaction.walletId) ?? '',
+    ));
+  }
+
+  /// Nama dompet berdasarkan id; null bila tidak ada (mis. dompet dihapus).
+  String? walletNameById(String walletId) {
+    for (final w in _wallets) {
+      if (w.id == walletId) return w.name;
+    }
+    return null;
   }
 
   Future<void> deleteTransaction(TransactionModel transaction) async {

@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/i18n/app_strings.dart';
+import '../../core/services/exchange_rate_service.dart';
 import '../../core/services/profile_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
@@ -21,6 +22,7 @@ import '../components/app_toast.dart';
 import '../components/budget_progress_bar.dart';
 import '../components/glass_panel.dart';
 import '../components/sticky_frosted_app_bar.dart';
+import '../providers/exchange_rate_provider.dart';
 import '../providers/finance_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
@@ -313,12 +315,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      CurrencyFormatter.formatRupiah(
-                          financeProvider.totalBalance),
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.primaryLight,
-                        fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: Text(
+                        CurrencyFormatter.formatRupiah(
+                            financeProvider.totalBalance),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.primaryLight,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -515,6 +521,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 trailing: Icon(Icons.chevron_right_rounded,
                     color: AppColors.textSecondary, size: 18),
                 onTap: () => _showBudgetSheet(context, financeProvider),
+              ),
+            ]),
+
+            const SizedBox(height: 22),
+
+            // Row kurs valas: tanggal kurs terakhir + tombol refresh.
+            _buildCardGroup([
+              Builder(
+                builder: (context) {
+                  final fx = context.watch<ExchangeRateProvider>();
+                  final hasRate = fx.date != null &&
+                      (fx.status == RateStatus.fresh ||
+                          fx.status == RateStatus.stale);
+                  return _buildSettingItem(
+                    icon: Icons.currency_exchange_rounded,
+                    iconColor: AppColors.meshCyan,
+                    title: s.rateSectionTitle,
+                    subtitle: hasRate ? fx.ageLabel : s.rateUnavailable,
+                    trailing: fx.loading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(Icons.refresh_rounded,
+                            size: 20, color: AppColors.textSecondary),
+                    onTap: () async {
+                      final rates = context.read<ExchangeRateProvider>();
+                      if (rates.loading) return;
+                      await rates.refreshIfStale(force: true);
+                      if (!context.mounted) return;
+                      final after = context.read<ExchangeRateProvider>();
+                      if (after.status == RateStatus.fresh) {
+                        AppToast.success(AppStrings.of(context).rateRefresh);
+                      } else {
+                        AppToast.error(AppStrings.of(context).rateUnavailable);
+                      }
+                    },
+                  );
+                },
               ),
             ]),
 
@@ -2800,14 +2846,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildCardGroup(List<Widget> children) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.borderSubtle),
-      ),
-      child: Column(
-        children: children,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.bgSurface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.borderSubtle),
+        ),
+        child: Column(
+          children: children,
+        ),
       ),
     );
   }

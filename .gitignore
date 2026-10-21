@@ -70,6 +70,12 @@ Pasted image*.png
 .claude/skills/flutter-analyze-bracket-fix/SKILL.md
 .claude/settings.json
 
+# file paste
+_mts_v2.txt
+_qv_v2.txt
+_test_out.txt
+_analyze_out.txt
 
 
-
+# Artefak rilis lokal (APK) — jangan di-commit, upload ke GitHub Releases
+/dist/

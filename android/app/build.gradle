@@ -11,6 +11,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Wajib utk flutter_local_notifications 22: core library desugaring.
+        coreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -24,10 +26,17 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.debug
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                    'proguard-rules.pro'
         }
     }
 }
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Desugaring utk flutter_local_notifications 22.
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
 }

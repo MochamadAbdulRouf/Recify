@@ -6,6 +6,7 @@ import '../../core/theme/app_typography.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../components/pressable.dart';
 import '../providers/auth_provider.dart';
+import '../providers/finance_provider.dart';
 import 'credentials_screen.dart';
 
 /// Daftar akun lokal. Konten khusus signup: nama + email + password +
@@ -185,7 +186,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   children: [
                     Text(s.haveAccount, style: AppTypography.caption),
                     GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
+                      onTap: () async {
+                        // "Sudah punya akun" → ke LoginScreen. Bila dipush
+                        // dari switch sheet dengan sesi aktif, akhiri sesi
+                        // dulu agar AuthGate menampilkan login, bukan app
+                        // akun sebelumnya; pop saja cukup bila masuk dari
+                        // LoginScreen.
+                        final auth = context.read<AuthProvider>();
+                        final finance = context.read<FinanceProvider>();
+                        if (auth.isLoggedIn) {
+                          finance.clearUser();
+                          await auth.logout();
+                        }
+                        if (!context.mounted) return;
+                        Navigator.of(context).popUntil((route) => route.isFirst);
+                      },
                       child: Text(s.loginButton,
                           style: AppTypography.caption.copyWith(
                               color: AppColors.primaryLight,

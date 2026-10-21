@@ -727,6 +727,8 @@ class ScannerProvider with ChangeNotifier {
     required String userId,
     required String walletId,
     String? customNotes,
+    String currency = 'IDR',
+    double? rate,
   }) async {
     if (_parsedData == null) {
       debugPrint('❌ saveVerifiedTransaction: No parsed data available');
@@ -741,12 +743,20 @@ class ScannerProvider with ChangeNotifier {
       }
 
       final txId = const Uuid().v4();
+      // Nominal asing dikonversi ke IDR sebelum dicatat; `rate` = kurs
+      // 1 IDR dalam `currency` (dari ExchangeRateProvider.rateFor).
+      final grandTotal = _parsedData!.grandTotal;
+      final amountIdr = (currency == 'IDR' || rate == null || rate == 0)
+          ? grandTotal
+          : grandTotal / rate;
+
       final transaction = TransactionModel(
         id: txId,
         walletId: walletId,
         categoryId: _parsedData!.suggestedCategory,
         type: 'EXPENSE',
-        amount: _parsedData!.grandTotal,
+        amount: amountIdr,
+        currency: currency,
         transactionDate: _parsedData!.transactionDate.millisecondsSinceEpoch,
         merchantName: _parsedData!.merchantName,
         receiptImagePath: archivedPath,

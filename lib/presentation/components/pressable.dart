@@ -10,11 +10,17 @@ class PressableScale extends StatefulWidget {
     required this.child,
     this.onTap,
     this.scale = 0.97,
+    this.behavior = HitTestBehavior.deferToChild,
   });
 
   final Widget child;
   final VoidCallback? onTap;
   final double scale;
+
+  /// Perilaku hit-test [GestureDetector]-nya. Default deferToChild supaya area
+  /// transparan tidak ikut kena; set [HitTestBehavior.opaque] untuk target
+  /// penuh (nav bar, dsb).
+  final HitTestBehavior behavior;
 
   @override
   State<PressableScale> createState() => _PressableScaleState();
@@ -26,7 +32,8 @@ class _PressableScaleState extends State<PressableScale> {
   @override
   Widget build(BuildContext context) {
     if (MediaQuery.disableAnimationsOf(context)) {
-      return GestureDetector(onTap: widget.onTap, child: widget.child);
+      return GestureDetector(
+          behavior: widget.behavior, onTap: widget.onTap, child: widget.child);
     }
     return Listener(
       behavior: HitTestBehavior.translucent,
@@ -37,7 +44,8 @@ class _PressableScaleState extends State<PressableScale> {
         scale: _down ? widget.scale : 1.0,
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOutCubic,
-        child: GestureDetector(onTap: widget.onTap, child: widget.child),
+        child: GestureDetector(
+            behavior: widget.behavior, onTap: widget.onTap, child: widget.child),
       ),
     );
   }

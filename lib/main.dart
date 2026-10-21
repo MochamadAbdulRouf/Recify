@@ -5,6 +5,7 @@ import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/components/app_toast.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/exchange_rate_provider.dart';
 import 'presentation/providers/finance_provider.dart';
 import 'presentation/providers/locale_provider.dart';
 import 'presentation/providers/scanner_provider.dart';
@@ -68,6 +69,16 @@ class _RecifyAppState extends State<RecifyApp> with WidgetsBindingObserver {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // App aktif kembali → cek kurs terbaru (tanpa blokir UI). Refresh
+    // di-guard di dalam provider bila masih fresh.
+    if (state == AppLifecycleState.resumed) {
+      final rates = Provider.of<ExchangeRateProvider>(context, listen: false);
+      rates.refreshIfStale();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
@@ -85,6 +96,11 @@ class _RecifyAppState extends State<RecifyApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider(
           create: (_) => LocaleProvider()..load(),
+        ),
+        // Kurs valas: init muat cache lalu refresh bila perlu. Resume hook
+        // di didChangeAppLifecycleState memicu refresh saat app aktif lagi.
+        ChangeNotifierProvider(
+          create: (_) => ExchangeRateProvider()..init(),
         ),
       ],
       child: Consumer<ThemeProvider>(
