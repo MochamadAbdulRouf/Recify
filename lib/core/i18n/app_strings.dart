@@ -358,6 +358,11 @@ class AppStrings {
   String get notifUncategorizedBody => isEn
       ? 'Tap to categorize so reports stay accurate'
       : 'Ketuk untuk memberi kategori agar laporan akurat';
+  String get notifTapOtherAccount => isEn
+      ? 'Account that owns this transaction is missing'
+      : 'Akun pemilik transaksi tidak ditemukan';
+  String get notifTapAccountLocked =>
+      isEn ? 'That account is locked' : 'Akun tersebut terkunci';
 
   // ── General ──
   String get umum => isEn ? 'General' : 'Umum';
