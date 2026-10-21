@@ -33,7 +33,7 @@ class FloatingIslandNavBar extends StatelessWidget {
               filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceDim.withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(32),
@@ -130,26 +130,34 @@ class FloatingIslandNavBar extends StatelessWidget {
     final isSelected = currentIndex == index;
     return Expanded(
       child: PressableScale(
+        // opaque: seluruh sel tab jadi zona tap — termasuk sisa kosong atas/
+        // bawah ikon. Tanpa ini tap yang kurang presisi dari ikon diabaikan
+        // ("kadang perlu 2x tap" yang dilaporkan user).
+        behavior: HitTestBehavior.opaque,
         onTap: () => onTabSelected(index),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              size: 22,
-              color:
-                  isSelected ? AppColors.primaryLight : AppColors.textSecondary,
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: AppTypography.labelMd.copyWith(
-                color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                fontSize: 10,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 52),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isSelected ? activeIcon : icon,
+                size: 26,
+                color:
+                    isSelected ? AppColors.primaryLight : AppColors.textSecondary,
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: AppTypography.labelMd.copyWith(
+                  color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -24,6 +25,9 @@ class _MainShellScreenState extends State<MainShellScreen> {
   int _currentIndex = 0;
 
   void _onTabSelected(int index) {
+    // Umpan balik taktil: tanpa ini tap yang "meleset"/tab aktif terasa mati,
+    // user lalu mengetuk ulang.
+    HapticFeedback.selectionClick();
     if (_currentIndex == index) return;
     setState(() {
       _currentIndex = index;
