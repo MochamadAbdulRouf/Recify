@@ -43,6 +43,7 @@ dependencies:
   # Local Export & Excel
   csv: ^6.0.0
   excel: ^4.0.6
+  flutter_local_notifications: ^22.3.2
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.4
