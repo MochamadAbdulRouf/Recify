@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/constants/currencies.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/transaction_model.dart';
+import '../providers/exchange_rate_provider.dart';
 import '../providers/finance_provider.dart';
 
 class TransactionDetailScreen extends StatelessWidget {
@@ -79,7 +81,7 @@ class TransactionDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    (isExpense ? '-' : '+') + CurrencyFormatter.formatRupiah(transaction.amount),
+                    _amountText(context),
                     style: AppTypography.displayLg.copyWith(
                       color: isExpense ? AppColors.error : AppColors.secondary,
                       fontWeight: FontWeight.w700,
@@ -145,13 +147,13 @@ class TransactionDetailScreen extends StatelessWidget {
                         children: [
                           Text(item.itemName, style: AppTypography.bodyBold),
                           Text(
-                            '${item.quantity.toInt()} x ${CurrencyFormatter.formatRupiah(item.unitPrice)}',
+                            '${item.quantity.toInt()} x ${_itemPriceText(item.unitPrice)}',
                             style: AppTypography.caption,
                           ),
                         ],
                       ),
                       Text(
-                        CurrencyFormatter.formatRupiah(item.totalPrice),
+                        _itemPriceText(item.totalPrice),
                         style: AppTypography.bodyBold,
                       ),
                     ],
@@ -165,6 +167,31 @@ class TransactionDetailScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Teks nominal sesuai mata uang transaksi. Transaksi asing tampil
+  /// nominal aslinya ($10.00) via reverse-convert; IDR format lama.
+  String _amountText(BuildContext context) {
+    final isIncome = transaction.type == 'INCOME';
+    final currency = transaction.currency;
+    final rate = context.watch<ExchangeRateProvider>().rateFor(currency);
+    final originalAmount = (currency == kBaseCurrency || rate == null)
+        ? null
+        : transaction.amount * rate;
+    return (isIncome ? '+' : '-') +
+        CurrencyFormatter.formatTransaction(
+          transaction.amount,
+          currency,
+          originalAmount: originalAmount,
+        );
+  }
+
+  /// Harga item tersimpan dalam mata uang asli transaksi.
+  String _itemPriceText(double price) {
+    final currency = transaction.currency;
+    return currency == kBaseCurrency
+        ? CurrencyFormatter.formatRupiah(price)
+        : CurrencyFormatter.formatForeign(price, currency);
   }
 
   Widget _buildMetaRow(String label, String value, IconData icon) {

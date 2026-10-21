@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/constants/currencies.dart';
 import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
@@ -15,8 +16,10 @@ import '../../data/models/wallet_model.dart';
 import '../components/app_toast.dart';
 import '../components/glass_panel.dart';
 import '../components/sticky_frosted_app_bar.dart';
+import '../providers/exchange_rate_provider.dart';
 import '../providers/finance_provider.dart';
 import '../components/pressable.dart';
+import '../widgets/currency_picker_field.dart';
 
 class ManualTransactionScreen extends StatefulWidget {
   const ManualTransactionScreen({super.key});
@@ -28,6 +31,7 @@ class ManualTransactionScreen extends StatefulWidget {
 class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _titleController = TextEditingController();
+  String _selectedCurrency = kBaseCurrency;
   final TextEditingController _notesController = TextEditingController();
 
   DateTime _selectedDate = DateTime.now();
@@ -183,16 +187,14 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
                       // Large numeric input
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text(
-                            'Rp',
-                            style: AppTypography.headlineMd.copyWith(
-                              fontSize: 32,
-                              color: amountColor,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          CurrencyPickerField(
+                            value: _selectedCurrency,
+                            onChanged: (v) =>
+                                setState(() => _selectedCurrency = v),
+                            textColor: amountColor,
+                            fontSize: 32,
                           ),
                           const SizedBox(width: 10),
                           Flexible(
@@ -652,10 +654,21 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
   void _saveTransaction() async {
     final s = AppStrings.of(context);
     final cleanDigits = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
-    final amount = double.tryParse(cleanDigits) ?? 0.0;
+    var amount = double.tryParse(cleanDigits) ?? 0.0;
     if (amount <= 0) {
       AppToast.error(s.errAmount);
       return;
+    }
+
+    if (_selectedCurrency != kBaseCurrency) {
+      final converted = context
+          .read<ExchangeRateProvider>()
+          .toBase(amount, _selectedCurrency);
+      if (converted == null) {
+        AppToast.error(s.rateUnavailable);
+        return;
+      }
+      amount = converted;
     }
 
     if (_selectedCategory == null || _selectedWallet == null) {
@@ -672,6 +685,7 @@ class _ManualTransactionScreenState extends State<ManualTransactionScreen> {
       walletId: _selectedWallet!.id,
       categoryId: _selectedCategory!.id,
       amount: amount,
+      currency: _selectedCurrency,
       type: _transactionType,
       merchantName: merchantName,
       transactionDate: _selectedDate.millisecondsSinceEpoch,

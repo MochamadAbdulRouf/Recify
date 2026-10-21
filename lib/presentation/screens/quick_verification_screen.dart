@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/constants/currencies.dart';
 import '../../core/i18n/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
@@ -16,8 +17,10 @@ import '../../data/models/transaction_model.dart';
 import '../../data/models/wallet_model.dart';
 import '../components/app_toast.dart';
 import '../components/glass_panel.dart';
+import '../providers/exchange_rate_provider.dart';
 import '../providers/finance_provider.dart';
 import '../providers/scanner_provider.dart';
+import '../widgets/currency_picker_field.dart';
 import '../components/pressable.dart';
 
 class QuickVerificationScreen extends StatefulWidget {
@@ -37,6 +40,7 @@ class QuickVerificationScreen extends StatefulWidget {
 
 class _QuickVerificationScreenState extends State<QuickVerificationScreen>
     with SingleTickerProviderStateMixin {
+  String _selectedCurrency = kBaseCurrency;
   late TextEditingController _merchantController;
   late TextEditingController _amountController;
   late TextEditingController _notesController;
@@ -265,14 +269,14 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
                                       const SizedBox(height: 2),
                                       Row(
                                         children: [
-                                          Text(
-                                            'Rp ',
-                                            style: AppTypography.titleSm
-                                                .copyWith(
-                                                    color: AppColors.isLight
-                                                        ? Colors.white
-                                                        : AppColors
-                                                            .textSecondary),
+                                          CurrencyPickerField(
+                                            value: _selectedCurrency,
+                                            onChanged: (v) => setState(
+                                                () => _selectedCurrency = v),
+                                            textColor: AppColors.isLight
+                                                ? Colors.white
+                                                : AppColors.textSecondary,
+                                            fontSize: 18,
                                           ),
                                           Expanded(
                                             child: Focus(
@@ -1524,12 +1528,23 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
 
   void _saveTransaction() async {
     final s = AppStrings.of(context);
-    final amount = double.tryParse(
+    var amount = double.tryParse(
             _amountController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
         0.0;
     if (amount <= 0) {
       AppToast.error(s.errAmountZero);
       return;
+    }
+
+    if (_selectedCurrency != kBaseCurrency) {
+      final converted = context
+          .read<ExchangeRateProvider>()
+          .toBase(amount, _selectedCurrency);
+      if (converted == null) {
+        AppToast.error(s.rateUnavailable);
+        return;
+      }
+      amount = converted;
     }
     if (_selectedCategory == null) {
       AppToast.error(s.errPickCategory);
@@ -1547,6 +1562,7 @@ class _QuickVerificationScreenState extends State<QuickVerificationScreen>
         walletId: _selectedWallet!.id,
         categoryId: _selectedCategory!.id,
         amount: amount,
+        currency: _selectedCurrency,
         type: 'EXPENSE',
         merchantName: _merchantController.text.trim(),
         receiptImagePath: widget.receiptImagePath,

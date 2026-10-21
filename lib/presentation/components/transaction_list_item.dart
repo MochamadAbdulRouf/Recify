@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/i18n/app_strings.dart';
+import '../../core/constants/currencies.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/transaction_model.dart';
+import '../providers/exchange_rate_provider.dart';
 import 'pressable.dart';
 
 class TransactionListItem extends StatelessWidget {
@@ -21,8 +24,19 @@ class TransactionListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = AppStrings.of(context);
     final isIncome = transaction.type == 'INCOME';
+    // Nominal asing ditampilkan apa adanya ($10.00), bukan hasil konversi.
+    final currency = transaction.currency;
+    final rate = context.watch<ExchangeRateProvider>().rateFor(currency);
+    final originalAmount =
+        (currency == kBaseCurrency || rate == null)
+            ? null
+            : transaction.amount * rate;
     final amountText = (isIncome ? '+' : '-') +
-        CurrencyFormatter.formatRupiah(transaction.amount);
+        CurrencyFormatter.formatTransaction(
+          transaction.amount,
+          currency,
+          originalAmount: originalAmount,
+        );
     final dateStr =
         DateFormatter.formatRelative(transaction.transactionDate, isEn: s.isEn);
 
