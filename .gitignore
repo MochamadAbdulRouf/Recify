@@ -66,9 +66,8 @@ Pasted image*.png
 .mcp.json
 
 
-## Skill Agent 
-.claude/skills/flutter-analyze-bracket-fix/SKILL.md
-.claude/settings.json
+# Skill Agent (lokal saja — jangan ke-push)
+.claude/
 
 # file paste
 _mts_v2.txt
