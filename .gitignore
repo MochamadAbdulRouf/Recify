@@ -42,7 +42,6 @@ android/app/*.keystore
 android/key.properties
 
 # Secrets & Credentials & Local Configurations
-.agents/mcp_config.json
 mcp_config.json
 *.env
 *.env.*
@@ -59,6 +58,15 @@ implementation_plan_ocr-v1
 
 # Agent workspace (plans, scratch notes)
 .hermes/
+# Agent skills/plugins, file planning & aset lokal — jangan ke-push
+.agents/
+AGENTS.md
+DESIGN.md
+PRD_Smart_Receipt_Scanner.md
+app_flow-core_feature.md
+history-1.md
+ui_ux-planning.md
+screen.png
 # Pasted reference screenshots (jangan sampai ke-push)
 Pasted image*.png
 
@@ -66,9 +74,8 @@ Pasted image*.png
 .mcp.json
 
 
-## Skill Agent 
-.claude/skills/flutter-analyze-bracket-fix/SKILL.md
-.claude/settings.json
+# Skill Agent (lokal saja — jangan ke-push)
+.claude/
 
 # file paste
 _mts_v2.txt
