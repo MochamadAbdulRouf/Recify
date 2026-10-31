@@ -1,7 +1,7 @@
 # Recify — Smart Offline-First Expense Tracker & Receipt OCR
 
 <p align="center">
-  A private, offline-first personal finance app for Android with 100% on-device receipt OCR (Google ML Kit). No cloud, no online account — your data never leaves the phone.
+  A private, offline-first personal finance app for Android with 100% on-device receipt OCR (Google ML Kit). No cloud, no online account — your data never leaves the phone. Fully open source under MIT.
 </p>
 
 ---
@@ -125,4 +125,16 @@ Prebuilt binaries are available on the [Releases](https://github.com/MochamadAbd
 ---
 
 ## License
-Copyright © 2026 **Recify**. Licensed under the [MIT License](LICENSE).
+
+Recify is an **open source project** — all source code is public and released under the [MIT License](LICENSE).
+
+That means you are free to use, copy, modify, merge, publish, distribute, sublicense, and even sell copies of this app, provided that the license notice is kept. The only thing you may not hold us liable for is the software itself (see the full license for details).
+
+## Contributing
+
+Contributions are welcome — bug reports, feature ideas, translations, and pull requests. The easiest way to get started:
+
+1. Fork and clone the repository
+2. `flutter pub get`
+3. `flutter run` and experiment
+4. Open a pull request with a clear description of the change
